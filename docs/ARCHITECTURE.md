@@ -33,6 +33,7 @@ Other files:
 | Path | What it is |
 | --- | --- |
 | `site/i18n/it.js` | Italian dictionary: English text → Italian, loaded when the language is `it` |
+| `site/i18n/de.js` | German dictionary: English text → German, loaded when the language is `de` |
 | `site/sw.js` | Service worker: network-first for pages, stale-while-revalidate for assets. Cache name is stamped with the version |
 | `site/site.webmanifest`, icons | PWA install metadata |
 | `scripts/build.sh` | Copies `site/` to `_site/`, stamps `__VERSION__`/`__BUILD_DATE__`, bakes release notes, writes `version.json` |

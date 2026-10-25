@@ -7,7 +7,7 @@ description: Add or change player-facing text in Series of Tubes and keep every 
 
 The English text is the translation key. Every string a player can see must go
 through the translation helpers and have an entry in every dictionary in `site/i18n/`
-(currently `it.js`, Italian).
+(currently `it.js`, Italian, and `de.js`, German).
 
 ## In the code
 
@@ -23,8 +23,9 @@ through the translation helpers and have an entry in every dictionary in `site/i
 
 ## In the dictionary
 
-`site/i18n/it.js` is one object, `"English": "Italiano",` per line, ending with `};`.
-Append new entries before the closing `};`. A small script avoids quoting mistakes:
+Each dictionary is one object, `"English": "Translation",` per line, ending with `};`.
+Append new entries before the closing `};` of every file. A small script avoids quoting mistakes
+(run it once per language, with `q` and the dict changed):
 
 ```python
 import json
@@ -44,6 +45,14 @@ remove text, delete its entry.
 Natural, friendly Italian, informal "tu". Keep networking terms that Italian engineers
 use in English (peering, transit, router, POP, PNI, LAG, dark fiber). Translate puns
 into an Italian joke when one fits; otherwise keep the pun name and translate the rest.
+
+## German style
+
+Natural, friendly German, informal "du". Keep the networking terms German engineers say in
+English (Peering, Transit, Router, POP, PNI, LAG, Dark Fiber, Wave, Backbone, Eyeballs), with
+German articles and compounds ("die Wave", "Transit-Rechnung"). Tabs keep their English names
+("Tab Infra", "Tab Deals"). Money stays as the game prints it (`$20k`); percentages get a space
+(`30 %`). Keep pun names; translate the joke around them.
 
 ## Check
 

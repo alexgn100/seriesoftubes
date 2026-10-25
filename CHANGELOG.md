@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Series of Tubes now speaks German. The game follows your browser's language the first time, and you can switch between English, Italian and German on the title screen or under Settings.
 - Your own subsea cables now run much faster optics over long distances (#66). Subsea fiber is built for its whole route, so optics reach about half as far again as on land: Paris–Ashburn gets 1.2T per channel instead of 400G, and the 1.6T transponder gains a 1.2T long-haul setting on land too.
 - Leased subsea waves now follow the same physics as your own cables (#68). A wave can only be as fast as its cable's length allows: transatlantic still takes 6.4T, the longest transpacific cables top out at 400G or 800G. Waves you already have keep running.
 - You can lay your own subsea cable between two landing stations that also share a landmass, like Marseille–Singapore or Cairo–Palermo (#67).
