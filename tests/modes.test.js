@@ -389,7 +389,7 @@ test('DKNOG in Copenhagen is on the conference calendar', () => {
 });
 
 test('the Signal group is linked from the title screen, the menu and How to play, in every language', () => {
-  for (const lang of ['en', 'it', 'pt', 'de']) {
+  for (const lang of ['en', 'it', 'pt', 'de', 'fr']) {
     const { ev, errors } = load(lang === 'en' ? {} : { lang });
     const links = (setup) => ev(`(()=>{${setup};return [...document.querySelectorAll('#modal a[href^="https://signal.group/#"]')].map(a=>a.target+'|'+a.rel+'|'+a.textContent.trim()).join('\\n');})()`);
     const title = links('showTitle()');
@@ -402,4 +402,29 @@ test('the Signal group is linked from the title screen, the menu and How to play
     }
     assert.deepEqual(errors, []);
   }
+});
+
+test('#114 Only Spätzle-IX can be won by peering alone', () => {
+  const { ev, errors } = load();
+  ev("ACT.startScn({id:'stg',sure:1})");
+  assert.equal(ev("scnRule('local')&&scnRule('noTransit')"), true);
+  assert.match(ev("SCN.find(x=>x.id==='stg').goal"), /45%.*300 Gbps/);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(scnProg().items.map(x=>x.max))")), [0.45, 300]);
+  // a game saved before the fix picks the rule up on load
+  ev("const o=JSON.parse(JSON.stringify(S));delete o.scn.rules.local;migrate(o);window.__mig=o.scn.rules.local");
+  assert.equal(ev('window.__mig'), true);
+  // peering only, Stuttgart and Frankfurt: broadband grows instead of draining away
+  ev("S.cash=1e7;ACT.buyIx({city:'stg',tier:1,signed:true});ACT.peerAll({city:'stg'});ACT.launchBB({city:'stg'})");
+  ev("ACT.buildPop({city:'fra'});UI.via=null;openLinkModal('stg','fra');ACT.buildLink({tier:1});closeModal();for(const x of ixIdsIn('fra'))ACT.buyIx({city:x,tier:1,signed:true});ACT.launchBB({city:'fra'})");
+  const tick = (n) => { for (let i = 0; i < n; i++) { ev('dayTick()'); if (i % 5 === 0) ev("for(const x of Object.keys(S.ixp))ACT.peerAll({city:x})"); } };
+  tick(20);
+  const early = ev('R.served');
+  assert.ok(ev('R.reach') < 0.9, 'far from the whole internet');
+  tick(60);
+  assert.ok(ev('R.served') > early * 1.5, `customers stay and grow (${early.toFixed(1)} → ${ev('R.served').toFixed(1)} Gbps)`);
+  assert.ok(ev("sfOf(R,'stg')") >= 0.9);
+  // the rule stays inside this scenario
+  ev("ACT.start({})");
+  assert.equal(ev("scnRule('local')"), false);
+  assert.deepEqual(errors, []);
 });
