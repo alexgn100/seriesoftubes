@@ -44,7 +44,7 @@ open site/index.html          # or: npm run serve
 
 Progress is saved in your browser's local storage.
 
-The game speaks English, Italian, Portuguese and German. It follows your browser's language the first time
+The game speaks English, Italian, Portuguese, German and French. It follows your browser's language the first time
 and remembers the one you pick under Settings or on the title screen.
 
 Or in Docker, built the same way as a release and served by nginx on port 8080:
@@ -69,6 +69,7 @@ site/                  everything that is deployed
   i18n/it.js           Italian translation, loaded only when the game runs in Italian
   i18n/pt.js           Portuguese (Brazil) translation, loaded only when the game runs in Portuguese
   i18n/de.js           German translation, loaded only when the game runs in German
+  i18n/fr.js           French translation, loaded only when the game runs in French
   images/og-image.png  social preview (1200×630)
   favicon.*, icon-*    favicons, app icons, manifest
   robots.txt, sitemap.xml, llms.txt, 404.html, CNAME

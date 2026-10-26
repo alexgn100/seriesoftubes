@@ -59,6 +59,7 @@ test('the game starts in English unless the player or the browser asks for anoth
   assert.equal(load().ev('LANG'), 'en');
   assert.equal(load({ navigatorLanguage: 'it-IT' }).ev('SOT_LANG'), 'it', 'an Italian browser asks for Italian');
   assert.equal(load({ navigatorLanguage: 'pt-BR' }).ev('SOT_LANG'), 'pt', 'a Brazilian browser asks for Portuguese');
+  assert.equal(load({ navigatorLanguage: 'fr-FR' }).ev('SOT_LANG'), 'fr', 'a French browser asks for French');
   const it = load({ lang: 'it' });
   assert.equal(it.ev('LANG'), 'it');
   assert.equal(it.ev('document.documentElement.lang'), 'it');
@@ -90,7 +91,7 @@ for (const lang of ['it', 'pt', 'de']) {
 
 test('every language offered on the title screen has a dictionary, and the offline cache holds it', () => {
   const langs = Object.keys(load().ev('LANGS')).filter((l) => l !== 'en');
-  assert.deepEqual(langs, ['it', 'pt', 'de']);
+  assert.deepEqual(langs, ['it', 'pt', 'de', 'fr']);
   const sw = require('node:fs').readFileSync(path.join(__dirname, '..', 'site', 'sw.js'), 'utf8');
   for (const l of langs) {
     assert.ok(Object.keys(loadDict(path.join(__dirname, '..', 'site', 'i18n', `${l}.js`))).length > 100, l);
@@ -125,7 +126,7 @@ test('a scenario started in English shows its Italian name after switching', () 
   assert.ok(ev("document.getElementById('hAsn').textContent").includes(name));
 });
 
-for (const lang of ['en', 'it', 'pt', 'de']) {
+for (const lang of ['en', 'it', 'pt', 'de', 'fr']) {
   test(`${lang}: every screen, failure and event renders without errors or unfilled placeholders`, () => {
     const { ev, errors } = load(lang === 'en' ? {} : { lang });
     seed(ev, 3);
@@ -136,6 +137,11 @@ for (const lang of ['en', 'it', 'pt', 'de']) {
     if (lang === 'de') {
       assert.match(ev("document.getElementById('modalCard').textContent"), /So wird gespielt/);
       assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Kasse · Bank');
+    }
+    if (lang === 'fr') {
+      assert.match(ev("document.getElementById('modalCard').textContent"), /Comment jouer/);
+      // short enough to stay on one line in the phone's top bar (Caisse · Banque wrapped and cut off the monthly line)
+      assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Cash · Banque');
     }
     const { thrown, leaks } = tour(ev);
     assert.ok(ev('(S.stats.f||{}).anchor'), 'Baltic and Red Sea anchors count for the badge in every language');
