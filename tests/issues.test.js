@@ -1206,3 +1206,72 @@ test('#111 #121 #12 the road to Tier 1: what is missing, and where to meet each 
   dom.window.innerWidth = 360; ev("ACT.netFilter({f:'out'});renderAll&&renderAll()");
   assert.deepEqual(errors, []);
 });
+
+test('#113 Red Sea Crisis wants traffic into Asia for a month, not broadband and a thin path on day 0', () => {
+  const { ev, errors } = load();
+  ev("UI.pitched=true;ACT.startScn({id:'redsea',sure:1});closeModal();S.tut=null;S.cash=1e10;S.nextFail=1e9;S.nextEvent=1e9");
+  // the cheapest allowed cable route from Marseille to Singapore
+  const route = JSON.parse(ev(`(()=>{const Rl=SCN.find(x=>x.id==='redsea').rules,bc=new Set(Rl.banCities),bp=new Set(Rl.banPairs),adj={};
+    for(const p of CABLE_PAIRS){if(bp.has(p.cid+':'+p.a+'-'+p.b)||bp.has(p.cid+':'+p.b+'-'+p.a)||bc.has(p.a)||bc.has(p.b))continue;(adj[p.a]=adj[p.a]||[]).push([p.b,p.km]);(adj[p.b]=adj[p.b]||[]).push([p.a,p.km]);}
+    const D={mrs:0},P={},Q=['mrs'],seen=new Set();while(Q.length){Q.sort((x,y)=>D[x]-D[y]);const u=Q.shift();if(seen.has(u))continue;seen.add(u);for(const [v,km] of adj[u]||[]){if(D[v]===undefined||D[u]+km<D[v]){D[v]=D[u]+km;P[v]=u;Q.push(v);}}}
+    const r=['sin'];while(r[0]!=='mrs')r.unshift(P[r[0]]);return JSON.stringify(r);})()`));
+  const build = (tier) => ev(`for(const c of ${JSON.stringify(route)})if(!S.pops[c])ACT.buildPop({city:c});const r=${JSON.stringify(route)};
+    for(let i=1;i<r.length;i++){UI.pending=null;UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal(r[i-1],r[i]);ACT.buildLink({tier:${tier}});closeModal();}`);
+  // the old exploit: broadband with local transit everywhere for 300 Gbps served, and a 10G path
+  build(0);
+  ev("for(const c of ALLC.filter(c=>CITY[c].reg==='EU'&&!CITY[c].cn).slice(0,40)){if(!S.pops[c])ACT.buildPop({city:c});if(!S.pops[c].bb)ACT.launchBB({city:c});S.pops[c].bb.d=CITY[c].P*0.6;const t=NETS.find(n=>n.price&&n.pops.includes(c));if(t)ACT.buyTransit({city:c,net:t.id,tier:1});}for(const n of NETS.filter(n=>n.price&&n.pops.includes('mrs')).slice(0,2))ACT.buyTransit({city:'mrs',net:n.id,tier:1});after();dayTick()");
+  assert.ok(ev('pathExists("mrs","sin")') && ev('R.served') >= 300, 'what used to be enough');
+  assert.ok(!ev('S.scn.done'), 'no longer a win on day 0');
+  assert.ok(ev('asiaG()') <= 10.01, 'a 10G path carries at most 10G into Asia');
+  // a fresh start with a real 100G route and an upstream in Marseille, busy for a month
+  ev("UI.pitched=true;ACT.startScn({id:'redsea',sure:1});closeModal();S.tut=null;S.cash=1e10;S.nextFail=1e9;S.nextEvent=1e9");
+  build(1);
+  ev("for(const n of NETS.filter(n=>n.price&&n.pops.includes('mrs')).slice(0,2))ACT.buyTransit({city:'mrs',net:n.id,tier:1});for(const c of ['sin','bom'])if(!S.pops[c].bb)ACT.launchBB({city:c});after()");
+  assert.ok(!ev('S.scn.done'));
+  let d = 0; while (!ev('S.scn.done') && d < 200) { ev('dayTick()'); d++; }
+  assert.ok(ev('S.scn.done'), 'won once 80 Gbps crossed into Asia for 30 days in a row');
+  assert.ok(d >= 30, `took ${d} days`);
+  assert.match(ev("scnProg().items.map(x=>x.l+' '+x.txt).join(' | ')"), /Days in a row at 80(\.0)? Gbps or more 30 \/ 30/);
+  // the streak only counts days in a row
+  ev("S.stats.asiaRun=12;for(const l of S.links)l.cut=S.day+5;after();dayTick()");
+  assert.equal(ev('S.stats.asiaRun'), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('#84 Luxembourg has its own eyeball ISP at LU-SICK; no real company names among wave sellers', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});S.transit=[];S.ixp={};S.pni=[];for(const n of t1Need())S.pni.push({id:n.id,net:n.id,city:'fra',tier:0});compute()");
+  assert.equal(ev("NET.pst.type"), 'eye');
+  assert.ok(ev("NET.pst.pops.includes('bet')&&ixMembers('bet').includes('pst')"), 'at Bettembourg and on LU-SICK');
+  assert.ok(ev('R.reachable.pst'), 'a Tier 1 still reaches it through the carriers it buys from');
+  assert.match(ev("peerOk('pst','ix','bet').why||''"), /Gbps/, 'selective: it wants some traffic first');
+  assert.ok(ev("!WAVECO.some(n=>/GTT/.test(n))&&!BIZ_T.wwave.names.some(n=>/GTT/.test(n))"));
+  assert.deepEqual(errors, []);
+});
+
+test('#51 a dark fiber shows what is rented out, and spare capacity can be listed with a broker', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'ams'});S.offers=[];S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',ch:['tp16','tp16'],km:450,ready:0,day:0,cut:0,mo:100,trench:'own:df1',pairs:1});after();UI.sel={type:'link',id:'df1'};renderPanel()");
+  const txt = () => ev("document.getElementById('panelBody').textContent");
+  assert.match(txt(), /Selling spare capacity/); assert.match(txt(), /Free channels\s*62 \/ 64/);
+  // a broker finds a buyer for free channels at once, and keeps 10%
+  ev("__reseed(9);ACT.advertise({id:'df1'})");
+  const o = JSON.parse(ev("JSON.stringify(S.offers.find(x=>x.link==='df1'))"));
+  assert.equal(o.type, 'wwave'); assert.ok(o.broker);
+  assert.equal(o.rate, ev(`Math.round(waveMo(450,false,2)*0.55*${o.slots}*0.9)`), 'the usual alien-wave price minus the broker');
+  assert.match(txt(), /via a capacity broker/);
+  ev("ACT.advertise({id:'df1'})"); assert.equal(ev("S.offers.filter(x=>x.link==='df1').length"), 1, 'one listing at a time');
+  ev(`document.querySelector('#panelBody [data-act=accept]').click()`);
+  assert.ok(txt().includes(o.name), 'the customer is listed on the fiber');
+  assert.match(txt(), new RegExp(`Free channels\\s*${62 - o.slots} / 64`));
+  // when every channel is lit or sold, the spare pair in your own trench is offered instead; then nothing is left
+  ev("const l=S.links[0];l.ch=Array(chMax(l)-soldSlots(l)).fill('tp16');after();ACT.advertise({id:'df1'})");
+  assert.equal(ev("S.offers.find(x=>x.link==='df1').type"), 'dfpair');
+  ev("for(const x of S.offers.filter(x=>x.link==='df1'))ACT.accept({id:x.id});S.biz.push({id:'p2',type:'dfpair',link:'df1',city:'fra',city2:'ams',name:'X',bw:1,rate:1,reqs:[]});S.offers=[];renderPanel()");
+  assert.match(txt(), /Nothing spare to sell on this fiber right now/);
+  ev("ACT.advertise({id:'df1'})"); assert.equal(ev("S.offers.length"), 0);
+  // a broker offer survives a save, and random offers still come the same way
+  ev("S.offers=[{...fiberOffer('dfpair',S.links[0],()=>'Y',0.9),broker:'yes'}];S=sanitize(S)");
+  assert.equal(ev('S.offers[0].broker'), true);
+  assert.deepEqual(errors, []);
+});

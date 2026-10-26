@@ -705,7 +705,7 @@ const dfBuildCost=km=>Math.round(25000+km*120);
 const dfBuildDays=km=>Math.round(120+km*0.25);
 const ampCount=km=>Math.max(0,Math.floor(km/AMP_EVERY));
 const fmtCap=g=>g>=1000?(+(g/1000).toFixed(1))+'T':g+'G';
-const WAVECO=['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','Bolt Technology','youNetworks','GTT (Got Tangled Twice)'];
+const WAVECO=['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','Bolt Technology','youNetworks','G&T (Gin and Transit)'];
 const MONTHS=[tr('Jan'),tr('Feb'),tr('Mar'),tr('Apr'),tr('May'),tr('Jun'),tr('Jul'),tr('Aug'),tr('Sep'),tr('Oct'),tr('Nov'),tr('Dec')];
 const REG={AM:tr('Americas'),SA:tr('South America'),EU:tr('Europe'),AF:tr('Africa'),AS:tr('Asia'),OC:tr('Oceania')};
 const waveMo=(km,sub,tier)=>Math.round((300+km*1.2)*LT[tier].m*(sub?1.8:1));
@@ -1185,7 +1185,8 @@ NETS.push(
  {id:'tny',name:'Telenyet',asn:6848,type:'eye',pol:'selective',minIx:10,minPni:30,share:.008,up:['lvl'],col:'#FFC421',pops:['bru','oos','ams','fra','lon'],ix:['bru'],blurb:tr('Half of the Flanders duopoly, on coax. Keeps a tiny port at Frites-IX and hides behind its international parent, so bring a PNI.')},
  {id:'pxm',name:'Proxyminus',asn:5432,type:'eye',pol:'selective',minIx:15,minPni:40,share:.008,up:['bgs','lvl'],col:'#5C2D91',pops:['bru','oos','ams'],ix:['bru'],blurb:tr('The other half of the duopoly, on copper and fiber. Strictly domestic: the world reaches it through its wholesale arm.')},
  {id:'bgs',name:'B.I.G.S.',asn:6774,type:'t2',pol:'selective',minIx:10,minPni:30,share:.005,price:5,up:['lvl'],col:'#7B2D8E',pops:['bru','bet','ams','fra','lon','par','mrs','nyc','sin'],ix:['bru','bet','ams','fra','lon','par'],blurb:tr('Proxyminus’s wholesale arm. Present at nearly every exchange on Earth, and Belgian about it.')},
- {id:'cit',name:'Citrus Belgium',asn:47377,type:'eye',pol:'selective',minIx:10,minPni:30,share:.005,up:['lvl'],col:'#FF7900',pops:['bru','par'],ix:['bru'],blurb:tr('Mobile, cable and a lot of Walloon highway dark fiber. Zesty.')},
+ {id:'cit',name:'Citrus Belgium',asn:47377,type:'eye',pol:'selective',minIx:10,minPni:30,share:.005,up:['lvl'],col:'#FF7900',pops:['bru','par'],ix:['bru'],blurb:tr('Tangerine’s Belgian daughter: mobile, cable and a lot of Walloon highway dark fiber. Zesty.')},
+ {id:'pst',name:'Poste Restante',asn:6663,type:'eye',pol:'selective',minIx:4,minPni:15,share:.001,up:['lvl','tly'],col:'#FFCC00',pops:['bet','fra','ams'],ix:['bet','fra'],blurb:tr('Luxembourg’s post office, which also runs the phones and most of the fiber. Your packets wait at the counter until somebody collects them.')},
  {id:'cms',name:'CityMess',asn:199095,type:'eye',pol:'open',share:.002,up:['cog'],col:'#00B2A9',pops:['oos','bru'],ix:['bru'],blurb:tr('Private 5G and business fiber from Oostkamp. Its traffic arrives in sudden industrial bursts.')});
 NETS.push({id:'kys',name:'Kyiv Superstar',asn:15859,type:'eye',pol:'selective',minIx:5,minPni:20,share:.006,col:'#0055B8',pops:['kyv','waw','fra'],ix:['kyv'],blurb:tr('Ukraine’s biggest mobile network. Has kept working through things most networks never have to plan for.')});
 NETS.push({id:'stc',name:'Sticky Telecom',asn:39368,type:'t2',pol:'selective',minIx:10,minPni:30,share:.01,price:8,col:'#4F008C',pops:['ruh','jed','dxb','fra','lon','cai'],ix:['ruh'],blurb:tr('The Kingdom’s incumbent. Once you are in, you stay in.')},
@@ -1354,7 +1355,7 @@ const BIZ_T={
  bulk:{l:tr('Bulk backup transfer (latency does not matter)'),opts:[100,200,400],rate:0,l2:true,scenic:true,km:0.1,lv:2,names:['Glacier Slow Storage','Tape Backup Tortoise','Scenic Route Archives','Cold Storage Cold Cuts','Sloth Sync','Eventually Consistent Inc.','Snail Mail Data Co.']},
  event:{l:tr('Event network'),opts:[100,200,400,800,1600,3200],rate:0,event:true,lv:2,names:['Carnaval Parade','Diwali Streaming Night','The Big Football Final','NANOG 99','Burning Router Festival','Euro-Pop Song Contest','Formula Ping Grand Prix','The Big Game','Olympic Pings','A Pop Megastar Stadium Tour','LAN Party of the Century','The Keynote (One More Thing)','Gamer-Con Expo','Oktoberfest Livestream']},
  sdwan:{l:tr('SD-WAN for a chain'),opts:[1,2,5,10],rate:0,l2:true,sdwan:true,km:0,lv:2,names:['Kebab Kingdom','Pretzel Palace','Burger Router Inc.','Café Latte-ncy','Hardware Hut Stores','Pharma-See Pharmacies','Bank of Tiny Branches','Supermarket Superhighway','Fitness Pings Gyms','Hotel Hops Group','Doughnut Data Diners']},
- wwave:{l:tr('Wholesale wave'),opts:[1],rate:0,fiber:true,lv:2,names:['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','GTT (Got Tangled Twice)','A Hyperscaler Who Shall Not Be Named','Megapork','youNetworks']},
+ wwave:{l:tr('Wholesale wave'),opts:[1],rate:0,fiber:true,lv:2,names:['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','G&T (Gin and Transit)','A Hyperscaler Who Shall Not Be Named','Megapork','youNetworks']},
  dfpair:{l:tr('Dark fiber pair lease'),opts:[1],rate:0,fiber:true,lv:3,names:['A Hyperscaler Who Shall Not Be Named','Goggle Fiber Division','Faceplant Infra','Amazin’ Backbone Team','A Very Secretive Trading Firm']},
  scrub:{l:tr('DDoS protection + DIA'),opts:[1,5,10,20],rate:900},
  aiwan:{l:tr('AI WAN between two AI factories'),opts:[3200,6400,12800],rate:0,l2:true,div:true,mega:true,km:0.45,lv:4,names:['Fairweather AI WAN','Planet-Scale Superfactory Link','Two Brains One Model Inc.','Distributed Godlike Compute','The Gigawatt Handshake']},
@@ -1546,7 +1547,7 @@ const scnName=()=>S.scn.id==='weekly'?tr('Weekly {key}',{key:S.scn.key}):SCN.fin
 const brIxN=()=>CITIES.filter(c=>c.br&&S.ixp[c.id]!==undefined).length;
 const SCN=[
  {id:'stg',n:tr('Only Spätzle-IX'),city:'stg',cash:400000,days:730,rules:{noTransit:true,local:true},d:tr('Start in Stuttgart, where nobody sells transit. Reach the internet through peering, PNIs, caches and your own fiber only. No transit anywhere, ever.'),goal:tr('Reach 45% of the internet and serve 300 Gbps'),ok:()=>R.reach>=0.45&&R.served>=300},
- {id:'redsea',n:tr('Red Sea Crisis'),city:'mrs',cash:2500000,days:540,rules:{banCities:['cai','jed'],banPairs:['eig:dxb-mrs','gbi:fuj-mrs','smw4:khi-mrs','smw6:mrs-bom','smw6:mrs-sin','peace:mrs-sin','aae:mrs-hkg','twoaf:mrs-bom','medn:cai-mrs','medn:ist-mrs','twoaf:jnb-mrs','eassy:nbo-mrs']},d:tr('Every cable through the Red Sea is cut, and so is the hop to Egypt. Get Marseille talking to Singapore anyway: round Africa, overland, or the other way round the planet.'),goal:tr('A path from Marseille to Singapore, and 300 Gbps served'),ok:()=>pathExists('mrs','sin')&&R.served>=300},
+ {id:'redsea',n:tr('Red Sea Crisis'),city:'mrs',cash:2500000,days:540,rules:{banCities:['cai','jed'],banPairs:['eig:dxb-mrs','gbi:fuj-mrs','smw4:khi-mrs','smw6:mrs-bom','smw6:mrs-sin','peace:mrs-sin','aae:mrs-hkg','twoaf:mrs-bom','medn:cai-mrs','medn:ist-mrs','twoaf:jnb-mrs','eassy:nbo-mrs']},d:tr('Every cable through the Red Sea is cut, and so is the hop to Egypt. Get Marseille talking to Singapore anyway: round Africa, overland, or the other way round the planet.'),goal:tr('A path from Marseille to Singapore, and 80 Gbps between Asia and the rest of your network for 30 days in a row'),ok:()=>pathExists('mrs','sin')&&(S.stats.asiaRun||0)>=RS_DAYS},
  {id:'spat',n:tr('The Cogentle Spat'),city:'nyc',cash:700000,days:540,rules:{spat:true},d:tr('Cogentle and Goggle are not speaking, and this time it is permanent. Buy the cheap transit if you dare.'),goal:tr('99% reach and 150 Gbps served'),ok:()=>R.reach>=0.99&&R.served>=150},
  {id:'carnaval',n:tr('Carnaval'),city:'rio',cash:600000,days:100,rules:{},setup:()=>{S.biz.push({id:uid(),scripted:true,city:'rio',city2:null,reqs:[],name:'Carnaval Parade in Rio de Janeiro',type:'event',bw:400,rate:0,mood:100,since:0,start:90,dur:5,fee:400*5*70});},d:tr('Rio from scratch. Carnaval starts in 90 days and wants 400 Gbps for five days straight. The whole world is watching.'),goal:tr('Deliver Carnaval in full'),ok:()=>(S.stats.evFull||0)>=1},
  {id:'darien',n:tr('Mind the Gap'),city:'pan',cash:900000,days:730,rules:{},d:tr('Start in Panama City. Nothing crosses the Darién Gap by land, and the Andes are in the way of everything else.'),goal:tr('POPs in Bogotá, Lima, Santiago and São Paulo, and 150 Gbps served'),ok:()=>['bog','lim','scl','sao'].every(c=>S.pops[c])&&R.served>=150},
@@ -1568,7 +1569,7 @@ function beginGame(nm,city,o={}){if(needPitch()&&!UI.pitched){UI.pendGame=[nm,ci
     if(sc.cash)S.cash=sc.cash;if(sc.setup)sc.setup();
     for(const m of S.scn.mods){if(m==='pricey')S.priceMul=1.3;if(m==='poor')S.cash=100000;if(m==='chaos')S.scn.rules.chaos=true;if(m==='boom')S.scn.rules.boom=true;if(m==='dk')S.scn.rules.dkAll=true;if(m==='sharks')S.scn.rules.sharks=true;}}
   track('game_new');UI.started=true;closeModal();compute();cam.x=CITY[city].x;cam.y=CITY[city].y;cam.z=innerWidth<760?1.1:1.4;selectCity(city);
-  toast(S.scn?`<b>${esc(S.scn.name)}</b><br>${esc(o.scn.goal||tr('Serve as much traffic as you can in one year.'))} ${tr('You have {n} days.',{n:S.scn.days})}`:S.mode==='sandbox'?tr('<b>Sandbox mode</b><br>A billion dollars, every unlock, and nothing ever breaks. Build the internet you always wanted.'):tr('<b>Welcome, {name}!</b><br>The RIPE NCC assigned you AS{asn}. Your first router is humming in {city}.',{name:esc(nm),asn:S.asn,city:CITY[city].name}),'goal');
+  toast(S.scn?`<b>${esc(S.scn.name)}</b><br>${o.scn.goal?esc(o.scn.goal)+'.':tr('Serve as much traffic as you can in one year.')} ${tr('You have {n} days.',{n:S.scn.days})}`:S.mode==='sandbox'?tr('<b>Sandbox mode</b><br>A billion dollars, every unlock, and nothing ever breaks. Build the internet you always wanted.'):tr('<b>Welcome, {name}!</b><br>The RIPE NCC assigned you AS{asn}. Your first router is humming in {city}.',{name:esc(nm),asn:S.asn,city:CITY[city].name}),'goal');
   renderAll();save();if(!S.scn&&S.mode!=='sandbox')tutorialStart();}
 /* ---------- conference season ---------- */
 const CONFS=[{n:'NANOG',c:'chi',m:1},{n:'APRICOT',c:'sin',m:1},{n:'Peering Days',c:'waw',m:2},{n:'DKNOG',c:'cph',m:2,j:N_('The hallway track moved to a bar by the harbour, where the woman behind the bar kept pouring aquavit long past midnight and asked nobody about their AS path. Back at the hotel bar, someone said “just one more drink”. Your BGP sessions stayed up all night. So did you.')},{n:'UKNOF',c:'lon',m:3},{n:'MENOG',c:'dxb',m:3},{n:'NZNOG',c:'akl',m:3},{n:'RIPE',c:'ams',m:4},{n:'NANOG',c:'sea',m:5},{n:'IX Forum',c:'tok',m:6},{n:'AfPIF',c:'nbo',m:7},{n:'AusNOG',c:'syd',m:8},{n:'NLNOG Day',c:'ams',m:8},{n:'LACNOG',c:'sao',m:9},{n:'NANOG',c:'ash',m:9},{n:'DENOG',c:'fra',m:10},{n:'RIPE',c:'ber',m:10},{n:'PTT Forum',c:'sao',m:11},{n:'PacNOG',c:'suv',m:11}];
@@ -2213,7 +2214,7 @@ function sanitize(s){
   for(const k of Object.keys(s.peers)){const [n,c]=k.split('@');if(!isNet(n)||!isIx(c))delete s.peers[k];}
   for(const c of Object.keys(s.myIx)){const m=s.myIx[c];if(!isCity(c)||!m||typeof m!=='object'){delete s.myIx[c];continue;}m.members=Array.isArray(m.members)?m.members.filter(isNet):[];m.name=String(m.name||tr('Your IX')).slice(0,40);m.next=num(m.next,s.day);m.fab=int(m.fab,0,MYIX_FAB.length-1,0);}
   const okBiz=b=>b&&own(BIZ_T,b.type)&&(!BIZ_T[b.type].nni||own(FAB,b.prov))&&isCity(b.city)&&(!b.city2||isCity(b.city2))&&(!b.sites||Array.isArray(b.sites)&&b.sites.every(isCity));
-  const fixBiz=b=>{b.id=sid(b.id);b.name=String(b.name||tr('Customer')).slice(0,80);b.bw=num(b.bw,1);b.rate=num(b.rate,0);if(b.fee!==undefined)b.fee=num(b.fee,0);if(b.start!==undefined)b.start=num(b.start,0);if(b.dur!==undefined)b.dur=num(b.dur,1);if(b.slots!==undefined)b.slots=num(b.slots,0);if(b.what!==undefined)b.what=String(b.what).slice(0,200);if(!Array.isArray(b.reqs))b.reqs=[];b.reqs=b.reqs.filter(r=>own(REQS,r));if(b.mood!==undefined)b.mood=num(b.mood,100);if(b.pm!==undefined)b.pm=num(b.pm,b.mood||100);if(b.exp!==undefined)b.exp=num(b.exp,0);if(b.latMax!=null)b.latMax=num(b.latMax,10);if(b.route&&!own(RT,b.route))b.route='normal';return b;};
+  const fixBiz=b=>{b.id=sid(b.id);b.name=String(b.name||tr('Customer')).slice(0,80);b.bw=num(b.bw,1);b.rate=num(b.rate,0);if(b.fee!==undefined)b.fee=num(b.fee,0);if(b.start!==undefined)b.start=num(b.start,0);if(b.dur!==undefined)b.dur=num(b.dur,1);if(b.slots!==undefined)b.slots=num(b.slots,0);if(b.what!==undefined)b.what=String(b.what).slice(0,200);if(b.broker!==undefined)b.broker=!!b.broker;if(!Array.isArray(b.reqs))b.reqs=[];b.reqs=b.reqs.filter(r=>own(REQS,r));if(b.mood!==undefined)b.mood=num(b.mood,100);if(b.pm!==undefined)b.pm=num(b.pm,b.mood||100);if(b.exp!==undefined)b.exp=num(b.exp,0);if(b.latMax!=null)b.latMax=num(b.latMax,10);if(b.route&&!own(RT,b.route))b.route='normal';return b;};
   s.biz=s.biz.filter(okBiz).map(fixBiz);s.offers=s.offers.filter(okBiz).map(fixBiz);
   s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
   s.loans=s.loans.filter(l=>l&&own(BANKS,l.bank));for(const l of s.loans){if(l.model!==undefined&&!['balloon','storm','transit','astro'].includes(l.model))delete l.model;for(const k of ['apr0','cut','share'])if(l[k]!==undefined&&!isFinite(+l[k]))delete l[k];if(!Array.isArray(l.covs))l.covs=[];l.covs=l.covs.filter(c=>own(COVS,c));}s.loanOffers=s.loanOffers.filter(l=>l&&own(BANKS,l.bank));
@@ -2292,6 +2293,13 @@ function diversityPossible(a,b,state=S){
 }
 function fiberOk(b){const l=S.links.find(x=>x.id===b.link);if(!l)return false;if(b.type==='dfpair'||b.type==='pairs')return l.ready<=S.day&&!(l.cut>S.day);return l.ready<=S.day&&!(l.cut>S.day)&&!(l.eqDown>S.day);}
 function soldSlots(l){return S.biz.filter(b=>b.type==='wwave'&&b.link===l.id).reduce((a,b)=>a+(b.slots||0),0);}
+// Spare capacity other carriers can rent on a dark fiber (#51): free channels for alien waves, and on your own build
+// a spare pair in the trench. Random offers and broker listings follow the same rules and the same prices.
+const freeCh=l=>chMax(l)-(l.ch||[]).length-soldSlots(l),pairFree=l=>!!l.own&&S.biz.filter(b=>b.type==='dfpair'&&b.link===l.id).length<2&&!S.biz.some(b=>b.type==='pairs'&&b.link===l.id);
+function fiberOffer(t,l,nm,cut=1){
+  if(t==='wwave'){const slots=1+Math.floor(Math.random()*Math.min(4,freeCh(l)));
+    return {id:uid(),city:l.a,city2:l.b,link:l.id,slots,what:trn('{n}× 400G alien wave on your {a}–{b} fiber','{n}× 400G alien waves on your {a}–{b} fiber',slots,{a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(waveMo(l.km,false,2)*0.55*slots*cut),reqs:[],exp:S.day+30};}
+  return {id:uid(),city:l.a,city2:l.b,link:l.id,what:tr('a spare fiber pair in your {a}–{b} trench',{a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(dfLeaseMo(l.km)*0.9*cut),reqs:[],exp:S.day+30};}
 function bizSf(b){const T=BIZ_T[b.type];return T.fiber?(fiberOk(b)?1:0):T.l2?clamp((R.l2[b.id]||0)/b.bw,0,1):bizSfOf(R,b.city);}
 // Protected business traffic has its own served share; without the rule it shares the city's.
 function bizSfOf(r,c){const d=r.bizDem&&r.bizDem[c];return teRules()&&teRules().protect&&d>1e-6?clamp(r.bizSrv[c]/d,0,1):sfOf(r,c);}
@@ -2333,10 +2341,8 @@ function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops),lv=S.lvl||1;
     while(sites.length<n&&pool.length)sites.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);if(sites.length<3)return;
     S.offers.push({id:uid(),city:hub,city2:null,sites,name:nm(),type:t,bw:pick(T.opts),rate:700*sites.length,reqs:[],exp:S.day+40});return;}
   const ready=S.links.filter(l=>l.kind==='df'&&l.ready<=S.day);
-  if(t==='wwave'){const free=l=>chMax(l)-(l.ch||[]).length-soldSlots(l);const ls=ready.filter(l=>free(l)>=1&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;const l=pick(ls),slots=1+Math.floor(Math.random()*Math.min(4,free(l)));
-    S.offers.push({id:uid(),city:l.a,city2:l.b,link:l.id,slots,what:trn('{n}× 400G alien wave on your {a}–{b} fiber','{n}× 400G alien waves on your {a}–{b} fiber',slots,{a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(waveMo(l.km,false,2)*0.55*slots),reqs:[],exp:S.day+30});return;}
-  if(t==='dfpair'){const ls=ready.filter(l=>l.own&&S.biz.filter(b=>b.type==='dfpair'&&b.link===l.id).length<2&&!S.biz.some(b=>b.type==='pairs'&&b.link===l.id)&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;const l=pick(ls);
-    S.offers.push({id:uid(),city:l.a,city2:l.b,link:l.id,what:tr('a spare fiber pair in your {a}–{b} trench',{a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(dfLeaseMo(l.km)*0.9),reqs:[],exp:S.day+30});}
+  if(t==='wwave'){const ls=ready.filter(l=>freeCh(l)>=1&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));return;}
+  if(t==='dfpair'){const ls=ready.filter(l=>pairFree(l)&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));}
 }
 function cnOk(){return S.cnLic&&S.cnLic.state==='ok';}
 function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.tape)return 1.5;return C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;}
@@ -2705,6 +2711,7 @@ function dayTick(){
   {const a=S.ev.ddos;if(a&&a.until>d&&R&&S.pops[a.city])a.worst=Math.min(a.worst===undefined?1:a.worst,sfOf(R,a.city));}
   if(scnRule('ddos')&&!(S.scn.done||S.scn.failed)&&d>=(+S.scn.nextDdos||3)&&!(S.ev.ddos&&S.ev.ddos.until>d)){ddosAttack();S.scn.nextDdos=d+3+Math.floor(Math.random()*5);}
   if(R&&R.demand>0)S.stats.clean=R.served/R.demand>=0.995?(S.stats.clean||0)+1:0;
+  if(S.scn&&S.scn.id==='redsea')S.stats.asiaRun=asiaG()>=RS_G?(S.stats.asiaRun||0)+1:0;
   if(S.ev.php===d)toast(tr('<b>The internet is back.</b><br>Half of it, anyway. Everything was patched in a hurry and nobody learned anything.'),'good');
   for(const k in S.peers){const [id,c]=k.split('@'),sn=snub(id,c);if(!sn)continue;delete S.peers[k];S.stats.depeered=(S.stats.depeered||0)+1;
     toast(tr('<b>{net} de-peered you at {ix} in {city}.</b><br>{why} Traffic falls back to your next best path.',{net:esc(NET[id].name),ix:esc(ixName(c)),city:esc(CITY[ixCity(c)].name),why:esc(sn.why)}),'bad');}
@@ -2992,6 +2999,11 @@ const ACT={
  rmCache:({id})=>{S.caches=S.caches.filter(c=>c.id!==id);after();},
  // Move one of a CDN's boxes to the other building (#69), so a dark building only takes out part of the cache.
  cacheSite:({city,net,s})=>{if(s!=='a'&&s!=='b'||!S.pops[city]||!S.pops[city].site2)return;const x=S.caches.find(c=>c.city===city&&c.net===net&&(c.site==='b'?'b':'a')!==s);if(!x)return;x.site=s;sfx('click');after();},
+ advertise:({id})=>{const l=S.links.find(x=>x.id===id);if(!l||l.kind!=='df'||l.ready>S.day)return;if(S.offers.some(o=>o.link===l.id))return;
+   const t=freeCh(l)>=1?'wwave':pairFree(l)?'dfpair':null;if(!t){toast(tr('<b>Nothing spare to sell on this fiber.</b><br>Every channel is lit or sold, and the trench has no free pair.'),'bad');sfx('err');return;}
+   const T=BIZ_T[t],nm=()=>{const list=T.names.filter(n=>!S.usedNames.includes(n)),n=list.length?pick(list):pick(T.names);S.usedNames.push(n);return n;};
+   // A capacity broker finds a buyer at once and keeps 10% of the monthly price.
+   const o=fiberOffer(t,l,nm,0.9);o.broker=true;S.offers.push(o);toast(tr('<b>Listed with a capacity broker.</b><br>{name} wants {what}. Accept it on the fiber or in Deals.',{name:esc(o.name),what:esc(o.what)}),'good');sfx('click');after();},
  accept:({id})=>{const o=S.offers.find(x=>x.id===id);if(!o)return;if(!bHas(o)){toast(tr('<b>You need a POP in every city on the contract first.</b>'),'bad');return;}
    if(o.type==='wwave'){const l=S.links.find(x=>x.id===o.link);if(!l||chMax(l)-(l.ch||[]).length-soldSlots(l)<o.slots){toast(tr('<b>Not enough free channels on that fiber any more.</b>'),'bad');return;}}
    if(BIZ_T[o.type].event&&S.day>=o.start){toast(tr('<b>Too late: the event has already started.</b>'),'bad');return;}
@@ -3647,6 +3659,10 @@ function dfPanel(l){
   h+=`<section><h3>${tr('Capacity')}</h3><div class="kv"><span>${tr('{n} of {max} channels lit',{n:(l.ch||[]).length,max:chMax(l)})}${soldSlots(l)?` · ${tr('{n} sold as alien waves',{n:soldSlots(l)})}`:''}</span><b>${fmtG(load)} / ${fmtG(cap)}</b></div><div class="bar ${barCls(u)}"><i style="width:${Math.min(100,u*100)}%"></i></div>
   ${l.own&&l.sub?`<div class="kv"><span>${tr('Cable design')}</span><b>${tr((SEA_DESIGNS[l.seaDesign]||SEA_DESIGNS.standard).n)}</b></div>`:''}
   <div class="kv"><span>${tr('Latency')}</span><b>${tr('{ms} ms one-way',{ms:linkLat(l).toFixed(1)})}</b></div><div class="kv"><span>${l.own?tr('Right-of-way upkeep'):tr('IRU lease')}</span><b>${tr('{price}/mo',{price:fmt$(l.mo)})}</b></div><div class="kv"><span>${tr('{n} amp huts',{n:amps})}</span><b>${tr('{price}/mo',{price:fmt$(amps*AMP_MO)})}</b></div>${!bld&&!(l.ch||[]).length?`<p class="why">${tr('This fiber is dark. Add optics below to carry traffic.')}</p>`:''}</section>`;
+  if(!bld){const sold=S.biz.filter(b=>b.link===l.id&&(b.type==='wwave'||b.type==='dfpair'||b.type==='pairs')),off=S.offers.find(o=>o.link===l.id),fc=freeCh(l);
+    h+=`<section><h3>${tr('Selling spare capacity')}</h3><p class="lead">${tr('Other carriers rent what you do not use: alien waves on free channels of your line system, or on your own build a spare fiber pair in the trench.')}</p>
+    <div class="kv"><span>${tr('Free channels')}</span><b>${fc} / ${chMax(l)}</b></div>${sold.map(b=>`<div class="row"><div class="grow"><div class="nm">${esc(b.name)}</div><div class="meta">${esc(b.what||BIZ_T[b.type].l)} · ${tr('{price}/mo',{price:fmt$(b.rate)})}</div></div></div>`).join('')}
+    ${off?`<div class="row"><div class="grow"><div class="nm">${esc(off.name)}</div><div class="meta">${esc(off.what)} · ${tr('{price}/mo',{price:fmt$(off.rate)})} · ${tr('{n}d left',{n:off.exp-S.day})}${off.broker?' · '+tr('via a capacity broker'):''}</div></div>${btn(tr('Accept'),'accept',{id:off.id},'pink sm')}</div>`:fc>=1||pairFree(l)?`<div class="btns">${btn(tr('List it with a capacity broker <small>they keep 10%</small>'),'advertise',{id:l.id},'sm')}</div>`:`<p class="note">${tr('Nothing spare to sell on this fiber right now.')}</p>`}</section>`;}
   h+=`<section><h3>${tr('Optics')}</h3><p class="lead">${tr('Each channel is a pair of optics, one per end. ZR+ optics plug straight into your routers. Transponders sit on a shelf.')}</p>`;
   if(l.own&&l.sub)h+=subUpgradePanel(l);
   for(const k of Object.keys(OPT)){const O=OPT[k],n=(l.ch||[]).filter(x=>x===k).length,why=chWhy(l,k);
@@ -3707,10 +3723,12 @@ function offTransitHint(id,city){const n=NET[id];if(n.type==='t1')return tr('Tie
   if(pniC.length)return tr('PNI in {city}: {why}',{city:CITY[pniC[0]].name,why:pOk.why});{const x=nearestSpot(id);return x?tr('Not in your cities yet. Nearest: {city}',{city:CITY[x.c].name}):tr('Not present in any of your cities yet');}}
 function transitTop(ids,k=5){const m={};for(const id of ids)for(const [n,v] of Object.entries(R.tNet[id]||{}))m[n]=(m[n]||0)+v;return Object.entries(m).filter(([,v])=>v>0.01).sort((a,b)=>b[1]-a[1]).slice(0,k);}
 /* ---------- scenario and level progress (#34) ---------- */
+// Red Sea Crisis (#113): traffic your links carry into and out of Asia, and how long it has stayed above the goal.
+const RS_G=80,RS_DAYS=30,asiaG=()=>S.links.reduce((a,l)=>a+((CITY[l.a].reg==='AS')!==(CITY[l.b].reg==='AS')?(R.load[l.id]||0):0),0);
 const pSrv=g=>({l:tr('Traffic served'),v:R.served,max:g,txt:`${fmtG(R.served)} / ${fmtG(g)}`});
 const pReach=()=>({l:tr('Reach'),v:R.reach,max:0.99,txt:`${pct(R.reach)} / 99%`});
 const pChk=(l,ok)=>({l,v:ok?1:0,max:1,txt:ok?'✓':'—'});
-const SCN_PROG={stg:()=>[{l:tr('Reach'),v:R.reach,max:0.45,txt:`${pct(R.reach)} / 45%`},pSrv(300)],redsea:()=>[pChk(tr('A path from Marseille to Singapore'),pathExists('mrs','sin')),pSrv(300)],spat:()=>[pReach(),pSrv(150)],
+const SCN_PROG={stg:()=>[{l:tr('Reach'),v:R.reach,max:0.45,txt:`${pct(R.reach)} / 45%`},pSrv(300)],redsea:()=>{const g=asiaG(),n=S.stats.asiaRun||0;return [pChk(tr('A path from Marseille to Singapore'),pathExists('mrs','sin')),{l:tr('Your traffic to and from Asia'),v:Math.min(g,RS_G),max:RS_G,txt:`${fmtG(g)} / ${fmtG(RS_G)}`},{l:tr('Days in a row at {g} or more',{g:fmtG(RS_G)}),v:n,max:RS_DAYS,txt:`${n} / ${RS_DAYS}`}];},spat:()=>[pReach(),pSrv(150)],
   carnaval:()=>[pChk(tr('Carnaval delivered in full'),(S.stats.evFull||0)>=1)],ixbr:()=>{const n=brIxN();return [{l:tr('IX.brrr ports'),v:n,max:20,txt:`${n} / 20`},pChk(tr('A port on IX.brrr Manaus'),S.ixp.mao!==undefined),pSrv(200)];},
   c2c:()=>[pChk(tr('A path from Cape Town to Cairo'),pathExists('cpt','cai')),...['lag','nbo'].map(c=>pChk(tr('POP in {city}',{city:CITY[c].name}),!!S.pops[c])),pSrv(150)],
   pac:()=>[pChk(tr('1.6T on every hop from Los Angeles to Sydney'),fastPath('lax','syd',1600)),pChk(tr('A path from Los Angeles to Tokyo'),pathExists('lax','tok')),pSrv(150)],
