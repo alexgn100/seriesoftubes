@@ -62,6 +62,10 @@ test('the game starts in English unless the player or the browser asks for anoth
   const it = load({ lang: 'it' });
   assert.equal(it.ev('LANG'), 'it');
   assert.equal(it.ev('document.documentElement.lang'), 'it');
+  assert.equal(load({ navigatorLanguage: 'de-DE' }).ev('SOT_LANG'), 'de', 'a German browser asks for German');
+  const de = load({ lang: 'de' });
+  assert.equal(de.ev('LANG'), 'de');
+  assert.equal(de.ev('document.documentElement.lang'), 'de');
   assert.equal(load({ navigatorLanguage: 'it-IT', storage: { 'sot-lang': 'en' } }).ev('LANG'), 'en', 'a saved choice wins');
   assert.equal(load({ storage: { 'sot-lang': 'xx' } }).ev('LANG'), 'en', 'unknown languages fall back to English');
   const offline = load({ storage: { 'sot-lang': 'it' } });
@@ -76,16 +80,30 @@ test('missing translations fall back to the English text, with placeholders fill
   assert.equal(ev("trn('{n} cat','{n} cats',2)"), '2 cats');
 });
 
-test('every Italian entry keeps the placeholders and HTML tags of its English text', () => {
-  const dict = loadDict(path.join(__dirname, '..', 'site', 'i18n', 'it.js'));
-  assert.ok(Object.keys(dict).length > 100);
-  assert.deepEqual(brokenEntries(dict), []);
+for (const lang of ['it', 'pt', 'de']) {
+  test(`every ${lang} entry keeps the placeholders and HTML tags of its English text`, () => {
+    const dict = loadDict(path.join(__dirname, '..', 'site', 'i18n', `${lang}.js`));
+    assert.ok(Object.keys(dict).length > 100);
+    assert.deepEqual(brokenEntries(dict), []);
+  });
+}
+
+test('every language offered on the title screen has a dictionary, and the offline cache holds it', () => {
+  const langs = Object.keys(load().ev('LANGS')).filter((l) => l !== 'en');
+  assert.deepEqual(langs, ['it', 'pt', 'de']);
+  const sw = require('node:fs').readFileSync(path.join(__dirname, '..', 'site', 'sw.js'), 'utf8');
+  for (const l of langs) {
+    assert.ok(Object.keys(loadDict(path.join(__dirname, '..', 'site', 'i18n', `${l}.js`))).length > 100, l);
+    assert.ok(sw.includes(`/i18n/${l}.js`), `sw.js caches ${l}.js`);
+  }
 });
 
 test('the language buttons on the title screen work before any game exists', () => {
   const { ev } = load();
   ev("[...document.querySelectorAll('#modalCard [data-act=langSet]')].find(b=>b.textContent==='Italiano').click()");
   assert.equal(ev("localStorage.getItem('sot-lang')"), 'it');
+  ev("[...document.querySelectorAll('#modalCard [data-act=langSet]')].find(b=>b.textContent==='Deutsch').click()");
+  assert.equal(ev("localStorage.getItem('sot-lang')"), 'de');
 });
 
 test('picking a language saves the choice and the game, then reloads', () => {
@@ -107,13 +125,17 @@ test('a scenario started in English shows its Italian name after switching', () 
   assert.ok(ev("document.getElementById('hAsn').textContent").includes(name));
 });
 
-for (const lang of ['en', 'it', 'pt']) {
+for (const lang of ['en', 'it', 'pt', 'de']) {
   test(`${lang}: every screen, failure and event renders without errors or unfilled placeholders`, () => {
     const { ev, errors } = load(lang === 'en' ? {} : { lang });
     seed(ev, 3);
     if (lang === 'it') {
       assert.match(ev("document.getElementById('modalCard').textContent"), /Come si gioca/);
       assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Cassa · Banca');
+    }
+    if (lang === 'de') {
+      assert.match(ev("document.getElementById('modalCard').textContent"), /So wird gespielt/);
+      assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Kasse · Bank');
     }
     const { thrown, leaks } = tour(ev);
     assert.ok(ev('(S.stats.f||{}).anchor'), 'Baltic and Red Sea anchors count for the badge in every language');

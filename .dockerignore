@@ -1,0 +1,8 @@
+.git
+.github
+.idea
+.claude
+node_modules
+_site
+docs
+tests
