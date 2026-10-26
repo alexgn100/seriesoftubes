@@ -2585,4 +2585,5 @@
 "The seabed off Tonga slid down a slope and took your {a}–{b} cable with it. The repair ship is coming from Papua New Guinea.":"Il fondale al largo di Tonga è franato giù per un pendio e si è portato via il tuo cavo {a}–{b}. La nave di riparazione arriva dalla Papua Nuova Guinea.",
 "Tonga hangs on one cable from Fiji. In 2022 an undersea volcano cut it, and the country was offline for weeks.":"Tonga è appesa a un solo cavo dalle Figi. Nel 2022 un vulcano sottomarino l’ha tranciato e il paese è rimasto offline per settimane.",
 "Tonga’s own telco. Lived through a volcano that cut its only cable, and jokes about it now.":"La telco di Tonga. È sopravvissuta a un vulcano che le ha tranciato l’unico cavo, e ora ci scherza su.",
+"Few data centers: POPs {x}×":"Pochi data center: POP {x}×",
 };

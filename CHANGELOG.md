@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Prices now follow how connected each city really is, based on PeeringDB and Hurricane Electric data. Transit costs up to 1.8× more in cities where few networks are present, a POP costs 1.25× to 1.5× where there is little or no carrier-neutral data center, and countries with thousands of networks, like Brazil and the US, bring more ISP customers. Big hubs such as Frankfurt, Amsterdam, New York and São Paulo keep their prices.
+
 ## [1.30.0] — 2026-10-26
 
 - Twelve Pacific islands join the map: Honolulu, Guam, Koror, Majuro, Port Moresby, Honiara, Nouméa, Suva, Nuku’alofa, Apia, Pago Pago and Papeete. The cables across the Pacific now stop where they really land, and a POP on an island splits a long crossing into shorter hops that each carry more: California to Sydney goes from 400G to 1.6T per wave via Honolulu and Suva, Hong Kong and Manila to Los Angeles from 400G to 800G via Guam, and Santiago to Sydney from 400G to 800G via Tahiti. Twelve new cables, among them SEA-US Later, Echo-Chamber and Coral Sea Shanty, link the islands, and the old ones gain island stops. Only islands with a real exchange today get one: Honolulu, Guam, Suva, Nouméa and Honiara. Island telcos from Hawaiian Telecombo to Never Too Atoll join the networks, PacNOG meets in Suva every December, Guam, Port Moresby and Honiara have unreliable power, Tonga’s cable has a volcano for a neighbour, and a new scenario, Stepping Stones, asks you to hop the Pacific at 1.6T.

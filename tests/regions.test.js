@@ -634,5 +634,21 @@ test('Pacific islands: real landings, real exchanges only, and island hops carry
   assert.ok(ev('!!S.pops.hnl') && ev('S.lvl') >= 4);
   assert.equal(ev('scnProg().items.length'), 3);
   ev('cam.z=0.5;draw(0);cam.z=2;draw(0)');
+
+test('prices follow real connectivity: thin markets cost more, hubs stay put', () => {
+  const { ev, errors } = load();
+  start(ev);
+  assert.ok(ev('Object.keys(CITY_PDB).length') === ev('CITIES.length'), 'every city has real-world data');
+  for (const c of ['fra', 'ams', 'lon', 'nyc']) assert.equal(ev(`txComp('${c}')`), 1, `${c} is a hub`);
+  assert.equal(ev("regionMult('sao')"), 1.6, 'São Paulo keeps the South American price');
+  assert.ok(ev("regionMult('rbr')") > ev("regionMult('sao')") * 1.5, 'Rio Branco has few sellers');
+  assert.ok(ev("txComp('rbr')") <= 1.8);
+  assert.equal(ev("colo('rbr')"), 1.5, 'no neutral data center');
+  assert.equal(ev("popCost('rbr')"), ev('POP_COST') * 1.5);
+  assert.equal(ev("popMo('fra')"), ev('POP_MO'));
+  ev("ACT.buildPop({city:'rbr'});compute()");
+  assert.ok(ev('R.cost.pops') >= ev("popMo('rbr')"), 'running cost uses the city rent');
+  ev("selectCity('rbr')");
+  assert.equal(ev('asnDense("sao")&&asnDense("nyc")&&!asnDense("kgl")'), true);
   assert.deepEqual(errors, []);
 });

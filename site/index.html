@@ -599,7 +599,7 @@ const SITE2_COST=45000,SITE2_MO=3000,TE_COST=60000,TE_MO=4000;
 const SITE2_N=[tr('The Other Building'),tr('Campus B (the one with parking)'),tr('Across-the-River DC'),tr('The Annex'),tr('Suburban Mega-shed'),tr('The Cheaper One'),tr('Formerly a Shopping Mall'),tr('Bunker Two')];
 const siteName=(c,s)=>s==='b'?SITE2_N[hstr(c)%SITE2_N.length]:CITY[c].dc;
 const BE_TAPE=30000;
-const popCost=c=>POP_COST+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
+const popCost=c=>Math.round(POP_COST*(c&&CITY[c]?colo(c):1))+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
 const CN_LIC=150000, CN_JV_MO=6000;
 // Scrubbing centers come in tiers by clean bandwidth. Always-on diverts instantly; on-demand is cheaper
 // but takes a couple of days to engage. A clean-pipe add-on on a transit scrubs upstream, per port.
@@ -2125,7 +2125,7 @@ function compute(){
   for(const e of E){if(e.k==='t')R2.useT[e.id]=(R2.useT[e.id]||0)+e.used;else if(e.k==='ix')R2.useIx[e.id]=e.used;else if(e.k==='p')R2.usePni[e.id]=e.used;else R2.useCache[e.id]=e.used;}
   // money
   const C=R2.cost,V=R2.rev,pm=S.priceMul;
-  C.pops=Object.values(S.pops).reduce((a,p)=>a+POP_MO+((p.routers||1)-1)*ROUTER_MO+(p.routers||1)*RG[p.rgen||0].mo+(p.gen?GEN_MO:0),0);
+  C.pops=Object.entries(S.pops).reduce((a,[c,p])=>a+popMo(c)+((p.routers||1)-1)*ROUTER_MO+(p.routers||1)*RG[p.rgen||0].mo+(p.gen?GEN_MO:0),0);
   C.optical=S.links.filter(l=>l.kind==='df').reduce((a,l)=>a+(l.ready>S.day?0:ampCount(l.km)*AMP_MO*(l.own&&isRdm(l.sys)&&!l.sub?Math.max(1,l.pairs|0):1)+(l.regen|0)*REGEN_MO)+(l.spares?Math.round(150+(l.ch||[]).length*80):0),0);
   C.links=S.links.reduce((a,l)=>a+(l.mo||0),0);
   C.nni=(S.nni||[]).reduce((a,x)=>a+NNI[x.tier].mo,0);
@@ -2305,7 +2305,19 @@ function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops),lv=S.lvl||1;
     S.offers.push({id:uid(),city:l.a,city2:l.b,link:l.id,what:tr('a spare fiber pair in your {a}–{b} trench',{a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(dfLeaseMo(l.km)*0.9),reqs:[],exp:S.day+30});}
 }
 function cnOk(){return S.cnLic&&S.cnLic.state==='ok';}
-function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.tape)return 1.5;return C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;}
+/* Real-world calibration, pulled 2026-10-25 (Pacific islands 2026-10-26). Per city: [carrier-neutral facilities, network presences across them,
+   ASNs registered in its country]. Facilities and presences are PeeringDB facilities within 50 km or in the same city
+   (peeringdb.com/api/fac, net_count summed); ASNs per country are from bgp.he.net/report/world. */
+const CITY_PDB={sea:[37,539,33300],sjc:[57,1048,33300],dal:[59,969,33300],chi:[64,809,33300],ash:[86,1010,33300],nyc:[96,1322,33300],mia:[27,553,33300],sao:[70,1875,9693],lon:[100,2588,4027],ams:[69,2731,1827],fra:[56,2450,3705],par:[77,1528,2249],mrs:[8,273,2249],tor:[46,509,2595],bru:[33,328,443],oos:[5,22,443],bet:[16,174,152],mtl:[35,283,2595],kcy:[22,313,33300],cal:[15,127,2595],van:[13,214,2595],ott:[6,21,2595],lax:[44,939,33300],mex:[18,122,814],rek:[15,51,93],dub:[21,277,350],osl:[20,209,448],cph:[30,290,529],hel:[23,232,427],beg:[7,49,227],sof:[15,451,889],dxb:[8,135,231],mos:[49,632,6683],akl:[27,398,755],per:[12,248,3196],jkt:[98,3015,4108],mnl:[17,352,750],ber:[22,351,3705],ham:[26,228,3705],muc:[22,230,3705],zrh:[38,535,1209],nbo:[9,283,274],cai:[5,28,97],stg:[18,63,3705],sto:[31,539,1011],bcn:[13,159,1341],mad:[31,578,1341],lag:[13,279,304],jnb:[14,561,879],bom:[59,1050,6412],sin:[58,1271,782],hkg:[57,1107,1514],icn:[37,201,1197],pek:[10,15,6717],sha:[11,27,6717],tok:[58,917,1330],syd:[40,979,3196],for:[16,362,9693],rio:[33,577,9693],bsb:[14,108,9693],bhz:[13,40,9693],cwb:[11,79,9693],poa:[22,120,9693],aju:[4,3,9693],bel:[3,7,9693],bvb:[3,6,9693],cac:[4,6,9693],cpv:[4,12,9693],cpq:[19,65,9693],cgr:[4,4,9693],cau:[2,2,9693],cgb:[4,5,9693],cxj:[2,3,9693],fec:[5,4,9693],fln:[5,23,9693],igu:[5,26,124],gyn:[5,28,9693],jpa:[4,18,9693],ljd:[1,2,9693],ldb:[3,7,9693],mcp:[2,0,9693],mcz:[1,5,9693],mao:[7,15,9693],mgf:[4,9,9693],nat:[1,3,9693],pmw:[3,8,9693],pvh:[3,4,9693],rao:[6,3,9693],rec:[6,31,9693],rbr:[0,0,9693],ssa:[13,44,9693],ria:[2,2,9693],sjp:[2,4,9693],slz:[1,6,9693],the:[2,1,9693],vix:[6,30,9693],mvd:[1,2,53],asu:[3,8,124],cor:[2,29,1357],lpb:[1,2,71],uio:[9,16,287],mde:[2,18,598],ccs:[6,32,296],gua:[5,16,103],sjo:[8,6,128],qro:[11,144,814],mty:[5,27,814],gdl:[4,22,814],bue:[28,372,1357],scl:[36,274,450],lim:[12,156,267],bog:[16,195,598],pan:[8,26,158],del:[31,479,6412],maa:[20,374,6412],blr:[14,104,6412],hyd:[17,152,6412],tpe:[15,274,500],auh:[4,1,231],fuj:[1,49,231],cpt:[6,267,879],dkr:[2,4,23],abj:[5,11,32],acc:[7,78,124],dla:[3,14,34],fih:[7,19,57],lad:[8,27,79],cas:[2,2,39],alg:[0,0,16],tun:[2,0,30],jib:[3,19,5],add:[2,3,10],mba:[4,176,274],dar:[9,67,124],kla:[2,18,71],kgl:[5,14,34],mpm:[7,20,36],dur:[4,137,879],wdh:[1,2,22],lun:[4,3,24],hre:[1,0,37],gbe:[1,2,39],mel:[20,395,3196],bne:[21,277,3196],drw:[3,15,3196],osa:[19,229,1330],kul:[20,210,434],bkk:[32,397,675],sgn:[6,36,1068],khi:[7,15,488],dac:[30,107,2105],cbo:[1,0,33],waw:[25,855,2743],prg:[24,336,775],vie:[30,377,860],bud:[6,146,369],buh:[23,289,1424],tll:[7,80,256],ist:[28,334,1290],kyv:[33,506,2342],jed:[5,25,220],ruh:[8,29,220],doh:[6,29,31],mil:[29,728,1534],rom:[12,213,1534],pmo:[3,46,1534],lis:[9,129,187],ath:[6,108,307],atn:[42,589,33300],den:[28,310,33300],phx:[26,279,33300],bos:[31,209,33300],hou:[21,173,33300],slc:[22,202,33300],man:[29,353,4027],edi:[4,46,4027],bde:[0,0,4027],svg:[2,14,448],hnl:[7,33,33300],gum:[6,28,11],ror:[0,0,4],maj:[0,0,12],pom:[2,0,46],hir:[1,0,11],nou:[2,2,19],suv:[0,0,23],tbu:[0,0,5],apw:[0,0,11],ppg:[0,0,2],ppt:[0,0,6]};
+// Few networks in the building means few transit sellers to haggle with: up to 1.8× where almost nobody is present.
+// Hand-set markets (Korea, Belgian red tape) keep their own price.
+const txComp=c=>{const q=CITY_PDB[c];return q?clamp((1000/Math.max(q[1],10))**0.15,1,1.8):1;};
+// No neutral data center means building your own room: POPs cost more to build and to run.
+const colo=c=>{const q=CITY_PDB[c];return !q?1:q[0]===0?1.5:q[0]<=2?1.25:1;};
+const popMo=c=>Math.round(POP_MO*colo(c));
+// Countries with thousands of ASNs (Brazil's provedores, US regionals) are full of small ISPs shopping for transit.
+const asnDense=c=>{const q=CITY_PDB[c];return !!q&&q[2]>=2000;};
+function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.tape)return 1.5;const base=C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;return Math.round(base*txComp(c)*10)/10;}
 const uaePair=(a,b)=>!!CITY[a].uae&&!!CITY[b].uae;
 const rainPair=(a,b)=>!!(CITY[a].rain||CITY[b].rain);
 const borderPair=(a,b)=>!!CITY[a].cc&&!!CITY[b].cc&&CITY[a].cc!==CITY[b].cc;
@@ -2730,6 +2742,7 @@ function spawnOffer(){
   if(lv>=3&&MEGA.some(m=>mine.includes(m.c)))types.push('ingest');if(lv>=4&&MEGA.some(m=>mine.includes(m.c)))types.push('aiwan','aiwan','mtrain');if(lv>=4&&S.links.some(l=>l.kind==='df'&&l.own&&l.ready<=S.day))types.push('pairs');
   if(lv>=5)types.push('esport');if(lv>=6&&mine.length>=2)types.push('sov','sov');if(lv>=8)types.push('cgame','cgame');if(lv>=9)types.push('metav','metav');if(lv>=11&&MEGA.some(m=>mine.includes(m.c)))types.push('agi');if(lv>=13&&mine.length>=2)types.push('mars');
   const br=mine.filter(c=>CITY[c].br);if(br.length)types.push('provedor','provedor','provedor');
+  const dense=mine.filter(asnDense);if(lv>=2&&dense.length)types.push('isp');
   const fabC=mine.filter(c=>FABS.some(f=>f.cities.includes(c)));if(lv>=2&&fabC.length){types.push('fabip','fabip');if(mine.length>=2)types.push('fabl2');}
   const t=pick(types),T=BIZ_T[t];
   if(T.event||T.sdwan||T.fiber||T.mega){spawnSpecial(t);return;}
@@ -2744,6 +2757,7 @@ function spawnOffer(){
   let name=list.length?pick(list):(T.names?pick(T.names):'Startup #'+Math.floor(Math.random()*999));
   S.usedNames.push(name);
   if(t==='provedor')city=pick(br);
+  if(t==='isp'&&dense.length&&Math.random()<0.5)city=pick(dense);
   if(t==='hft'){const fin=['nyc','chi','lon','fra','tok','sin','hkg','ams','ash'],mf=mine.filter(c=>fin.includes(c));city=mf.length?pick(mf):pick(mine);city2=pick(fin.filter(c=>c!==city));}
   const rate=T.l2?Math.round((150+kmBetween(city,city2)*0.08)*T.km):T.rate;
   if(T.div&&!reqCan('diverse',{city,city2}))return;
@@ -3314,12 +3328,12 @@ function renderPanel(){checkLayer();
 function cityPanel(c){
   const C=CITY[c],p=S.pops[c],ix=ixName(c),down=p&&p.down>S.day;
   let h=`<div class="ph"><div style="min-width:0"><div class="eyebrow">${REG[C.reg]} · ${esc(C.dc)}</div><h2>${C.name}</h2>
-  <div class="facts"><span class="fact">${tr('{g} of eyeballs',{g:fmtG(eyeP(c))})}</span>${regionMult(c)>1?`<span class="fact">${tr('Transit {x}× pricier',{x:regionMult(c)})}</span>`:''}${C.reg==='AS'&&!C.cn?'<span class="fact ixf">'+tr('Underserved: users grow 60% faster')+'</span>':''}${ix?`<span class="fact ixf">${tr('IX: <b>{ix}</b>',{ix:esc(ix)})}</span>`:''}${p?`<span class="fact mine">${tr('Your POP')}</span><button class="fact trb" data-act="trace" data-args='{"city":"${c}"}'>🔍 ${tr('Traceroute')}</button>`:''}${down?`<span class="fact down">DOWN</span>`:''}</div></div>
+  <div class="facts"><span class="fact">${tr('{g} of eyeballs',{g:fmtG(eyeP(c))})}</span>${regionMult(c)>1?`<span class="fact">${tr('Transit {x}× pricier',{x:regionMult(c)})}</span>`:''}${colo(c)>1?`<span class="fact">${tr('Few data centers: POPs {x}×',{x:colo(c)})}</span>`:''}${C.reg==='AS'&&!C.cn?'<span class="fact ixf">'+tr('Underserved: users grow 60% faster')+'</span>':''}${ix?`<span class="fact ixf">${tr('IX: <b>{ix}</b>',{ix:esc(ix)})}</span>`:''}${p?`<span class="fact mine">${tr('Your POP')}</span><button class="fact trb" data-act="trace" data-args='{"city":"${c}"}'>🔍 ${tr('Traceroute')}</button>`:''}${down?`<span class="fact down">DOWN</span>`:''}</div></div>
   <button class="x" data-act="closePanel" aria-label="${tr('Close')}">×</button></div>`;
   if(!p){
     h+=`<div class="scroll">${C.note?`<p class="note" style="margin-top:0">${esc(C.note)}</p>`:''}
     ${C.cn?chinaSection(c):''}${C.cn&&!cnOk()?'':`<section><h3>${tr('Open a POP here')}</h3><p class="lead">${tr('A POP (point of presence) is your router in a rack here. Then connect it: lay fiber from one of your POPs, or buy transit right here.')}</p>
-    ${C.ru?`<p class="why">${tr('Includes the mandatory government box in your rack: {cost} + {mo}/mo. It comes with its own listener.',{cost:fmt$(RU_BOX),mo:fmt$(RU_BOX_MO)})}</p>`:''}${btn(tr('Build POP <small>{cost} + {mo}/mo</small>',{cost:fmt$(popCost(c)),mo:fmt$(POP_MO)}),'buildPop',{city:c},'pink big',S.cash<popCost(c))}
+    ${C.ru?`<p class="why">${tr('Includes the mandatory government box in your rack: {cost} + {mo}/mo. It comes with its own listener.',{cost:fmt$(RU_BOX),mo:fmt$(RU_BOX_MO)})}</p>`:''}${btn(tr('Build POP <small>{cost} + {mo}/mo</small>',{cost:fmt$(popCost(c)),mo:fmt$(popMo(c))}),'buildPop',{city:c},'pink big',S.cash<popCost(c))}
     <p class="note">${tr('Or drag from one of your routers to this city to lay fiber and build the POP in one go.')}</p></section>`}`;
     h+=offersHere(c);
     const trs=NETS.filter(n=>n.price&&n.pops.includes(c));
