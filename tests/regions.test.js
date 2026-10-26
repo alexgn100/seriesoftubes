@@ -634,6 +634,8 @@ test('Pacific islands: real landings, real exchanges only, and island hops carry
   assert.ok(ev('!!S.pops.hnl') && ev('S.lvl') >= 4);
   assert.equal(ev('scnProg().items.length'), 3);
   ev('cam.z=0.5;draw(0);cam.z=2;draw(0)');
+  assert.deepEqual(errors, []);
+});
 
 test('prices follow real connectivity: thin markets cost more, hubs stay put', () => {
   const { ev, errors } = load();
@@ -649,6 +651,6 @@ test('prices follow real connectivity: thin markets cost more, hubs stay put', (
   ev("ACT.buildPop({city:'rbr'});compute()");
   assert.ok(ev('R.cost.pops') >= ev("popMo('rbr')"), 'running cost uses the city rent');
   ev("selectCity('rbr')");
-  assert.equal(ev('asnDense("sao")&&asnDense("nyc")&&!asnDense("kgl")'), true);
+  assert.ok(ev("CITY_PDB.sao[2]>=2000&&CITY_PDB.nyc[2]>=2000&&CITY_PDB.kgl[2]<2000"), 'Brazil and the US are dense in ASNs, Rwanda is not');
   assert.deepEqual(errors, []);
 });

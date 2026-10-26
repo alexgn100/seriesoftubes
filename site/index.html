@@ -599,7 +599,7 @@ const SITE2_COST=45000,SITE2_MO=3000,TE_COST=60000,TE_MO=4000;
 const SITE2_N=[tr('The Other Building'),tr('Campus B (the one with parking)'),tr('Across-the-River DC'),tr('The Annex'),tr('Suburban Mega-shed'),tr('The Cheaper One'),tr('Formerly a Shopping Mall'),tr('Bunker Two')];
 const siteName=(c,s)=>s==='b'?SITE2_N[hstr(c)%SITE2_N.length]:CITY[c].dc;
 const BE_TAPE=30000;
-const popCost=c=>Math.round(POP_COST*(c&&CITY[c]?colo(c):1))+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
+const popCost=c=>Math.round(POP_COST*colo(c))+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
 const CN_LIC=150000, CN_JV_MO=6000;
 // Scrubbing centers come in tiers by clean bandwidth. Always-on diverts instantly; on-demand is cheaper
 // but takes a couple of days to engage. A clean-pipe add-on on a transit scrubs upstream, per port.
@@ -2315,8 +2315,6 @@ const txComp=c=>{const q=CITY_PDB[c];return q?clamp((1000/Math.max(q[1],10))**0.
 // No neutral data center means building your own room: POPs cost more to build and to run.
 const colo=c=>{const q=CITY_PDB[c];return !q?1:q[0]===0?1.5:q[0]<=2?1.25:1;};
 const popMo=c=>Math.round(POP_MO*colo(c));
-// Countries with thousands of ASNs (Brazil's provedores, US regionals) are full of small ISPs shopping for transit.
-const asnDense=c=>{const q=CITY_PDB[c];return !!q&&q[2]>=2000;};
 function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.tape)return 1.5;const base=C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;return Math.round(base*txComp(c)*10)/10;}
 const uaePair=(a,b)=>!!CITY[a].uae&&!!CITY[b].uae;
 const rainPair=(a,b)=>!!(CITY[a].rain||CITY[b].rain);
@@ -2742,7 +2740,8 @@ function spawnOffer(){
   if(lv>=3&&MEGA.some(m=>mine.includes(m.c)))types.push('ingest');if(lv>=4&&MEGA.some(m=>mine.includes(m.c)))types.push('aiwan','aiwan','mtrain');if(lv>=4&&S.links.some(l=>l.kind==='df'&&l.own&&l.ready<=S.day))types.push('pairs');
   if(lv>=5)types.push('esport');if(lv>=6&&mine.length>=2)types.push('sov','sov');if(lv>=8)types.push('cgame','cgame');if(lv>=9)types.push('metav','metav');if(lv>=11&&MEGA.some(m=>mine.includes(m.c)))types.push('agi');if(lv>=13&&mine.length>=2)types.push('mars');
   const br=mine.filter(c=>CITY[c].br);if(br.length)types.push('provedor','provedor','provedor');
-  const dense=mine.filter(asnDense);if(lv>=2&&dense.length)types.push('isp');
+  // Countries with thousands of ASNs (Brazil's provedores, US regionals) are full of small ISPs shopping for transit.
+  const dense=mine.filter(c=>(CITY_PDB[c]||[])[2]>=2000);if(lv>=2&&dense.length)types.push('isp');
   const fabC=mine.filter(c=>FABS.some(f=>f.cities.includes(c)));if(lv>=2&&fabC.length){types.push('fabip','fabip');if(mine.length>=2)types.push('fabl2');}
   const t=pick(types),T=BIZ_T[t];
   if(T.event||T.sdwan||T.fiber||T.mega){spawnSpecial(t);return;}
