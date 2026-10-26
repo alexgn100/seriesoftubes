@@ -54,6 +54,16 @@ docker build -t seriesoftubes .
 docker run --rm -p 8080:8080 seriesoftubes   # then open http://localhost:8080
 ```
 
+With cloud sync (optional accounts with username and password, so a network moves between devices), run the
+game and the small sync server (`server/sync.js`, no dependencies) together. nginx passes `/api/` to it, and
+accounts and saves are kept in the `sync-data` volume:
+
+```sh
+docker compose up -d --build   # then open http://localhost:8080
+```
+
+Without a sync server (GitHub Pages, plain `docker run`) the game simply hides cloud sync.
+
 ## Development
 
 ```sh

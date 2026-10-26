@@ -18,6 +18,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   // The update check must always ask the network.
   if (url.origin === location.origin && url.pathname === '/version.json') return;
+  // Cloud sync answers are never cached.
+  if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then((r) => { const copy = r.clone(); caches.open(CACHE).then((c) => c.put('/', copy)); return r; })
       .catch(() => caches.match('/').then((r) => r || caches.match('/index.html'))));

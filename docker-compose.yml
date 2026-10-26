@@ -1,0 +1,17 @@
+# The game plus cloud sync: nginx serves the page on :8080 and passes /api/ to the sync server.
+#   docker compose up -d --build
+# Accounts and saves are kept in the "sync-data" volume; back it up like any database.
+services:
+  web:
+    build: .
+    ports: ["8080:8080"]
+    depends_on: [sync]
+    restart: unless-stopped
+  sync:
+    build: { context: ., dockerfile: docker/sync.Dockerfile }
+    environment:
+      TRUST_PROXY: "1"
+    volumes: [sync-data:/data]
+    restart: unless-stopped
+volumes:
+  sync-data:
