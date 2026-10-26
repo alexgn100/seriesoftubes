@@ -20,6 +20,7 @@ thousand lines), so find things by the section banners rather than by line numbe
    failures & events, daily tick, badges
 /* ================= ACTIONS ================= */     the ACT map: every player action
 /* ================= SAVE ================= */
+/* ================= CLOUD SYNC ================= */  opt-in sync with server/sync.js
 /* ================= AUDIO ================= */
 /* ================= DOM RENDER ================= */  HUD, left panel, side panel, modals, toasts
 /* ================= PHONE ================= */       tab bar, bottom sheets
@@ -36,6 +37,7 @@ Other files:
 | `site/i18n/pt.js` | Portuguese (Brazil) dictionary: English text → Portuguese, loaded when the language is `pt` |
 | `site/i18n/de.js` | German dictionary: English text → German, loaded when the language is `de` |
 | `site/i18n/fr.js` | French dictionary: English text → French, loaded when the language is `fr` |
+| `server/sync.js` | Cloud sync server: accounts (username + scrypt password), one save per account with a revision number. Node built-ins only; `docker-compose.yml` runs it behind nginx at `/api/` |
 | `site/sw.js` | Service worker: network-first for pages, stale-while-revalidate for assets. Cache name is stamped with the version |
 | `site/site.webmanifest`, icons | PWA install metadata |
 | `scripts/build.sh` | Copies `site/` to `_site/`, stamps `__VERSION__`/`__BUILD_DATE__`, bakes release notes, writes `version.json` |
@@ -123,6 +125,20 @@ Served share per city (`sfOf`) drives eyeball revenue and customer mood.
 - `sanitize(s)` is the gate for all untrusted state (saves and imported files): it
   drops unknown ids, clamps numbers, repairs references and fills defaults. Every new
   field in `S` needs a line there.
+
+## Cloud sync
+
+Optional, off until the player logs in under Settings. The local save stays the source of truth;
+`CL` (localStorage `sot-cloud`) holds the username, a login token, the cloud revision this device last
+saw (`rev`) and a fingerprint of the network at that point (`h`, from `clHash()`, which ignores the
+camera and speed).
+
+- `cloudPush()` sends `S` with the revision it replaces; the server refuses (409) if another device
+  pushed in between. It runs every minute and when the tab is hidden, only if the network changed.
+- `cloudPull()` runs at boot and when the tab shows again. Same revision: push if we played. Newer in
+  the cloud: load it through `parseSave()` and `adoptSave()` (the import path), unless this device
+  played too, in which case `cloudConflict()` asks which network stays.
+- Without a server (GitHub Pages) `/api/health` fails and Settings says cloud sync is not available.
 
 ## Translations
 

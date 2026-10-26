@@ -23,6 +23,8 @@ function load(opts = {}) {
       // Seed before the game script runs, so nothing random happens at load time either.
       if (opts.seed !== false) { let r = opts.seed || 12345; window.Math.random = () => { r = (r * 16807) % 2147483647; return r / 2147483647; }; window.__reseed = (n) => { r = n; }; }
       for (const [k, v] of Object.entries(opts.storage || {})) window.localStorage.setItem(k, v);
+      // Cloud sync talks to the server through this (jsdom has no fetch of its own).
+      if (opts.fetch) window.fetch = opts.fetch;
       if (opts.navigatorLanguage) Object.defineProperty(window.navigator, 'language', { value: opts.navigatorLanguage });
       // A non-English game: jsdom does not fetch the dictionary script, so register it up front.
       if (opts.lang) { window.localStorage.setItem('sot-lang', opts.lang); window.eval(fs.readFileSync(path.join(__dirname, '..', 'site', 'i18n', opts.lang + '.js'), 'utf8')); }
