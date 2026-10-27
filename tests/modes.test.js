@@ -132,7 +132,8 @@ test('half speed and deeper zoom', () => {
   ev("ACT.speed({v:7})");
   assert.equal(ev("UI.speed"), 0.5, 'bogus speeds are ignored');
   ev("cam.z=1;for(let i=0;i<40;i++)zoomAt(100,100,1.2)");
-  assert.equal(ev("cam.z"), 6);
+  assert.equal(ev("cam.z"), ev("ZMAX"), 'zooming in stops at the maximum');
+  assert.ok(ev("ZMAX") >= 16, 'deep enough for dense regions (#126)');
   assert.deepEqual(errors, []);
 });
 
@@ -426,5 +427,44 @@ test('#114 Only Spätzle-IX can be won by peering alone', () => {
   // the rule stays inside this scenario
   ev("ACT.start({})");
   assert.equal(ev("scnRule('local')"), false);
+  assert.deepEqual(errors, []);
+});
+
+test('RouteScript: help, ready-made scripts and the AI button', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
+  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.buyTE();compute()");
+  // every ready-made script parses on a real network and is listed in the help
+  for (const id of JSON.parse(ev('JSON.stringify(TE_RECIPES.map(r=>r.id))')))
+    assert.deepEqual(JSON.parse(ev(`JSON.stringify(teParse(TE_RECIPES.find(r=>r.id==='${id}').src().join('\\n')).errors)`)), [], id);
+  ev("ACT.teEdit();document.getElementById('teSrc').value='spill at 90%';ACT.teHelp()");
+  const help = ev("document.getElementById('modalCard').textContent");
+  assert.match(help, /How RouteScript works/);
+  assert.match(help, /Penny Pincher/);
+  assert.equal(ev("document.querySelectorAll('[data-act=\"teRecipe\"]').length"), ev('TE_RECIPES.length'));
+  ev("ACT.teBack()");
+  assert.equal(ev("document.getElementById('teSrc').value"), 'spill at 90%', 'the help keeps your draft');
+  ev("ACT.teRecipe({id:'pinch'})");
+  assert.match(ev("document.getElementById('teSrc').value"), /prefer transit cogentle/);
+  // the AI writes a script that parses and does not lose traffic...
+  const served = ev('R.served');
+  ev('Math.random=()=>0.5;ACT.teSlop()');
+  const good = ev("document.getElementById('teSrc').value");
+  assert.match(good, /Written by/);
+  assert.equal(ev(`teParse(${JSON.stringify(good)}).errors.length`), 0);
+  assert.ok(ev(`teTrial(${JSON.stringify(good)}).after.served`) >= served * 0.99);
+  assert.equal(ev('R.served'), served, 'thinking about it changes nothing');
+  ev('ACT.teDeploy()');
+  assert.equal(ev('S.te.script'), good);
+  // ...except sometimes, and it is just as sure of itself
+  ev('Math.random=()=>0.001;ACT.teEdit();ACT.teSlop()');
+  const bad = ev("document.getElementById('teSrc').value");
+  assert.match(bad, /cap transit cogentle at 0 gbps/);
+  assert.match(bad, /Confidence: 100%/);
+  assert.ok(ev(`teTrial(${JSON.stringify(bad)}).after.served`) < served * 0.5, 'it takes the network down');
+  ev('ACT.teDeploy()');
+  assert.match(ev("document.getElementById('toasts').textContent"), /The AI apologises/);
+  ev('ACT.teEdit();ACT.teSlop();ACT.teHelp();ACT.teBack()');
+  ev("UI.dtab='overview';renderAll()");
   assert.deepEqual(errors, []);
 });

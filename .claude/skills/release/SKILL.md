@@ -7,8 +7,10 @@ description: Cut and ship a Series of Tubes release (patch or minor) from main v
 
 Bumping `version` in `package.json` on `main` is the release button. The
 `auto-release.yml` workflow tests, tags `v<version>`, publishes a GitHub release with
-that version's CHANGELOG section as notes, and dispatches `release.yml`, which deploys
-to GitHub Pages (https://seriesoftub.es).
+that version's CHANGELOG section as notes, and dispatches `release.yml`, which builds
+`_site/` (`npm run build`: the page assembled from `src/` plus `site/`) and deploys it
+to GitHub Pages (https://seriesoftub.es). GitHub Pages is the only host, ever: see the
+`github-pages` skill.
 
 ## Only release when Frederic says so
 
@@ -53,7 +55,7 @@ gh api repos/fjaeckel/seriesoftubes/releases/latest --jq '.tag_name+" "+.publish
    - `package-lock.json` → top-level `"version"` and `packages[""].version`
 4. `npm test` once more.
    Then compare performance with the previous release and mention anything notable to Frederic:
-   `git show v<last>:site/index.html > /tmp/base.html && npm run perf -- --base /tmp/base.html`.
+   `npm run perf -- --base-ref v<last>`.
 5. Commit on `main` as Frederic, with no attribution trailers:
    ```bash
    git -c user.name="Frederic Jung" -c user.email="frederic@jc-ix.net" commit \

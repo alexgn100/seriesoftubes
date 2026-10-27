@@ -6,6 +6,61 @@ function setup(ev) {
   ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0");
 }
 
+test('Rackstar requests require enough Crowdflare traffic and a free router port', () => {
+  const { ev, errors } = load();
+  setup(ev);
+  ev("S.pops.fra.bb={d:9.9/NSH.cfl};compute();ACT.cache({city:'fra',net:'cfl'})");
+  assert.equal(ev('S.caches.length'), 0, 'below the traffic threshold');
+  ev("S.pops.fra.bb.d=10/NSH.cfl;compute();selectCity('fra');ACT.tab({t:'peer'})");
+  assert.match(ev("document.getElementById('panelBody').textContent"), /Rackstar/);
+  const cash = ev('S.cash');
+  const ports = ev("portsUsed('fra')");
+  ev("ACT.cache({city:'fra',net:'cfl'})");
+  assert.equal(ev('S.caches.length'), 1, 'eligible at exactly 10 Gbps');
+  assert.equal(ev('S.cash'), cash, 'hardware is free');
+  assert.equal(ev("portsUsed('fra')"), ports + 1);
+  assert.equal(ev('R.cost.caches'), ev('CACHE_MO'));
+  ev("while(portsUsed('fra')<portsMax('fra'))ACT.cache({city:'fra',net:'cfl'})");
+  const boxes = ev('S.caches.length');
+  ev("ACT.cache({city:'fra',net:'cfl'})");
+  assert.equal(ev('S.caches.length'), boxes, 'a full router refuses another box');
+  assert.deepEqual(errors, []);
+});
+
+test('Rackstar serves cacheable Crowdflare traffic locally and overflow uses transit', () => {
+  const { ev, errors } = load();
+  setup(ev);
+  ev("S.pops.fra.rgen=RG.length-1;S.pops.fra.bb={d:200/NSH.cfl};ACT.buyTransit({city:'fra',net:'cog',tier:PORT.length-1});ACT.lagT({id:S.transit[0].id,d:1});ACT.lagT({id:S.transit[0].id,d:1});compute()");
+  const transit = ev('R.useT[S.transit[0].id]');
+  ev("ACT.cache({city:'fra',net:'cfl'})");
+  assert.equal(ev('R.useCache[S.caches[0].id]'), ev('CACHE_CAP'), 'first box fills to 100G');
+  assert.ok(Math.abs(ev('R.useT[S.transit[0].id]') - (transit - 100)) < 1e-6);
+  ev("ACT.cache({city:'fra',net:'cfl'})");
+  assert.ok(Math.abs(ev('Object.values(R.useCache).reduce((a,b)=>a+b,0)') - 170) < 1e-6, '85% is cacheable, the rest still needs an external exit');
+  ev("ACT.rmCache({id:S.caches[0].id});ACT.rmCache({id:S.caches[0].id})");
+  assert.ok(Math.abs(ev('R.useT[S.transit[0].id]') - transit) < 1e-6, 'removal returns traffic to transit');
+  assert.deepEqual(errors, []);
+});
+
+test('Rackstar boxes survive save migration and appear on phone peering panels in every language', () => {
+  for (const lang of ['en', 'it', 'pt', 'fr']) {
+    const { dom, ev, errors } = load(lang === 'en' ? {} : { lang });
+    setup(ev);
+    ev('window.matchMedia=()=>({matches:true})');
+    ev("S.pops.fra.bb={d:10/NSH.cfl};compute();ACT.cache({city:'fra',net:'cfl'});save();S=migrate(JSON.parse(localStorage.getItem('sot-save-v1')));compute()");
+    assert.equal(ev("S.caches.filter(x=>x.net==='cfl').length"), 1, lang);
+    assert.ok(ev('R.useCache[S.caches[0].id]') > 0, lang);
+    for (const [width, height] of [[360, 800], [800, 360]]) {
+      dom.window.innerWidth = width;
+      dom.window.innerHeight = height;
+      ev("selectCity('fra');ACT.tab({t:'peer'});renderAll()");
+      assert.match(dom.window.document.getElementById('panelBody').textContent, /Rackstar/, lang);
+    }
+    assert.deepEqual(errors, [], lang);
+    dom.window.close();
+  }
+});
+
 test('big selective peers refuse in some cities, with a reason, and only for a while', () => {
   const { ev, errors } = load();
   setup(ev);

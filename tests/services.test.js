@@ -62,6 +62,29 @@ test('alien waves use spectrum on your dark fiber and pay monthly while it is up
   assert.deepEqual(errors, []);
 });
 
+test('alien waves a carrier keeps renting on one fiber grow one contract, and old saves are folded', () => {
+  const { ev, errors } = load();
+  network(ev);
+  ev("UI.pending={a:'fra',b:'ams'};UI.lmode='df';UI.dfSys='roadm';ACT.orderDf();UI.lmode='wave';const df=S.links.find(l=>l.kind==='df');df.ready=S.day;ACT.addCh({id:df.id,o:'zr4'})");
+  const df = "S.links.find(l=>l.kind==='df')";
+  const offer = (id, name, slots) => ev(`S.offers.push({...fiberOffer('wwave',${df},()=>'${name}'),id:'${id}',slots:${slots},rate:${slots}*1000});ACT.accept({id:'${id}'})`);
+  offer('w1', 'Megapork', 2); offer('w2', 'Megapork', 3); offer('w3', 'Zay-No Fiber', 1);
+  assert.equal(ev("S.biz.filter(b=>b.type==='wwave').length"), 2, 'one contract per carrier on the fiber');
+  assert.equal(ev("S.biz.find(b=>b.name==='Megapork').slots"), 5);
+  assert.equal(ev("S.biz.find(b=>b.name==='Megapork').rate"), 5000);
+  assert.match(ev("S.biz.find(b=>b.name==='Megapork').what"), /^5× 400G alien waves/);
+  assert.equal(ev(`soldSlots(${df})`), 6, 'the same spectrum is sold as before');
+  ev('compute()');
+  // a save from before: one contract per sale, folded when it loads
+  ev("S.biz.push({id:'o1',type:'wwave',link:S.biz[0].link,name:'Megapork',city:'fra',city2:'ams',bw:1,rate:700,slots:1,mood:80,since:1,reqs:[]});S=migrate(S);compute()");
+  assert.equal(ev("S.biz.filter(b=>b.type==='wwave').length"), 2);
+  assert.equal(ev("S.biz.find(b=>b.name==='Megapork').slots"), 6);
+  assert.equal(ev("S.biz.find(b=>b.name==='Megapork').rate"), 5700);
+  assert.equal(ev("S.biz.find(b=>b.name==='Megapork').mood"), 80, 'the unhappier contract sets the mood');
+  assert.equal(ev(`soldSlots(${df})`), 7);
+  assert.deepEqual(errors, []);
+});
+
 test('the new offers spawn on their own during play', () => {
   const { ev, errors } = load();
   seed(ev, 21);

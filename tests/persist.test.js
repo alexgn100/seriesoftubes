@@ -32,7 +32,7 @@ test('leaving the page saves the game', () => {
 
 test('returning players see what is new after an update, once', () => {
   const { saved } = playedGame();
-  execFileSync('bash', ['scripts/build.sh'], { cwd: root, env: { ...process.env, OUT, VERSION: '1.1.0', BUILD_DATE: '2026-10-23' } });
+  execFileSync(process.execPath, ['scripts/build.js'], { cwd: root, env: { ...process.env, OUT, VERSION: '1.1.0', BUILD_DATE: '2026-10-23' } });
   const file = path.join(OUT, 'index.html');
   const b = load({ file, storage: { 'sot-save-v1': saved, 'sot-seen-version': '1.0.0' } });
   const text = b.ev("document.getElementById('modalCard').textContent");

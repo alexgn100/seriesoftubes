@@ -590,8 +590,8 @@ test('buttons behind an open modal stay quiet, and a declined PNI clears its sta
 test('#66 #68 subsea optics: engineered glass reaches further, and the same limit caps leased waves', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;S.lvl=4;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  // your own Paris–Ashburn cable: 1.2T per channel instead of 400G
-  ev("ACT.buildPop({city:'par'});ACT.buildPop({city:'ash'});S.pops.par.rgen=S.pops.ash.rgen=3;S.links.push({id:'oc',a:'par',b:'ash',kind:'df',own:true,sub:true,km:ownCabKm('par','ash'),sys:'roadm',ch:['tp16'],ready:0,mo:1,day:0,cut:0});compute()");
+  // a legacy Paris–Ashburn cable: 1.2T per channel instead of 400G
+  ev("ACT.buildPop({city:'par'});ACT.buildPop({city:'ash'});S.pops.par.rgen=S.pops.ash.rgen=3;S.links.push({id:'oc',a:'par',b:'ash',kind:'df',own:true,sub:true,km:Math.round(kmBetween('par','ash')*1.15),sys:'roadm',ch:['tp16'],ready:0,mo:1,day:0,cut:0});compute()");
   assert.equal(ev("dfCap(S.links.find(l=>l.id==='oc'))"), 1200, `${ev("ownCabKm('par','ash')")} km of your own cable`);
   // counted as land glass it would be 400G, which is what #66 saw
   ev("S.links.find(l=>l.id==='oc').sub=false;compute()");
@@ -759,7 +759,7 @@ test('connections in the NOC dashboard can be upgraded and grown into LAGs right
   assert.ok(tap('buyTransit'));
   assert.equal(ev("S.transit[0].tier"), 2);
   assert.ok(tap('lagP'));
-  assert.equal(ev("S.pni[0].n"), 2);
+  assert.equal(ev("S.pni[0].up.n"), 2, 'a LAG member with NetChill is an augment on order');
   assert.ok(tap('lagIx'));
   assert.equal(ev("S.ixn.ams"), 2);
   assert.ok(tap('buyIx'));
@@ -1228,7 +1228,10 @@ test('#113 Red Sea Crisis wants traffic into Asia for a month, not broadband and
   build(1);
   ev("for(const n of NETS.filter(n=>n.price&&n.pops.includes('mrs')).slice(0,2))ACT.buyTransit({city:'mrs',net:n.id,tier:1});for(const c of ['sin','bom'])if(!S.pops[c].bb)ACT.launchBB({city:c});after()");
   assert.ok(!ev('S.scn.done'));
-  let d = 0; while (!ev('S.scn.done') && d < 200) { ev('dayTick()'); d++; }
+  // Asian users backhauled to Marseille transit get slow service and would churn away; keep them subscribed,
+  // this is about the 30-day counter.
+  ev("window.__bb={sin:60,bom:60}");
+  let d = 0; while (!ev('S.scn.done') && d < 200) { ev('for(const c of ["sin","bom"])S.pops[c].bb.d=Math.max(S.pops[c].bb.d,__bb[c]);dayTick()'); d++; }
   assert.ok(ev('S.scn.done'), 'won once 80 Gbps crossed into Asia for 30 days in a row');
   assert.ok(d >= 30, `took ${d} days`);
   assert.match(ev("scnProg().items.map(x=>x.l+' '+x.txt).join(' | ')"), /Days in a row at 80(\.0)? Gbps or more 30 \/ 30/);
@@ -1273,5 +1276,42 @@ test('#51 a dark fiber shows what is rented out, and spare capacity can be liste
   // a broker offer survives a save, and random offers still come the same way
   ev("S.offers=[{...fiberOffer('dfpair',S.links[0],()=>'Y',0.9),broker:'yes'}];S=sanitize(S)");
   assert.equal(ev('S.offers[0].broker'), true);
+  assert.deepEqual(errors, []);
+});
+
+test('#126 you can zoom in far enough, and pick a short link between two close cities', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({city:'sao'});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;for(const c of ['cpq'])ACT.buildPop({city:c});UI.pending=null;UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal('sao','cpq');ACT.buildLink({tier:1});closeModal()");
+  assert.ok(ev('ZMAX') >= 16);
+  const id = ev("S.links.find(l=>l.a==='sao'||l.b==='sao').id");
+  // the middle of the drawn link, on screen, fully zoomed in on it
+  const at = (z) => JSON.parse(ev(`(()=>{const l=S.links.find(x=>x.id==='${id}'),g=linkGeom(l,pairIdx().get(edgeKey(l))),p=g.pts[Math.floor(g.pts.length/2)];
+    cam.x=p[0];cam.y=p[1];cam.z=1;zoomAt(CW/2,CH/2,${z});const [sx,sy]=toS(p[0],p[1],visibleKs()[0]);const c=toS(CITY.sao.x,CITY.sao.y,visibleKs()[0]);return JSON.stringify({sx,sy,cx:c[0],cy:c[1],z:cam.z});})()`));
+  const m = at(100);
+  assert.equal(m.z, ev('ZMAX'), 'zoom stops at the new maximum');
+  assert.equal(ev(`pickCity(${m.sx},${m.sy})`), null, 'the middle of the link is not grabbed by a city');
+  assert.equal(ev(`hitLink(${m.sx},${m.sy})`), id);
+  assert.equal(ev(`pickCity(${m.cx},${m.cy-4}).id`), 'sao', 'tapping the city icon still picks the city');
+  // even at the old maximum, a click on the link now picks the link where it is not under a city icon
+  const o = at(6);
+  assert.ok(Math.abs(o.z - 6) < 1e-9);
+  assert.equal(ev(`pickCity(${o.sx},${o.sy})`), null);
+  assert.deepEqual(errors, []);
+});
+
+test('#134 an exchange named after its city does not repeat the city in messages', () => {
+  const { ev, errors } = load();
+  base(ev);
+  assert.equal(ev("ixNamesCity('cpq')"), true);
+  assert.equal(ev("ixNamesCity('fra')"), false);
+  ev("ACT.buildPop({city:'cpq'});ACT.buyIx({city:'cpq',tier:1,signed:true});ACT.buyIx({city:'fra',tier:1,signed:true});S.ixn={cpq:2,fra:2}");
+  assert.equal(ev("S.ixp.cpq!==undefined&&S.ixp.fra!==undefined"), true);
+  const labs = JSON.parse(ev("JSON.stringify(lagsN().filter(o=>o.k==='ix').map(o=>o.lab))"));
+  assert.ok(labs.includes('IX.brrr Campinas LAG'), labs.join(' | '));
+  assert.ok(labs.some(l => / LAG in Frankfurt$/.test(l)), labs.join(' | '));
+  ev("S.inc=[];eval('('+fireFailure.toString().replace('type=pick(f);}',\"type='maxpfx';}\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
+  const msg = ev("S.inc.map(i=>i.msg).join(' ')");
+  assert.match(msg, /IX\.brrr Campinas/);
+  assert.doesNotMatch(msg, /in Campinas/);
   assert.deepEqual(errors, []);
 });

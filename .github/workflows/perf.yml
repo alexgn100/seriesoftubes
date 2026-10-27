@@ -6,7 +6,9 @@ name: Performance
 on:
   pull_request:
     paths:
+      - 'src/**'
       - 'site/**'
+      - 'scripts/lib/**'
       - 'scripts/perf-*.js'
       - 'tests/fixtures/**'
       - 'tests/harness.js'
@@ -32,7 +34,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           git fetch --depth=1 origin "$BASE_SHA"
-          git show FETCH_HEAD:site/index.html > "$RUNNER_TEMP/base.html"
+          # The base's page, assembled by the base's own scripts (or its site/index.html from before the split).
+          node scripts/lib/page.js --ref FETCH_HEAD -o "$RUNNER_TEMP/base.html"
           echo "BASE_ARG=--base $RUNNER_TEMP/base.html" >> "$GITHUB_ENV"
       - name: Benchmark
         # The runner image ships Google Chrome; playwright-core (a dev dependency) drives it, no browser download.

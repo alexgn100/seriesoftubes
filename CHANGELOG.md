@@ -6,6 +6,40 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- The game starts faster in German too: its translation is about 30% smaller to download, and everything added since 1.31 is now in German.
+
+## [1.34.1] — 2026-10-27
+
+- The game starts faster in Italian, Portuguese and French: their translations are about 40% smaller to download.
+
+## [1.34.0] — 2026-10-27
+
+- Choose your peering policy: Open to all, Selective or Closed. Open accepts everyone and keeps the route servers, Selective means fewer requests but you ask peers yourself, and Closed scares customers away.
+- One button now raises every max-prefix limit at once. Leaks included.
+- Brazil is slimmer: 15 small cities next to bigger ones are gone from new games. Saved games keep their POPs there, and Order and Progress now needs 15 IX.brrr ports.
+
+## [1.33.0] — 2026-10-27
+
+- Australia arrives: start in Sydney on hard mode. Expensive transit, a national network that keeps 45% of every broadband bill, real Australian exchanges and carriers, Adelaide, Canberra, Hobart and the South Island of New Zealand, new cables, very Australian outages and a new scenario, Fibre to the Basement. Older saves with Australian POPs are told once what changed.
+- Hardware gets dearer over the years, and shortages come and go. Routers, optics and new builds cost about 4% more each year after your first six months (up to 30%), and laser, chip or cable-ship shortages add 30 to 50% for a month or two. Stock spare optics, or lock a year of prices from the NOC tab.
+- Routes can sell out of a wave size for a while. The link window shows which sizes and for how long; never in your first 90 days.
+- PNIs with the big networks are quicker again: usually about a month. About one order in seven still gets stuck for 6 to 12 months.
+- Crowdflare offers free Rackstar cache boxes once you send it 10 Gbps.
+- Smaller fixes: one button hires enough crews to finish a build in a day, and extra crews stop once they save no time (#103). Subsea upgrades move with the cable's finish date. Alien waves from the same carrier grow one contract, keeping big saves small. The broadband panel shows what homes really pay. Crowded POP names hide until you zoom in. Exchanges named after their city no longer repeat it (#134).
+
+## [1.32.0] — 2026-10-27
+
+- Six Atlantic stops join the map: Halifax, Bermuda, the Azores, Tenerife, Cape Verde and St Helena (#120). The cables across the Atlantic now stop where they really land, and a POP on an island splits a crossing that is just too long for 1.6T into hops that each carry 1.6T or more: Miami to Madrid via Bermuda and the Azores, Atlanta to Lisbon via Bermuda, Lisbon and London to Lagos via Tenerife, and Fortaleza to Europe via Cape Verde. Halifax sits at the start of the shortest line to England. Three new cables, Sol Survivor, Atlantis-2: The Sequel and Canary in the Cable Mine, link the islands, and older ones gain island stops. Exchanges only where one runs today, in Praia and Halifax. New island networks from One Commotion to Pretty Sure South Atlantic, cables that go quiet in the Bermuda Triangle, and a new scenario, Mid-Atlantic Accent, asks you to cross at 1.6T hop by hop. Broadband in a very small town no longer starts above what the town can use.
+- Backhauling users to transit far away now makes their internet slow, and slow is bad service. Users feel the round trip to wherever their traffic leaves for transit: up to 20 ms (about 1,500 km) is fine, beyond that service suffers, and past 50 ms broadband and internet services count as bad service, which costs revenue and customers. Traffic over your own peering, PNIs and caches is not penalised. Slow cities show a 🐢 in their panel, a warning in the Transit tab and a list in the NOC.
+- The NOC now keeps every notification from the last 10 minutes near the top of its tab, newest first, so nothing that popped up while you looked away is lost. Each one shows its title, a short text and how long ago it happened, repeats fold into one line with a count, and an Open button takes you to the city, link, customer, bank or goal it is about. The NOC button in the top bar and the NOC tab on phones count the ones you have not read yet. Resolved incidents now say what was fixed and where.
+- Peering now comes with an inbox: every IX port brings peering requests from networks you have never heard of, and sessions drop when someone blows past the max-prefix limit their PeeringDB promised. Answer requests, decide whether a max-prefix alert is growth or a route leak, and keep your reputation up, because selective networks hear when you never answer. For $20M a year the Large Peering Model AI answers it all for you, quickly and often wrongly.
+- PNIs take time: a cross-connect with a small network takes a few weeks, and the big content networks, Tier 1s and big eyeball networks quote 6 to 12 months for a new PNI or an augment. The content networks and Tier 1s no longer do 10G PNIs (100G and up), Doitsche Telekomm still sells 1G, and Microsnoft has no capacity on the US east coast at all.
+- Backhauling users to transit far away now makes their internet slow, and slow is bad service. Users feel the round trip to wherever their traffic leaves for transit: up to 20 ms (about 1,500 km) is fine, beyond that service suffers, and past 50 ms broadband and internet services count as bad service, which costs revenue and customers. Traffic over your own peering, PNIs and caches is not penalised. Slow cities show a 🐢 in their panel, a warning in the Transit tab and a list in the NOC.
+- RouteScript has a new “Slop it with AI” button: an AI reads your live traffic, writes you a script and tells you how great it is. A new help page explains what every rule does and how real routers do the same, with seven ready-made scripts (Penny Pincher, Peering First, Shields Up and more) filled in from your own network and loaded with one tap.
+- New player-built subsea cables follow surveyed sea routes around land (#133). Their map paths, prices, optical reach and latency use the same distance, and premium designs are consistently faster. Like real cables, routes between Europe and Asia cross Egypt beside the Suez Canal and routes between the Caribbean and the Pacific cross Panama, except during the Red Sea Crisis, which shuts the canal. The low-latency design is still as fast as the fastest cable on the map: it can follow that cable’s corridor, or land a little further off and run to an inland city over land. Quotes change with the real sea distance, cheaper on some routes and dearer on others. Existing cables keep their saved characteristics.
+- You can zoom in much further on the map, and a short link between two close cities can now be picked (#126). Dense regions like southern Brazil spread out properly when you zoom in, and tapping right on a link next to a city opens the link instead of the city.
+- The NOC now keeps every notification from the last 10 minutes near the top of its tab, newest first, so nothing that popped up while you looked away is lost. Each one shows its title, a short text and how long ago it happened, repeats fold into one line with a count, and an Open button takes you to the city, link, customer, bank or goal it is about. The NOC button in the top bar and the NOC tab on phones count the ones you have not read yet. Resolved incidents now say what was fixed and where.
+
 ## [1.31.0] — 2026-10-26
 
 - You can now turn on cloud sync from the menu or the title screen with just a username and password, and carry on with the same network on any device. Your game still saves on this device and export and import work as before; when two devices both played since the last sync, the game asks which network to keep. You can log out or delete your cloud account at any time.

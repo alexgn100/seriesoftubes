@@ -3,6 +3,9 @@
 Thanks for wanting to help build the cartoon internet. Bug reports, ideas, puns,
 translations and code are all welcome.
 
+Everyone is welcome here, and everyone follows our [Code of Conduct](CODE_OF_CONDUCT.md).
+The short version: be excellent to each other.
+
 ## Reporting bugs and ideas
 
 Open an issue on GitHub and pick the form that fits: bug report, feature request,
@@ -18,19 +21,52 @@ Not sure yet whether something is a bug or an idea worth an issue? Ask in the
 
 ## Development
 
-The game is one static page, `site/index.html`, with no framework and no build step
-while developing.
+The game is one static page with no framework, hosted on GitHub Pages. Its source is split into
+small files under `src/` (styles in `src/styles/`, the game script in `src/game/`), which the build
+joins, in path order, into a single `index.html`. Static files such as the translations live in `site/`.
 
 ```bash
 npm ci                       # installs jsdom for the tests
-npm run serve                # builds and serves the game locally
+npm run dev                  # http://localhost:8080, reloads when you save a file
 npm test                     # all tests must pass
-node scripts/i18n-check.js   # translations must be complete
+node scripts/i18n-check.js   # translations must be complete and sorted
+npm run serve                # the production build, as GitHub Pages will serve it
 ```
 
-Opening `site/index.html` directly in a browser also works.
+Where things are, and how a day of the simulation runs: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-A tour of the code is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+### Keeping pull requests apart
+
+Many people work on the game at once. A few habits keep your pull request from colliding with theirs:
+
+- Put a new feature in its own file in the folder of its topic (for example
+  `src/game/70-rules/85-route-servers.js`), and its tests in their own `tests/<feature>.test.js`.
+  New files in `src/` and `tests/` are picked up automatically; nothing needs registering.
+- Add actions to the matching file in `src/game/90-actions/`, not wherever there is room.
+- Lists (cities, cables, networks) take one entry per line; keep id-keyed tables sorted.
+- Text is keyed by labels (`tr('pnis.ready_in_about_n_days')`, English in `src/i18n/en.js`). Add new
+  text with `node scripts/i18n-add.js` rather than by hand: it writes the English and the translations
+  and keeps every dictionary sorted, so your new strings don't land on the same lines as everyone
+  else's. Fixing English wording no longer touches the translations.
+- The `CHANGELOG.md` bullet is the one place everybody writes. If it conflicts, keep both bullets.
+
+### Your branch still edits `site/index.html`?
+
+Until version 1.34 the whole game was one file, `site/index.html`. If your branch was started before
+the split, merge `main` and let a script move your changes into `src/`:
+
+```bash
+git fetch origin
+git merge origin/main                    # stops: site/index.html was deleted on main
+node scripts/legacy/port-branch.js       # moves your edits into the matching src/ files
+git status                               # fix any conflict it lists, then
+npm test && git commit
+```
+
+It splits your version of the page and the one you started from the same way `src/` was made (your
+English text becomes labels too), merges each piece into `src/`, and applies your English and
+dictionary changes entry by entry. It only reports conflicts
+where your change and `main` touched the same lines.
 
 ## Pull requests
 
@@ -42,11 +78,14 @@ A tour of the code is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   must not depend on luck.
 - Add a bullet for players under `## [Unreleased]` in `CHANGELOG.md`, in plain English.
   Releases are cut by the maintainer.
-- Show the performance of changes to `site/` on a big network. The Performance check posts a table
+- Show the performance of changes to `src/` on a big network. The Performance check posts a table
   comparing your PR with `main` as a comment; to run it yourself:
-  `git show origin/main:site/index.html > /tmp/base.html && npm run perf -- --base /tmp/base.html`
+  `npm run perf -- --base-ref origin/main`
   (add `--browser` to also time it in Chromium as a desktop and a phone, like CI does).
   Anything marked slower needs an explanation.
+- The game is hosted on GitHub Pages, and that will not change. Changes must work as plain static
+  files: no server code, no other host, no redirects or custom headers (see
+  [docs/adr/0001-github-pages-only.md](docs/adr/0001-github-pages-only.md)).
 - Old saves must keep loading. New state needs a default for new games and a check in
   `sanitize()`.
 - Check your change on a phone-sized screen (about 360 px wide). Most players are on
@@ -64,8 +103,9 @@ A tour of the code is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Translations
 
 Every player-facing string goes through `tr()`, `trn()` or `N_()`. Dictionaries live
-in `site/i18n/` (English text → translation). To add a language, copy `it.js`, translate
-the values, register the language in the language list in `site/index.html`, and run
+in `site/i18n/` (label → translation, one entry per line, sorted; the English for each label is in
+`src/i18n/en.js`). To add a language, copy `it.js`, translate the values (`en.js` lists the same labels
+in the same order), register the language in the language list in `src/index.html`, and run
 `node scripts/i18n-check.js <lang>` until it reports nothing missing, unused or broken. The CI job "translations" runs the same check on every pull request, shows each language's coverage in the run summary, and also fails if a new language is not added to the language list or to the offline cache in `site/sw.js`.
 
 Language pull requests must be reviewed by a human who speaks the language, and
