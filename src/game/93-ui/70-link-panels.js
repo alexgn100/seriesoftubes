@@ -67,6 +67,8 @@ function trafficSection(l){
   if(u>=0.8&&egs.length){const d=R.egDesc[egs[0][0]];h+=`<p class="why">${tr('link_panels.biggest_feeder_egress_in_city_set',{egress:esc(d.lab),city:CITY[d.city].name})}</p>`;}
   return h+`</section>`;
 }
+// Safari keeps the number field focused through a button tap, and renderPanel() skips a focused field: let go first (#131).
+const metBlur=()=>{const t=$('metIn');if(t&&document.activeElement===t)t.blur();};
 function metricSection(l){const key=edgeKey(l),cur=pairMet(key),pl=pairLinks(l.a,l.b),sb=!!l.standby,base=l.km+60,sel=k=>cur===k?'pink sm':'ghost sm';
   let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost_0160')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},sel(k))).join('')}${btn(tr('common.custom'),'setMetric',{id:l.id,v:'custom'},sel('custom'))}</div>`;
   const cm=pairCm(key);
