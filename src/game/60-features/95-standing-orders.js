@@ -27,7 +27,7 @@ const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
 const OPS_FF_RATE={oncall:1/150,bgp:1/60};
-function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:{},mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
+function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
 const opsO=()=>S.ops||(S.ops=opsNew());
 const opsHired=()=>!!(S&&S.ops&&S.ops.intern&&own(INTERNS,S.ops.intern));
 const opsCanHire=()=>lvl()>=2;
@@ -65,9 +65,9 @@ function opsQuiet(fn){const a=after,t=toast,s=sfx,f=floater,sel=UI.sel,cf=UI.con
 // One shift's bookkeeping: what got done, and whether a job had to wait for next month's budget.
 function opsShift(){const r=new Map(),broke=new Set();
   return {r,broke,did(k,w){const x=r.get(k)||{n:0,w:[]};x.n++;if(w&&x.w.length<3&&!x.w.includes(w))x.w.push(w);r.set(k,x);},
-    can(k,cost){const O=S.ops,cap=opsCap(k);if(cost<=0)return true;if(S.cash-cost<O.floor||(cap&&O.spent[k]+cost>cap)){broke.add(k);return false;}return true;},
+    can(k,cost){const O=S.ops,cap=opsCap(k);if(cost<=0)return true;if(S.cash-cost<O.floor||(cap&&(O.spent[k]||0)+cost>cap)){broke.add(k);return false;}return true;},
     // Run a click and book what it really cost; false when the action refused (no ports, no cash, a quote changed).
-    pay(k,fn){const c0=S.cash,x=fn();const d=c0-S.cash;if(d>0&&OPSK[k].cap)S.ops.spent[k]+=d;return x===undefined?d>0:x;}};}
+    pay(k,fn){const c0=S.cash,x=fn();const d=c0-S.cash;if(d>0&&OPSK[k].cap)S.ops.spent[k]=(S.ops.spent[k]||0)+d;return x===undefined?d>0:x;}};}
 const cheapestTransit=c=>NETS.filter(n=>sellsAt(n,c)).sort((a,b)=>transitPerG(a,c,premOnlyAt(a,c))-transitPerG(b,c,premOnlyAt(b,c)))[0];
 // The orders. Each takes the shift and does its jobs through the player's own actions.
 const OPS_RUN={
@@ -151,7 +151,8 @@ function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!=
 function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))return null;const T=S.ops.tpl,parts=[];let cost=popCost(c),net=null,ix=null,kit=null;
   if(T.bb){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}
   if(T.transit&&!scnRule('noTransit')){const pv=opsP('transit','prov');net=pv!=='cheap'&&sellsAt(NET[pv],c)?NET[pv]:cheapestTransit(c);if(net){cost+=PORT[0].setup;parts.push(tr('ops.tpl_transit'));}}
-  // DE-KICKS wants a sales call before any port, so the template leaves those to the player.
-  if(T.ix&&CITY[c].ix&&!isDk(c)){ix=c;cost+=ixPortMo(c,0);parts.push(tr('ops.tpl_ix'));}
-  if(T.kit){S.pops[c]={day:S.day,bb:null,boost:0,down:0,routers:1,gen:false};try{kit=utilityKit(c);}finally{delete S.pops[c];}if(kit&&kit.cost){cost+=kit.cost;parts.push(tr('ops.tpl_kit'));}}
+  // Priced as if the POP were already there (an IX port is dearer from afar). DE-KICKS wants a sales call first, so not those.
+  S.pops[c]={day:S.day,bb:null,boost:0,down:0,routers:1,gen:false};
+  try{if(T.ix&&CITY[c].ix&&!isDk(c)&&S.ixp[c]===undefined){ix=c;cost+=ixPortMo(c,0);parts.push(tr('ops.tpl_ix'));}
+    if(T.kit){kit=utilityKit(c);if(kit&&kit.cost){cost+=kit.cost;parts.push(tr('ops.tpl_kit'));}}}finally{delete S.pops[c];}
   return {cost,net:net&&net.id,ix,kit:!!(kit&&kit.cost),parts};}
