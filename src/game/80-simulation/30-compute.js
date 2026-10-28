@@ -174,8 +174,9 @@ function compute(){
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
     for(const r in m){const L=m[r],key=L.map(e=>e.xi).join(','),o=LIST.get(key);if(o){m[r]=o;continue;}
       let V=L;if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);V={cs};}else idx(L);LIST.set(key,V);m[r]=V;}}
-  // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
-  for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(base(e));
+  // Attack flows pinned to their entry port route at the port's own rank: no network to be in a cone of, and RouteScript
+  // may have left that rank with no list.
+  const pr=e=>e.pref==='low'?4:e.rank;for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(pr(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
   // An exit the flow can still try: not visited yet, not full when the flow started, and reachable from the POP.
@@ -224,7 +225,7 @@ function compute(){
     for(let fi=0,FN=flows.length;fi<FN;fi++){f=flows[fi];
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
       Dv=SDi[f.ci];Pv=SPi[f.ci];PP=walked[f.ci]||(walked[f.ci]=[]);vis++;
-      if(f.pin){for(const e of ingressE[f.pin]||[])if(base(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
+      if(f.pin){for(const e of ingressE[f.pin]||[])if(pr(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
       let lst=byRank[f.n][rank];if(!lst)continue;if(lst.cs){lst=lst.cs[COMP[f.ci]];if(!lst)continue;}
       /* Groups are tried nearest first, preferred exits before the rest, in the order a stable sort of the usable
          exits gives. Exits only fill up once tried, so the usable ones stay the same until then. Nearly every flow
