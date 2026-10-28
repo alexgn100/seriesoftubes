@@ -348,3 +348,34 @@ test('best spend: kept for the best star count, and a cheaper build at the same 
   assert.ok(ev("document.getElementById('modalCard').textContent").includes('best ' + ev(`fmt$(${three.spend})`)));
   assert.deepEqual(errors, []);
 });
+
+test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true)");
+  ev("toast('main game news','bad',[{l:'Fix',act:'opsOpen',args:{}}]);save(true)");
+  assert.ok(ev("document.querySelectorAll('#toasts .toast').length") > 0);
+  const before = ev("localStorage.getItem('sot-save-v1')");
+  ev("ACT.pzStart({id:'hello'})");
+  assert.equal(ev("[...document.querySelectorAll('#toasts .toast')].filter(t=>/main game news/.test(t.textContent)).length"), 0, 'main-game toasts are cleared');
+  ev("ACT.pzPop({city:'lon'})");
+  const st = () => ev("JSON.stringify({p:S.pops,l:S.links.length,c:S.cash,m:S.mode,te:!!S.te,ops:S.ops,sc:S.scrubs.length,dash:$('dash').hidden,bank:$('bankBox').hidden,left:$('left').hidden,modal:$('modal').hidden,cam:[cam.x,cam.y]})");
+  const s0 = st();
+  for (const a of ["opsOpen({})", "inbox({})", "leftTab({t:'noc'})", "focusCity({city:'par'})", "fixInc({id:'x'})", "custGo({id:'x'})", "bank({})", "dash({})",
+    "exportSave({})", "launchBB({city:'lon'})", "ad({city:'lon'})", "addRouter({city:'lon'})", "upRouter({city:'lon'})", "addSite({city:'lon'})", "buyTE({})",
+    "buildScrub({city:'lon',tier:0})", "buildPop({city:'par'})", "buyTransit({city:'lon',net:'cog',tier:1})", "scenarios({})", "share({})", "importGo({})", "cont({})", "start({})", "newgame({})"]) {
+    ev('ACT.' + a);
+    assert.equal(st(), s0, `${a} does nothing in a puzzle`);
+  }
+  assert.equal(ev('S.mode'), 'puzzle');
+  // A leftover toast button is a no-op too, through the real click path.
+  ev("toast('stray','',[{l:'Go',act:'opsOpen',args:{}}]);document.querySelector('#toasts [data-act=opsOpen]').click()");
+  assert.equal(st(), s0);
+  ev("toast('puzzle news','good')");
+  ev('ACT.pzLeave({})');
+  assert.equal(ev("document.querySelectorAll('#toasts .toast').length"), 0, 'puzzle toasts do not follow you home');
+  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before);
+  // Back in the main game, the same actions work again.
+  ev("ACT.addRouter({city:'ams'})");
+  assert.equal(ev('S.pops.ams.routers'), 2);
+  assert.deepEqual(errors, []);
+});

@@ -73,6 +73,8 @@ function pzWeekly(dt){const key=pzWeekKey(dt||new Date());let r=hstr('puzzle|'+k
 function pzStreak(p,key){const st=p.streak;if(st.last===key)return;st.n=st.last&&st.last===pzPrevKey(key)?st.n+1:1;st.last=key;st.best=Math.max(st.best,st.n);}
 function pzShareText(e){const P=S.pz;return tr('puzzles.share_line',{what:P.id==='weekly'?P.key:pzName(pzDef(P.id)),stars:pzStarStr(e.stars),spend:fmt$(e.spend)});}
 // ---------- entering and leaving ----------
+// Toasts from one world never carry over into the other (their buttons act on the S they came from).
+const pzToastsClear=()=>{$('toasts').textContent='';};
 // The running game gets its usual save first, so leaving the puzzle can load it back exactly as booting does. A huge
 // save is compressed in the background and may not have landed yet, so the game object is kept in memory too.
 function pzFlush(){save(true);UI.pzKeep=UI.gzBusy||saveFailing()?S:null;}
@@ -80,13 +82,13 @@ function pzBegin(def){if(!def)return;
   const go=()=>{newGame(pzName(def),def.cities[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
     S.pz={id:def.id,key:def.key||null,cities:def.cities.slice(),via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,minG:def.minG||0,lat:def.lat?def.lat.slice():null};
     UI.pzHist=[];UI.pzTop=0;UI.speed=0;UI.resumeSpeed=null;UI.started=true;UI.sel=null;UI.leftOpen=false;UI.confirm=null;UI._pzh=null;
-    $('dash').hidden=true;$('bankBox').hidden=true;closeModal();document.body.classList.add('pz');
+    $('dash').hidden=true;$('bankBox').hidden=true;closeModal();pzToastsClear();document.body.classList.add('pz');
     compute();pzCam();renderAll();track('puzzle_'+def.id);
     toast(`<b>${esc(pzName(def))}</b><br>${tr('puzzles.connect_list',{list:def.cities.map(c=>CITY[c].name).join(', ')})}`,'goal');};
   if(pzOn()){go();return;}
   const live=!!(S&&UI.started&&!S.lost);UI.pzFrom=live?'game':'title';
   if(live)pzFlush();go();}
-function pzLeave(){const from=UI.pzFrom;document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
+function pzLeave(){const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
     if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){S=null;UI.started=false;}}}
   renderAll();showTitle();}
