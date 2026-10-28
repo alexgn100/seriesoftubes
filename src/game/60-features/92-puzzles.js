@@ -28,7 +28,7 @@ function pzRoutes(a,b){const out=[],sub=isSub(a,b);
   return out;}
 const pzMo=(r,tier,div)=>Math.round(waveMo(r.km,r.sub,tier)*r.f*(div?DIVERSE:1));
 const pzLinkCost=(r,tier,div)=>pzMo(r,tier,div)*PZ_YEAR;// leased waves have no setup fee: a year of rent
-const pzPopCost=c=>popCost(c)+PZ_YEAR*POP_MO;
+const pzPopCost=c=>popCost(c)+PZ_YEAR*popMo(c);// thin markets cost more every month too (#94)
 const PZ_TIERS=[0,1,2];
 function pzSpend(){let s=0;for(const c in S.pops)s+=pzPopCost(c);for(const l of S.links)s+=l.mo*PZ_YEAR;return s;}
 // What one backhoe or one anchor takes out: waves in the same trench, or every wave on the same cable (a cable fails

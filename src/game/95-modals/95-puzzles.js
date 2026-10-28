@@ -29,7 +29,7 @@ function pzPanel(sel){const head=(eb,name,facts)=>`<div class="ph"><div style="m
     const eb=k==='goal'?tr('puzzles.goal_city'):k==='via'?tr('puzzles.stepping_stone_optional'):tr('puzzles.off_limits');
     let h=head(`${PZ_ICON[k]} ${eb}`,esc(C.name),p?`<span class="fact mine">${tr('common.your_pop')}</span>`:'')+'<div class="scroll">';
     if(k==='avoid')return h+`<p class="lead">${tr('puzzles.not_this_one_find_a_way_around')}</p></div>`;
-    if(!p)h+=`<p class="lead">${tr('puzzles.a_pop_costs_setup_plus_a_year',{setup:fmt$(popCost(c)),mo:fmt$(POP_MO)})}</p><div class="btns">${btn(tr('puzzles.open_a_pop_cost',{cost:fmt$(pzPopCost(c))}),'pzPop',{city:c},'pink big')}</div>`;
+    if(!p)h+=`<p class="lead">${tr('puzzles.a_pop_costs_setup_plus_a_year',{setup:fmt$(popCost(c)),mo:fmt$(popMo(c))})}</p><div class="btns">${btn(tr('puzzles.open_a_pop_cost',{cost:fmt$(pzPopCost(c))}),'pzPop',{city:c},'pink big')}</div>`;
     else{const others=[...S.pz.cities,...S.pz.via].filter(x=>x!==c);
       h+=`<p class="lead">${tr('puzzles.drag_from_this_pop_onto_another')}</p><h3>${tr('puzzles.lease_a_wave_to')}</h3><div class="seg">${others.map(x=>btn(esc(CITY[x].name),'pzLinkTo',{a:c,b:x},S.pops[x]?'':'ghost')).join('')}</div>`;
       const ls=S.links.filter(l=>l.a===c||l.b===c);if(ls.length)h+=`<h3 style="margin-top:10px">${tr('common.links')}</h3>`+ls.map(l=>`<div class="row"><div class="grow"><div class="nm">${esc(CITY[l.a===c?l.b:l.a].name)}</div><div class="meta">${capName(l)} · ${linkLat(l).toFixed(1)} ms</div></div>${btn(tr('common.open'),'selLink',{id:l.id},'ghost sm')}</div>`).join('');

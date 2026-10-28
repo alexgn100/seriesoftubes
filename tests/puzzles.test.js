@@ -263,3 +263,14 @@ test('puzzles in every language', () => {
     assert.deepEqual(errors, [], lang);
   }
 });
+
+test('a POP in a thin market costs its higher monthly rent too, and the panel says so', () => {
+  const { ev, errors } = load();
+  ev("pzBegin(pzDef('kiwi'))");
+  assert.ok(ev('colo("suv")') > 1, 'Suva is a thin market');
+  assert.equal(ev("pzPopCost('suv')"), ev("popCost('suv')+12*popMo('suv')"));
+  assert.ok(ev("pzPopCost('suv')") > ev("popCost('suv')+12*POP_MO"));
+  ev("selectCity('suv')");
+  assert.ok(ev("document.getElementById('panelBody').textContent").includes(ev("fmt$(popMo('suv'))") + '/mo'));
+  assert.deepEqual(errors, []);
+});
