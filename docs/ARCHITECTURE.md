@@ -29,7 +29,7 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `30-networks/` | Other ASes (`NETS`), rival exchanges (`XIX`), the long tail, traffic shares (`NSH`) |
 | `40-progress/` | Customer types (`BIZ_T`), `LEVELS` and their requirements, `GOALS`; the per-save ruleset (`S.rules`, `rule()`, `PRESETS`, `chaosMul()`, `leadDays()`) |
 | `50-state.js` | The globals `S`, `R`, `UI`; `emptyR()` |
-| `60-features/` | Banks and loans, scenarios and the weekly challenge, conferences, the tutorial, traceroute, the share card, `newGame()` |
+| `60-features/` | Banks and loans, scenarios and the weekly challenge, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
 | `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering inbox, peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
 | `80-simulation/` | Dijkstra, RouteScript, `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
 | `85-incidents/` | `addInc()`, DDoS and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()` |
@@ -99,6 +99,8 @@ never freezes the game.
 3. Records history for 95th-percentile billing, stats and streaks.
 4. Rolls failures (`fireFailure()`) and events (`fireEvent()`) when their timers run out,
    and expires incidents.
+   Then the NOC intern's standing orders (`opsDay()`), if one is hired: each order clicks the same `ACT`
+   actions a player would, muted, within its monthly budget, and the shift recomputes once at the end.
 5. Updates customer mood, churn and new offers; IX members join; loans tick.
 6. Every 30 days: bills the month (revenue minus costs) and checks for bankruptcy.
 7. Checks goals, level, badges and scenario end conditions.
