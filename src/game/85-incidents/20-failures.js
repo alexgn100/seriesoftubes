@@ -146,10 +146,10 @@ function ddosAttack(recompute=true){const type='ddos',fl=scnRule('ddos');ddosExp
     const c=pick(Object.keys(S.pops)),vec=pick(ddosVectors()),V=DDOS_VEC[vec];
     const gbps=ddosSize(vec);
     const dur=1+Math.floor(Math.random()*(1+6*ddosPressure())),entry=ddosEntry(c);
-    const entries=ddosEntries(),a={id:uid(),city:c,vec,gbps,until:S.day+dur,entry:entries.length>1?{k:'distributed',lab:tr('common.distributed_ingress')}:entries[0]||entry,entries,bh:false,start:S.day};
+    const ports=ddosEntries(),entries=ddosFold(ports,c),a={id:uid(),city:c,vec,gbps,until:S.day+dur,entry:entries.length>1?{k:'distributed',lab:tr('common.distributed_ingress')}:entries[0]||entry,entries,bh:false,start:S.day};
     if(!S.ev.ddos)S.ev.ddos=a;else(S.ev.ddosMore||(S.ev.ddosMore=[])).push(a);
     const soaked=(V.fs&&fsAt(c))||hasScrub();
-    const how=entries.length>1?tr('failures.across_n_transit_and_peering_ports',{n:entries.length}):entry&&entry.lab?tr('failures.in_via_e',{e:entry.lab}):'';
+    const how=ports.length>1?tr('failures.across_n_transit_and_peering_ports',{n:ports.length}):entry&&entry.lab?tr('failures.in_via_e',{e:entry.lab}):'';
     const msg=tr('failures.a_size_vec_attack_is_hitting',{size:fmtG(gbps),vec:V.n,city:CITY[c].name,how})+' '+(soaked?tr('failures.your_mitigation_is_eating_most_of'):tr('failures.junk_traffic_is_eating_your_capacity'));
     if(fl)a.who=pick(FLOOD_WHO);
     addInc({type,ref:c,atk:a.id,until:S.day+dur,msg:fl?msg+' '+tr('failures.attacker_who',{who:tr(a.who)}):msg,cost:0});

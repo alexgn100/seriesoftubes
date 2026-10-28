@@ -59,3 +59,28 @@ test('an attack is held or lost at its victim; other POPs and their DDoS-protect
   assert.ok(cash > 0);
   assert.deepEqual(errors, []);
 });
+
+test('an attack keeps its biggest ingress ports and folds the long tail, so saves stay small', () => {
+  const { ev, errors } = load({ seed: 5 });
+  ev("ACT.start({});S.cash=1e9;S.lvl=6;for(const c of ['fra','ams','lon','par'])if(!S.pops[c])ACT.buildPop({city:c});for(const c in S.pops){S.pops[c].bb={d:100};S.pops[c].rgen=3}");
+  ev("S.transit=[];const nets=NETS.filter(n=>n.type!=='t1').slice(0,40);for(const c in S.pops)for(const n of nets.slice(0,8))S.pni.push({id:n.id+'@'+c,net:n.id,city:c,tier:1});compute()");
+  ev("S.day=60;S.ddosStarts=[];ddosAttack()");
+  const ports = ev('ddosEntries().length');
+  assert.ok(ports > 20, `many ports carry traffic (${ports})`);
+  const en = JSON.parse(ev('JSON.stringify(S.ev.ddos.entries)'));
+  assert.equal(en.length, 13, 'twelve named ports and one remainder');
+  assert.equal(en.at(-1).k, 'rest');
+  assert.equal(en.at(-1).city, ev('S.ev.ddos.city'));
+  assert.ok(Math.abs(en.reduce((n, x) => n + x.share, 0) - 1) < 1e-9);
+  assert.match(ev("S.inc.at(-1).msg"), new RegExp(`across ${ports} transit and peering ports`), 'the message still counts every port');
+  // The remainder is routed like the rest of the flood, and survives a save.
+  ev('compute()');
+  assert.ok(Math.abs(ev('R.ddos.reduce((n,m)=>n+m.reaching,0)') - ev('S.ev.ddos.gbps')) < 1e-6);
+  ev('S=migrate(JSON.parse(JSON.stringify(S)));compute()');
+  assert.equal(ev('S.ev.ddos.entries.length'), 13);
+  // An old save with every port is folded on load.
+  ev("S.ev.ddos.entries=Array.from({length:300},(_,i)=>({k:'p',id:'x'+i,city:'fra',lab:'',share:1}));S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.ev.ddos.entries.length'), 13);
+  assert.equal(ev("S.ev.ddos.entries.find(e=>e.k==='rest').share.toFixed(4)"), (288/300).toFixed(4));
+  assert.deepEqual(errors, []);
+});

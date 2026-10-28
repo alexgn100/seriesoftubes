@@ -32,6 +32,11 @@ function ddosDrop(a){const left=ddosAll(S,false).filter(x=>x!==a);S.ev.ddos=left
 function ddosExpire(){for(const a of ddosAll(S,false))if(a.until<=S.day||!S.pops[a.city]){ddosDone(a);ddosDrop(a);}}
 function ddosEntries(){const ports=Object.values(R.ingressPorts||{}).filter(p=>p.cap>0),busy=ports.some(p=>p.traffic>1e-6),weight=p=>busy?p.traffic:p.cap,total=ports.reduce((n,p)=>n+weight(p),0);
   return total>0?ports.filter(p=>weight(p)>0).map(p=>({k:p.k,id:p.id,city:p.city,lab:p.lab,share:weight(p)/total})):[];}
+// A save keeps the biggest ingress ports by name; the long tail is one share (k:'rest') that arrives over the victim's
+// usual exits, so a big network's attacks do not each carry hundreds of ports.
+const DDOS_KEEP=12;
+function ddosFold(entries,city){const L=entries.slice().sort((a,b)=>b.share-a.share);if(L.length<=DDOS_KEEP+1)return L;
+  const top=L.slice(0,DDOS_KEEP),rest=L.slice(DDOS_KEEP).reduce((n,en)=>n+en.share,0);if(rest>0)top.push({k:'rest',city,share:rest});return top;}
 function ddosSlices(a){if(!a.entries?.length)return [a];const groups={};
   for(const en of a.entries){const c=S.pops[en.city]?en.city:a.city;(groups[c]||(groups[c]=[])).push(en);}
   return Object.entries(groups).map(([city,entries])=>({...a,parent:a,city,entries,gbps:a.gbps*entries.reduce((n,en)=>n+en.share,0)}));}

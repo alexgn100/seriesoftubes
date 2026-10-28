@@ -61,7 +61,8 @@ function compute(){
     for(const part of ddosSlices(a)){const c=part.city;(atkBy[c]||(atkBy[c]=[])).push(part);
       const m=ddosMitigation(part,{},bhCities.has(v),false),group={m,flows:[]};R2.ddos.push(m);junkGroups.push(group);if(!popUp(c))m.offline=true;
       const src=popUp(v)&&SPD[v][CIDX[c]]<Infinity?v:c,si=CIDX[src],sn=cnCity(src);
-      if(part.entries?.length){for(const q of m.ingress){const f=flow(src,si,sn,0,q.g,false,true);f.pin=q.entry.k+':'+q.entry.id;group.flows.push({f,share:m.leak>0?q.g/m.leak:0});}}
+      if(part.entries?.length){for(const q of m.ingress){const sh=m.leak>0?q.g/m.leak:0;if(q.entry.k==='rest'){for(let j=0;j<NN;j++)group.flows.push({f:flow(src,si,sn,j,q.g*NSH[NETS[j].id],false,true),share:sh*NSH[NETS[j].id]});continue;}
+        const f=flow(src,si,sn,0,q.g,false,true);f.pin=q.entry.k+':'+q.entry.id;group.flows.push({f,share:sh});}}
       else for(let j=0;j<NN;j++)group.flows.push({f:flow(src,si,sn,j,m.leak*NSH[NETS[j].id],false,true),share:NSH[NETS[j].id]});}}
   for(const c of Object.keys(S.pops)){
     const p=S.pops[c],ci=CIDX[c],cn=cnCity(c),SH=cn?NSH_CN:ruCity(c)?NSH_RU:CITY[c].kr&&S.krExit?NSH_KRX:NSH;const eye=(p.bb?p.bb.d:0)*viral*(cn&&ev.golden>day?1.4:1);const biz=bizBw[c]??0;const d0=eye+biz;
