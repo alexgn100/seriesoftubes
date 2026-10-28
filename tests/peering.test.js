@@ -47,7 +47,7 @@ test('Rackstar boxes survive save migration and appear on phone peering panels i
     const { dom, ev, errors } = load(lang === 'en' ? {} : { lang });
     setup(ev);
     ev('window.matchMedia=()=>({matches:true})');
-    ev("S.pops.fra.bb={d:10/NSH.cfl};compute();ACT.cache({city:'fra',net:'cfl'});save();S=migrate(JSON.parse(localStorage.getItem('sot-save-v1')));compute()");
+    ev("S.pops.fra.bb={d:10/NSH.cfl};compute();ACT.cache({city:'fra',net:'cfl'});save();S=migrate(JSON.parse(slotRaw(UI.slot)));compute()");
     assert.equal(ev("S.caches.filter(x=>x.net==='cfl').length"), 1, lang);
     assert.ok(ev('R.useCache[S.caches[0].id]') > 0, lang);
     for (const [width, height] of [[360, 800], [800, 360]]) {
@@ -221,7 +221,7 @@ test('Amsterdam has FRIES-IX, with free 10G and 100G ports and paid larger ports
   const txt = ev("document.getElementById('panelBody').textContent");
   assert.match(txt, /FRIES-IX/); assert.match(txt, /HAMS-IX/);
   assert.match(ev("ixBlock('ams~3',true)"), /LAG member <small>free/);
-  ev("save();restored=migrate(JSON.parse(localStorage.getItem('sot-save-v1')));");
+  ev("save();restored=migrate(JSON.parse(slotRaw(UI.slot)));");
   assert.equal(ev("restored.ixp['ams~3']"), 1, 'free port survives save migration');
   assert.equal(ev("restored.ixn['ams~3']"), 2, 'free LAG survives save migration');
   ev("S.ev.ixdown={'ams~3':S.day+2};compute()");

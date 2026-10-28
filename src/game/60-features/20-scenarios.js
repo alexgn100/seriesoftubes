@@ -30,7 +30,7 @@ const WEEK_MODS=[{id:'pricey',n:tr('scenarios.transit_costs_30_more')},{id:'chao
 function weekly(){const {y,w}=isoWeek(new Date());let r=(y*100+w)*2654435761>>>0;const nx=()=>{r=(r*1103515245+12345)>>>0;return r/4294967296;};const city=WEEK_CITIES[Math.floor(nx()*WEEK_CITIES.length)];const mods=[];while(mods.length<2){const m=WEEK_MODS[Math.floor(nx()*WEEK_MODS.length)];if(!mods.includes(m))mods.push(m);}return {id:'weekly',key:`${y}-W${String(w).padStart(2,'0')}`,seed:y*100+w,city,mods,days:365};}
 const scnRule=k=>!!(S&&S.scn&&S.scn.rules&&S.scn.rules[k]);
 function scnHof(){try{return JSON.parse(localStorage.getItem('sot-scn')||'{}')||{};}catch(e){return {};}}
-function beginGame(nm,city,o={}){if(needPitch()&&!UI.pitched){UI.pendGame=[nm,city,o];openModal(pitchHtml(true));return;}newGame(nm,city);S.mode=o.mode||'normal';
+function beginGame(nm,city,o={}){if(needPitch()&&!UI.pitched){UI.pendGame=[nm,city,o];openModal(pitchHtml(true));return;}if(pzOn())pzLeave();slotLeave();slotNew();newGame(nm,city);S.mode=o.mode||'normal';
   // The rules are picked here and locked for the life of the network. Scenarios run on On-call plus their own rules.
   {const pr=o.scn?'oncall':S.mode==='sandbox'?'sandbox':S.mode==='puzzle'?'puzzle':own(PRESETS,o.preset)&&o.preset!=='sandbox'&&o.preset!=='puzzle'?o.preset:'oncall';S.rules=makeRules(pr,o.scn?{}:o.rules);}
   if(S.mode==='sandbox'){S.cash=1e9;S.lvl=LEVELS.length;if(!chaosMul()){S.nextFail=1e9;S.nextEvent=1e9;}}

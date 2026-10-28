@@ -120,8 +120,8 @@ test('no clock in a puzzle: days never pass, nothing breaks, no bills', () => {
 
 test('the main save is byte-identical before and after playing and solving a puzzle', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true)");
-  const before = ev("localStorage.getItem('sot-save-v1')");
+  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true);window.__slot=UI.slot");
+  const before = ev("slotRaw(UI.slot||window.__slot)");
   const name = ev('S.name'), day = ev('S.day');
   ev('ACT.puzzleMenu({})');
   assert.match(ev("document.getElementById('modalCard').textContent"), /Hello, World/);
@@ -129,7 +129,7 @@ test('the main save is byte-identical before and after playing and solving a puz
   assert.equal(ev('S.mode'), 'puzzle');
   build(ev, REF.hello.three);
   ev("save(true);for(let i=0;i<5;i++)frame(performance.now()+6000*i);window.dispatchEvent(new Event('pagehide'));ACT.exportSave({})");
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before, 'untouched while in the puzzle');
+  assert.equal(ev("slotRaw(UI.slot||window.__slot)"), before, 'untouched while in the puzzle');
   assert.equal(ev("JSON.parse(localStorage.getItem('sot-puzzles')).s.hello.st"), 3, 'the stars are kept');
   ev('ACT.pzLeave({})');
   assert.equal(ev('S.mode'), 'normal');
@@ -137,7 +137,7 @@ test('the main save is byte-identical before and after playing and solving a puz
   assert.equal(ev('S.day'), day);
   assert.ok(ev('!!S.pops.ams'));
   assert.equal(ev('UI.started'), true);
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before, 'and after');
+  assert.equal(ev("slotRaw(UI.slot||window.__slot)"), before, 'and after');
   assert.deepEqual(errors, []);
 });
 
@@ -149,7 +149,7 @@ test('leaving a puzzle with no game goes back to the title screen', () => {
   assert.equal(ev('S.mode'), 'puzzle');
   ev('ACT.pzLeave({})');
   assert.equal(ev('S'), null);
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), null, 'no main save appeared');
+  assert.equal(ev("slotIdx(true).length"), 0, 'no network was saved');
   assert.match(ev("document.getElementById('modalCard').textContent"), /Series/);
   assert.deepEqual(errors, []);
 });

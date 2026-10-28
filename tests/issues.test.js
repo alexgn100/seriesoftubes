@@ -43,7 +43,7 @@ test('#5 export writes a file and import restores it, with checks', () => {
   ev(`UI.importing=parseSave(${JSON.stringify(txt)}).s;ACT.importGo()`);
   assert.equal(ev("S.name"), 'Export Me');
   assert.equal(ev("S.cash"), 1234567);
-  assert.equal(ev("JSON.parse(localStorage.getItem('sot-save-v1')).name"), 'Export Me', 'saved on this device');
+  assert.equal(ev("JSON.parse(slotRaw(UI.slot)).name"), 'Export Me', 'saved on this device');
   ev("showHelp()");
   assert.match(ev("document.getElementById('modalCard').textContent"), /Export save.*Import a save/);
   assert.deepEqual(errors, []);
@@ -95,7 +95,7 @@ test('the network name opens a menu with save, load and start over', () => {
   ev("document.querySelector('#modalCard [data-act=resetAsk]').click()");
   assert.match(ev("document.getElementById('modalCard').textContent"), /cannot be undone/);
   ev("document.querySelector('#modalCard [data-act=newgame]').click()");
-  assert.equal(ev("!!localStorage.getItem('sot-save-v1')&&JSON.parse(localStorage.getItem('sot-save-v1')).day>0"), false);
+  assert.equal(ev("!!slotRaw(UI.slot)&&JSON.parse(slotRaw(UI.slot)).day>0"), false);
   assert.deepEqual(errors, []);
 });
 
@@ -1052,7 +1052,7 @@ test('#104 declining a loan offer clears the bank badge while paused', () => {
   assert.equal(ev("$('hBank').hidden"), false);
   ev("ACT.declineLoan({id:S.loanOffers[0].id})");
   assert.equal(ev("$('hBank').hidden"), true, 'badge gone without a new day');
-  assert.equal(ev("JSON.parse(localStorage.getItem('sot-save-v1')).loanOffers.length"), 0, 'saved right away');
+  assert.equal(ev("JSON.parse(slotRaw(UI.slot)).loanOffers.length"), 0, 'saved right away');
   assert.deepEqual(errors, []);
 });
 
