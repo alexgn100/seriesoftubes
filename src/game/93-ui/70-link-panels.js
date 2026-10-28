@@ -132,6 +132,8 @@ function svgChart(rows,stackKeys,lines,fmtY){
 // For a network you currently reach over transit: the cheapest way to move it to peering.
 // Exchange members as sets, rebuilt once per routing pass: hints are asked for many networks at a time.
 let IXMR=null,IXMC={};const ixHas=(x,id)=>{if(IXMR!==R){IXMR=R;IXMC={};}return (IXMC[x]||(IXMC[x]=new Set(ixMembers(x)))).has(id);};
+// Who brings a network along (#85): the nearest of its upstreams, then theirs; null if it sits in nobody's cone.
+function coneVia(id){const a=ANC[id];if(!a||!a.length)return null;const t1=a.find(u=>NET[u].type==='t1');return NET[t1||a[0]];}
 function offTransitHint(id,city){const n=NET[id];if(n.type==='t1')return tr('link_panels.tier_1_only_a_pni_and');
   const ixc=Object.keys(S.pops).flatMap(ixIdsIn).filter(x=>ixHas(x,id)),here=city&&ixIdsIn(city).find(x=>ixHas(x,id))||null,pick1=here||ixc.find(x=>S.ixp[x]!==undefined)||ixc[0];
   if(n.pol==='open'){if(pick1)return here||ixNamesCity(pick1)?tr('link_panels.open_peer_join_the_route_server',{ix:ixName(pick1)}):tr('link_panels.open_peer_join_the_route_server_01a1',{ix:ixName(pick1),city:CITY[ixCity(pick1)].name});const x=nearestSpot(id);return x?tr('link_panels.open_peer_but_not_on_any',{city:CITY[x.c].name}):tr('link_panels.open_peer_but_not_on_any_bfbb');}

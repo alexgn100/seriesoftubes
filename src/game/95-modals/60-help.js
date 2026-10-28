@@ -5,7 +5,7 @@ function showHelp(){
   <dt>${tr('common.eyeballs')}</dt><dd>${tr('help.home_broadband_users_they_mostly')}</dd>
   <dt>POP</dt><dd>${tr('help.point_of_presence_your_router_in')}</dd>
   <dt>${tr('common.ip_transit')}</dt><dd>${tr('help.you_pay_a_bigger_network_per')}</dd>
-  <dt>Tier 1 / Tier 2</dt><dd>${tr('help.tier_1s_reach_the_whole_internet')}</dd>
+  <dt>Tier 1 / Tier 2</dt><dd>${tr('help.tier_1s_reach_the_whole_internet_cones')}</dd>
   <dt>CDN</dt><dd>${tr('help.content_networks_like_netchill_and')}</dd>
   <dt>${tr('help.ix_internet_exchange')}</dt><dd>${tr('help.a_shared_switch_in_a_city')}</dd>
   <dt>PNI</dt><dd>${tr('help.private_network_interconnect_a_cable')}</dd>

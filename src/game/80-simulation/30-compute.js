@@ -23,20 +23,26 @@ function compute(){
     E.push(ex);if(pf)E.push({...ex,cap:cap*pf,prep:true});}
   // `nets`: every network ok() can say yes to, so it need not be asked about the other hundred.
   for(const c in S.ixp){const ct=ixCity(c);if(!(popUp(ct)||remote.includes(ct))||(S.ev.ixdown&&S.ev.ixdown[c]>day)||!(S.myIx[c]?myIxLive(c):liveN(ct,(S.ixSite||{})[c],(S.ixn||{})[c])))continue;const set=ixSessions(c);R2.sessions+=set.size;
-    E.push({k:'ix',pref:(S.ixPref&&S.ixPref[c])||'normal',lab:labOf(N_('common.ix_peering'),'ix',ixName(c)),id:c,city:ct,cap:ixCap(c),used:0,rank:2,ok:n=>set.has(n),nets:set});}
-  for(const p of S.pni){if(!pniOn(p)||!popUp(p.city)||!liveN(p.city,p.site,p.n))continue;R2.sessions++;E.push({k:'p',pnc:!!NET[p.net].cn,pref:p.pref||'normal',lab:labOf(N_('common.pni_with_net'),'net',NET[p.net].name),id:p.id,city:p.city,cap:liveCap(pniG(p),p.city,p.site,p.n)*lagF(p)*(p.sacrif?0.5:1),used:0,rank:1,ok:n=>n===p.net||!!(NET[n].up&&NET[n].up.includes(p.net)),nets:PNI_NETS[p.net]});}
+    // A peer announces its customers too (#85): the session reaches its cone, after the networks peering directly.
+    let all=set;for(const id of set)if(DOWN[id].length){if(all===set)all=new Set(set);for(const x of DOWN[id])all.add(x);}
+    E.push({k:'ix',pref:(S.ixPref&&S.ixPref[c])||'normal',lab:labOf(N_('common.ix_peering'),'ix',ixName(c)),id:c,city:ct,cap:ixCap(c),used:0,rank:2,ok:n=>all.has(n),nets:all,dir:all===set?null:set});}
+  for(const p of S.pni){if(!pniOn(p)||!popUp(p.city)||!liveN(p.city,p.site,p.n))continue;R2.sessions++;E.push({k:'p',pnc:!!NET[p.net].cn,pref:p.pref||'normal',lab:labOf(N_('common.pni_with_net'),'net',NET[p.net].name),id:p.id,city:p.city,cap:liveCap(pniG(p),p.city,p.site,p.n)*lagF(p)*(p.sacrif?0.5:1),used:0,rank:1,net:p.net,ok:n=>CONE_S[p.net].has(n),nets:CONE[p.net]});}
   for(const c of S.caches){if(!popUp(c.city)||siteDown(c.city,c.site==='b'?'b':'a'))continue;E.push({k:'c',pref:'normal',lab:labOf(N_('common.name_cache'),'name',NET[c.net].cache.name),id:c.id,city:c.city,cap:CACHE_CAP,used:0,rank:0,ok:n=>n===c.net,nets:[c.net]});}
   // After an update adds networks, a free courtesy route reaches the new ones you have no other way to (#46).
   R2.graceNets=0;if(S.grace&&S.grace.until>day){const gs=new Set(S.grace.nets.filter(n=>NET[n]&&!E.some(e=>e.k!=='c'&&e.ok(n)))),hc=popUp(S.home)?S.home:pops.find(popUp);
     R2.graceNets=gs.size;if(gs.size&&hc)E.push({k:'ix',pref:'normal',lab:tr('compute.courtesy_route_to_new_networks'),id:'~grace',city:hc,cap:1e9,used:0,rank:2,ok:n=>gs.has(n),nets:gs});}
   {const rp=ev.rpki&&ev.rpki.until>day?new Set(ev.rpki.nets):null;if(rp)for(const e of E){if(e.k==='c')continue;const o=e.ok;e.ok=n=>!rp.has(n)&&o(n);}}
+  // coneOf: does exit e reach network n only through a peer's customer cone (#85)?
+  const coneOf=(e,n)=>e.k==='p'?e.net!==n:!!e.dir&&!e.dir.has(n);
   // ok() cannot change during one compute, so ask each exit once per network, not once per flow and rank.
   // okBy[net] lists the exits that reach it in E's order, like E.filter(e=>e.ok(net)).
   const okBy={};for(const id of NET_IDS)okBy[id]=[];
   const ekN={};for(const e of E){e.ek=e.k+':'+e.id;ekN[e.ek]=(ekN[e.ek]||0)+1;}
   // dup: shares its key with another exit (a hand-edited save), so R.egDesc shows whichever pushed last.
   for(const e of E){e.desc={lab:e.lab,city:e.city,k:e.k};e.dup=ekN[e.ek]>1;e.told=false;e.hp=e.pref==='high'?0:1;e.ci=CIDX[e.city];e.cn=cnCity(e.city);e.vis=0;for(const n of e.nets||NET_IDS){const L=okBy[n];if(L&&L[L.length-1]!==e&&e.ok(n))L.push(e);}}
-  for(const n of NETS){R2.reachable[n.id]=okBy[n.id].some(e=>e.rank>0);if(R2.reachable[n.id])R2.reach+=NSH[n.id];if(okBy[n.id].some(e=>e.rank>0&&e.k!=='t')){R2.nt[n.id]=1;R2.reachNT+=NSH[n.id];}}
+  for(const n of NETS){R2.reachable[n.id]=okBy[n.id].some(e=>e.rank>0);if(R2.reachable[n.id])R2.reach+=NSH[n.id];if(okBy[n.id].some(e=>e.rank>0&&e.k!=='t')){R2.nt[n.id]=1;R2.reachNT+=NSH[n.id];
+    // Reached without transit only through the customers of networks you peer with (#85).
+    if(!okBy[n.id].some(e=>(e.k==='p'||e.k==='ix')&&!coneOf(e,n.id)))R2.cone[n.id]=1;}}
   const cacheNets=new Set(S.caches.filter(c=>popUp(c.city)).map(c=>c.net));
   const viral=(ev.viral>day?1.25:1)*(ev.php&&ev.php>day?0.7:1);
   // Every flow has the same shape and carries what routing asks about it again and again (nj: its network's index).
@@ -147,15 +153,17 @@ function compute(){
     const {D,P}=dijkstra(adj,src,wW,(v,e)=>e.res<=1e-3||(HAS[v]&&NRES[v]<=1e-3),dst);
     if(D[dst]===Infinity||D[dst]>2*base+60){teCache.set(key,false);return null;}
     const Q=walkI(P,src,dst);teCache.set(key,Q);return Q;};
-  const base=e=>e.pref==='low'?4:e.rank;
+  /* A network in a peer's customer cone, reached through that peer (#85): after every network you peer with directly
+     (its AS path is one hop longer) and before transit. */
+  const base=(e,n)=>e.pref==='low'?4:e.rank>0&&e.rank<3&&coneOf(e,n)?CONE_RANK:e.rank;
   // LOCAL_PREF on an upstream moves it ahead of or behind the other transits, never ahead of peering (#96).
-  const eff=(e,n)=>{let r=base(e);if(TR){if(e.k==='t'&&TR.up[e.net])r=TR.up[e.net]==='prefer'?2.9:3.5;if(e.prep)r=4.4;if(e.k!=='c'&&TR.drain.has(e.city))r=4.6;const o=TR.net[n];if(o){if(o.prefer===e.k)r=0.5;else if(o.avoid===e.k)r=4.5;}}return r;};
-  const RANKS=TR?[0,0.5,1,2,2.9,3,3.5,4,4.4,4.5,4.6]:[0,1,2,3,4];
+  const eff=(e,n)=>{let r=base(e,n);if(TR){if(e.k==='t'&&TR.up[e.net])r=TR.up[e.net]==='prefer'?2.9:3.5;if(e.prep)r=4.4;if(e.k!=='c'&&TR.drain.has(e.city))r=4.6;const o=TR.net[n];if(o){if(o.prefer===e.k)r=0.5;else if(o.avoid===e.k)r=4.5;}}return r;};
+  const RANKS=TR?[0,0.5,1,2,CONE_RANK,2.9,3,3.5,4,4.4,4.5,4.6]:[0,1,2,CONE_RANK,3,4];
   // With `protect customers`, business flows take every rank first; home users get what is left.
   const PASSES=TR&&TR.protect?[x=>x.bz,x=>!x.bz]:null;
   // Each network's exits by the rank they route at (RouteScript can move an exit per network), in E's order.
   // Each list also knows whether it holds a preferred exit (hi) and its exits by city (at), in list order.
-  const byRank={};for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e);(m[r]||(m[r]=[])).push(e);}
+  const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
     for(const r in m){const L=m[r];L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}}}
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
@@ -200,7 +208,7 @@ function compute(){
   // same comparison, so the order is the same either way.
   const sortD=a=>{const n=a.length;if(n>24){a.sort(byDist);return;}for(let i=1;i<n;i++){const x=a[i];let j=i-1;while(j>=0&&byDist(a[j],x)>0){a[j+1]=a[j];j--;}a[j+1]=x;}};
   for(const pass of PASSES||[null])for(const rank of RANKS){
-    if(TR?!E.length:!E.some(e=>base(e)===rank))continue;
+    if(!RSET.has(rank))continue;
     // Index loops in here: plain for…of allocates an iterator per loop until V8 has optimised compute().
     for(let fi=0,FN=flows.length;fi<FN;fi++){f=flows[fi];
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
