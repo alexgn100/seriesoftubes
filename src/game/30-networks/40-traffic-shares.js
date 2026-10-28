@@ -8,7 +8,9 @@ const NET=Object.fromEntries(NETS.map(n=>[n.id,n])),NET_IDS=NETS.map(n=>n.id);
    PLDTea Time (Not That, Ta-Ta), TIM-Tam (its sibling Sparkly Seabone), Floptus (its parent SingTell), Sky-High and
    Tele-Nor-Way (Tell-Ya, Level Tree), Virgin Mediocre (Level Tree, Not That), and the long tail (tailUp()). The rest stay
    islands because they are too: the content giants, the transit-free incumbents (Doitsche, Comecast, Jio-graphy, Bee-Tee),
-   China and Korea, and Australians, who buy only from Australian carriers. */
+   China and Korea, and Australia's big ISPs, which buy only from Australian carriers. Smaller Australians do sit in Tier 1
+   cones: Kangaroo Courier buys from Cogentle, Doodoo and Spin2wintel from Hocus Pocus (Not That, Tell-Ya), Lintel from
+   Speedyloop (Tell-Ya). */
 const CONE={},CONE_S={},DOWN={};
 {const dn={};for(const n of NETS)for(const u of n.up||[])(dn[u]||(dn[u]=[])).push(n.id);
  for(const n of NETS){const s=new Set([n.id]),q=[n.id];while(q.length){for(const y of dn[q.pop()]||[])if(!s.has(y)){s.add(y);q.push(y);}}

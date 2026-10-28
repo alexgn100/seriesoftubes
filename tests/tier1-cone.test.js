@@ -23,8 +23,12 @@ test('cones are built once at load and hold customers of customers', () => {
   assert.equal(ev("NETS.filter(n=>n.tail).every(n=>ANC[n.id].some(u=>NET[u].type==='t1'))"), true, 'from a Tier 1, directly or through a carrier');
   assert.equal(ev("NET.tail45.up.join()"), 'mag', 'Auckland has no Tier 1: Hobbit Hole buys from a carrier that is there');
   assert.equal(ev("NETS.filter(n=>n.tail).map(n=>n.up.join('+')).join()"), ev("NETS.filter(n=>n.tail).map(n=>tailUp(n.name,n.pops).join('+')).join()"), 'stable: picked by name');
-  // Australians buy only from Australian carriers, so a Tier 1 PNI is still no back door into Australia.
-  assert.equal(ev("['opt','tpr','abb','npt','lpt','lnt','pnt','stb','blg'].some(id=>t1Need().some(t=>CONE_S[t.id].has(id)))"), false);
+  // Australia's big ISPs buy only from Australian carriers, so a Tier 1 PNI is no back door to them.
+  assert.equal(ev("['opt','tpr','abb','npt','lpt','lnt','pnt','stb','blg','inp'].some(id=>t1Need().some(t=>CONE_S[t.id].has(id)))"), false);
+  // The smaller ones that buy from a Tier 1 or a carrier of one do come along, and these are exactly the ones.
+  const au = "NETS.filter(n=>n.type==='eye'&&n.pops.length&&n.pops.every(c=>CITY[c].au)&&t1Need().some(t=>CONE_S[t.id].has(n.id))).map(n=>n.id).sort().join()";
+  assert.equal(ev(au), 'ddo,ext,spn,tail44', 'Doodoo, Lintel, Spin2wintel, Kangaroo Courier');
+  assert.equal(ev("[NET.tail44.name,NET.tail44.up.join(),NET.ddo.up.join(),NET.spn.up.join(),NET.ext.up.join(),NET.voc.up.join(),NET.spl.up.join()].join('|')"), 'Kangaroo Courier|cog|voc|voc|spl|ntt,tly|tly');
   assert.deepEqual(errors, []);
 });
 
