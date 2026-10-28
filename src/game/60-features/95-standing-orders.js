@@ -23,7 +23,7 @@ const OPS=[
 const OPSK=Object.fromEntries(OPS.map(o=>[o.k,o])),OPS_POP=OPS.filter(o=>o.pop).map(o=>o.k);
 const OPS_TPL=['bb','transit','ix','kit'];
 // What the shift log can say. One line per day: "{name} did this, that and the other."
-const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_('ops.l_caches'),rs:N_('ops.l_rs'),peer:N_('ops.l_peer'),pni:N_('ops.l_pni'),sales:N_('ops.l_sales'),decline:N_('ops.l_decline'),repair:N_('ops.l_repair'),optics:N_('ops.l_optics'),decom:N_('ops.l_decom'),broke:N_('ops.l_broke')};
+const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_('ops.l_caches'),rs:N_('ops.l_rs'),peer:N_('ops.l_peer'),pni:N_('ops.l_pni'),sales:N_('ops.l_sales'),decline:N_('ops.l_decline'),repair:N_('ops.l_repair'),optics:N_('ops.l_optics'),decom:N_('ops.l_decom'),broke:N_('ops.l_broke'),snag:N_('ops.l_snag')};
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
 const OPS_TRIALS=1,OPS_FF_RATE={oncall:1/150,bgp:1/60};
@@ -154,11 +154,12 @@ const OPS_ORDER=['repair','sales','routers','transit','optics','caches','ix','pn
 // The shift: once per game day from dayTick, after outages and events have had their turn.
 function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;}
   const X=opsShift(),cash=S.cash;
-  opsQuiet(()=>{for(const k of OPS_ORDER)if(O.on[k])OPS_RUN[k](X);});
+  // One order that trips over something (an odd save, a bug) is paused and noted; payday, goals and the save still happen.
+  opsQuiet(()=>{for(const k of OPS_ORDER)if(O.on[k])try{OPS_RUN[k](X);}catch(err){O.on[k]=false;X.dirty=true;X.did('snag',k);console.error('[tubes] standing order failed',k,err);}});
   const e={d,i:O.intern,r:[]};for(const [k,x] of X.r)e.r.push([k,x.n,x.w]);if(X.broke.size)e.r.push(['broke',X.broke.size,[...X.broke]]);
   // Very rarely, and never under Change Freeze, the intern fat-fingers something harmless.
   const ff=OPS_FF_RATE[rulePreset()];if(ff&&Object.keys(S.pops).length&&Math.random()<ff){const c=pick(Object.keys(S.pops));let f=Math.floor(Math.random()*OPS_FF.length);
-    if(f===3){const t=S.transit.find(t=>t.city===c&&(t.n||1)<LAG_MAX&&portOk(c,t.tier)&&PORT[t.tier].setup<=Math.min(20000,S.cash*0.05));if(!t||!opsQuiet(()=>X.pay('transit',()=>ACT.lagT({id:t.id,d:1}))))f=0;else X.dirty=true;}
+    if(f===3){const t=O.on.transit&&opsHere('transit',c)&&!scnRule('noTransit')&&S.transit.find(t=>t.city===c&&(t.n||1)<LAG_MAX&&portOk(c,t.tier)&&PORT[t.tier].setup<=Math.min(20000,S.cash*0.05));if(!t||!opsQuiet(()=>X.pay('transit',()=>ACT.lagT({id:t.id,d:1}))))f=0;else X.dirty=true;}
     e.f=f;e.c=c;toast(esc(opsFFLine(e)),'',[{l:tr('ops.ops'),act:'opsOpen',args:{}}]);}
   // Declining an offer or stopping at a budget changes nothing a route depends on: no recompute for those.
   if(X.dirty)compute();

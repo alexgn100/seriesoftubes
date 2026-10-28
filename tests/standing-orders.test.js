@@ -431,3 +431,37 @@ test('per-POP exceptions go with the POP: on decommission, and in a save that lo
   assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}', 'no POP in Paris: its exception is dropped on load');
   assert.deepEqual(errors, []);
 });
+
+test('one order that throws is paused and noted; the rest of the shift and the day still run', t => {
+  const { ev, errors } = game(t, "S.transit[0].hist=[60,80,70]");
+  hire(ev); on(ev, 'repair'); on(ev, 'transit', { x: 1.5 });
+  ev("window.__r=OPS_RUN.repair;OPS_RUN.repair=()=>{throw new Error('boom')};window.__e=console.error;console.error=()=>{}");
+  const d = ev('S.day'), saves = ev("window.__s=0;window.__sv=save;save=()=>{__s++;return __sv()};S.day=29;dayTick();save=__sv;__s");
+  ev("OPS_RUN.repair=__r;console.error=__e");
+  assert.ok(d >= 0 && saves >= 1, 'dayTick reached the save on day 30');
+  assert.equal(ev('S.ops.on.repair'), false, 'the broken order is paused');
+  assert.ok(ev("(S.transit[0].n||1)") > 1, 'the next order still ran');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /got stuck on Rush repairs and paused it/);
+  assert.deepEqual(errors, []);
+});
+
+test('the fat-fingered LAG member respects a paused transit order and per-POP exceptions', t => {
+  const { ev, errors } = game(t);
+  hire(ev);
+  // Each shift rolls: fat finger yes, the only POP, the LAG slip (index 3).
+  ev("S.rules=makeRules('bgp');window.__r=Math.random;window.__k=0;Math.random=()=>[0,0,0.7][__k++%3]");
+  const n0 = ev('S.transit[0].n||1'), c0 = cash(ev);
+  shift(ev);
+  assert.equal(ev('__k'), 3);
+  assert.equal(ev('S.ops.log[0].f'), 0, 'transit order paused: a harmless label instead');
+  assert.equal(ev('S.transit[0].n||1'), n0); assert.equal(cash(ev), c0);
+  on(ev, 'transit', { x: 1 }); ev("ACT.opsPop({k:'transit',city:'fra'});closeModal();S.transit[0].hist=[0]");
+  shift(ev);
+  assert.equal(ev('S.ops.log[0].f'), 0, 'Frankfurt excepted: the same');
+  ev("ACT.opsPop({k:'transit',city:'fra'});closeModal()");
+  shift(ev);
+  assert.equal(ev('S.ops.log[0].f'), 3, 'allowed: the extra member');
+  assert.equal(ev('S.transit[0].n||1'), n0 + 1);
+  ev('Math.random=__r');
+  assert.deepEqual(errors, []);
+});

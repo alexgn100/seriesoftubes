@@ -2569,6 +2569,7 @@
 "ops.l_routers":{"one":"upgraded routers in {where}","other":"upgraded routers in {n} places ({where})"},
 "ops.l_rs":{"one":"joined a route server","other":"joined {n} route servers"},
 "ops.l_sales":{"one":"signed a customer","other":"signed {n} customers"},
+"ops.l_snag":{"one":"got stuck on {where} and paused it until you have a look","other":"got stuck on {n} orders ({where}) and paused them until you have a look"},
 "ops.l_transit":{"one":"topped up transit in {where}","other":"topped up transit {n} times ({where})"},
 "ops.locked":"The NOC hires interns from customer level {lv}.",
 "ops.lpm_off":"The peering inbox is still yours. Hire the Large Peering Model for that; {name} does not do email.",

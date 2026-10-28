@@ -2570,6 +2570,7 @@
 "ops.l_routers":{"one":"hat Router in {where} aufgerüstet","other":"hat Router an {n} Orten aufgerüstet ({where})"},
 "ops.l_rs":{"one":"hat sich einem Route Server angeschlossen","other":"hat sich {n} Route Servern angeschlossen"},
 "ops.l_sales":{"one":"hat einen Kunden unterschrieben","other":"hat {n} Kunden unterschrieben"},
+"ops.l_snag":{"one":"ist bei {where} hängen geblieben und hat den Auftrag pausiert, bis du draufschaust","other":"ist bei {n} Aufträgen hängen geblieben ({where}) und hat sie pausiert, bis du draufschaust"},
 "ops.l_transit":{"one":"hat Transit in {where} aufgestockt","other":"hat {n}-mal Transit aufgestockt ({where})"},
 "ops.locked":"Das NOC stellt ab Kundenlevel {lv} Praktikanten ein.",
 "ops.lpm_off":"Die Peering-Inbox bleibt deine Sache. Dafür gibt es das Large Peering Model; {name} macht keine E-Mails.",

@@ -2568,6 +2568,7 @@
 "ops.l_routers":{"one":"melhorou os roteadores em {where}","other":"melhorou os roteadores em {n} lugares ({where})"},
 "ops.l_rs":{"one":"entrou em um route server","other":"entrou em {n} route servers"},
 "ops.l_sales":{"one":"fechou com um cliente","other":"fechou com {n} clientes"},
+"ops.l_snag":{"one":"travou em {where} e pausou a ordem até você dar uma olhada","other":"travou em {n} ordens ({where}) e pausou-as até você dar uma olhada"},
 "ops.l_transit":{"one":"reforçou o trânsito em {where}","other":"reforçou o trânsito {n} vezes ({where})"},
 "ops.locked":"O NOC contrata estagiários a partir do nível de clientes {lv}.",
 "ops.lpm_off":"A caixa de peering continua com você. Para isso existe o Large Peering Model; {name} não responde e-mail.",

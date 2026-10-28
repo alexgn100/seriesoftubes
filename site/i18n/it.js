@@ -2568,6 +2568,7 @@
 "ops.l_routers":{"one":"ha potenziato i router a {where}","other":"ha potenziato i router in {n} posti ({where})"},
 "ops.l_rs":{"one":"si è unito a un route server","other":"si è unito a {n} route server"},
 "ops.l_sales":{"one":"ha firmato un cliente","other":"ha firmato {n} clienti"},
+"ops.l_snag":{"one":"si è bloccato su {where} e l'ha messo in pausa finché non dai un'occhiata","other":"si è bloccato su {n} ordini ({where}) e li ha messi in pausa finché non dai un'occhiata"},
 "ops.l_transit":{"one":"ha aumentato il transit a {where}","other":"ha aumentato il transit {n} volte ({where})"},
 "ops.locked":"Il NOC assume stagisti dal livello clienti {lv}.",
 "ops.lpm_off":"La casella del peering resta tua. Per quella c'è il Large Peering Model; {name} non risponde alle email.",
