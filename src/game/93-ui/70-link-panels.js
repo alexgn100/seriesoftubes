@@ -67,7 +67,7 @@ function chinaSection(c){const st=S.cnLic?S.cnLic.state:'none',loss=S.ev.gfw>S.d
   return h+`</section>`;}
 function subUpgradePanel(l){return `<h4 class="sub4">${tr('common.submarine_transmission')}</h4><p class="note">${tr('common.better_terminals_and_optical_tuning')}</p>`+Object.entries(SUB_UPGRADES).map(([k,U])=>{
   const at=l['sub'+k],done=subUpgradeReady(l,k),cost=subUpgradeCost(l,k),preview={...l,['sub'+k]:S.day};
-  const status=done?tr('common.installed'):at!==undefined?tr('link_panels.ready_in_n_days',{n:Math.max(0,at-S.day)}):tr('link_panels.price_n_days',{price:fmt$(cost),n:U.days});
+  const status=done?tr('common.installed'):at!==undefined?tr('link_panels.ready_in_n_days',{n:Math.max(0,at-S.day)}):tr('link_panels.price_n_days',{price:fmt$(cost),n:leadDays(U.days)});
   return `<div class="row"><div class="grow"><div class="nm">${tr(U.n)}</div><div class="meta">${status}</div><div class="meta">${tr('common.up_to_g_per_channel',{g:fmtG(submarineRate(preview))})}</div></div>${at===undefined?btn(tr('common.install'),'subUpgrade',{id:l.id,k},'sm',lvl()<4||S.cash<cost):''}</div>`;}).join('');}
 function dfPanel(l){
   const load=R.load[l.id]||0,cap=dfCap(l),u=cap?load/cap:0,bld=l.ready>S.day,A=CITY[l.a].name,B=CITY[l.b].name,inc=S.inc.find(i=>i.ref===l.id||i.ref===(l.trench||l.id)),amps=ampCount(l.km),sysD=DF_SYS[l.sys];

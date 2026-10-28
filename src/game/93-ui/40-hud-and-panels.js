@@ -2,10 +2,12 @@ function fitHud(){const h=$('hud');if(!h)return;h.classList.remove('fit1','fit2'
   const row=()=>{let m=0;for(const c of h.children)if(c.offsetParent)m=Math.max(m,c.offsetHeight);return m;};
   for(const c of ['fit1','fit2','fit3']){if(h.offsetHeight<=row()*1.5)break;h.classList.add(c);}}
 function renderHUD(){
-  for(const v of [0,0.5,1,2,4,8]){const b=$('sp'+v);if(b)b.classList.toggle('on',UI.speed===v);}
+  // No clock (puzzles): there is no time to speed up, so the speed buttons go.
+  {const ck=!S||rule('clock');for(const v of [0,0.5,1,2,4,8]){const b=$('sp'+v);if(b){b.classList.toggle('on',UI.speed===v);b.hidden=!ck;}}}
   $('muteBtn').style.opacity=UI.muted?.4:1;
   if(!S)return;
-  $('hName').textContent=S.name;$('hAsn').textContent='AS'+S.asn+(S.mode==='sandbox'?' · '+tr('common.sandbox'):S.scn?' · '+(scnName())+(S.scn.done||S.scn.failed?'':` · ${tr('ui.n_d_left',{n:Math.max(0,S.scn.days-S.day)})}`):'');
+  {const rt=ruleTag(),ha=$('hAsn');ha.title=rt?tr('rules.rules_are_locked_for_this_network',{rules:rt}):'';}
+  $('hName').textContent=S.name;$('hAsn').textContent='AS'+S.asn+(S.mode==='sandbox'||ruleTag()&&!S.scn?' · '+ruleTag():S.scn?' · '+(scnName())+(S.scn.done||S.scn.failed?'':` · ${tr('ui.n_d_left',{n:Math.max(0,S.scn.days-S.day)})}`):'');
   $('hCash').textContent=fmt$(S.cash);$('hCash').style.color=S.cash<0?'var(--bad)':'';
   const net=R.revMo-R.costMo;$('hRate').innerHTML=`<span class="${net>=0?'up':'down'}">${net>=0?'▲':'▼'} ${tr('common.price_mo',{price:fmt$(Math.abs(net))})}</span>`;
   $('hTraffic').textContent=`${fmtG(R.served)}`;
@@ -68,7 +70,7 @@ function renderLeft(){checkLayer();
     if(!S.inc.length&&!hot.length&&!hotR.length&&!slow.length)h+=`<p class="empty">${tr('hud_and_panels.all_systems_green_enjoy_it_while')}</p>`;
     h+=`<div class="kv" style="margin-top:8px"><span>${tr('hud_and_panels.incidents_so_far')}</span><b>${S.stats.incidents}</b></div><div class="kv"><span>${tr('hud_and_panels.survived_with_no_impact')}</span><b>${S.stats.survived}</b></div>`;
   }else{
-    if(Object.keys(S.ixp).length||ibxOpen()||(S.inbox&&S.inbox.bot)){const n=ibxOpen(),u=ibxUrgent();h+=`<div class="ibx ibxcard"><div class="nm">📬 ${tr('common.peering_inbox')} ${n?`<span class="cnt${u?' red':''}">${n}</span>`:''}</div><div class="meta">${S.inbox&&S.inbox.bot?tr('hud_and_panels.large_peering_model_is_on_it'):u?trn('hud_and_panels.n_session_is_down_on_its',u):n?trn('hud_and_panels.n_message_waiting_for_an_answer',n):tr('common.inbox_zero')}</div><div class="btns">${btn(tr('common.open_inbox'),'inbox',{},'sm')}</div></div>`;}
+    if(rule('inbox')&&(Object.keys(S.ixp).length||ibxOpen()||(S.inbox&&S.inbox.bot))){const n=ibxOpen(),u=ibxUrgent();h+=`<div class="ibx ibxcard"><div class="nm">📬 ${tr('common.peering_inbox')} ${n?`<span class="cnt${u?' red':''}">${n}</span>`:''}</div><div class="meta">${S.inbox&&S.inbox.bot?tr('hud_and_panels.large_peering_model_is_on_it'):u?trn('hud_and_panels.n_session_is_down_on_its',u):n?trn('hud_and_panels.n_message_waiting_for_an_answer',n):tr('common.inbox_zero')}</div><div class="btns">${btn(tr('common.open_inbox'),'inbox',{},'sm')}</div></div>`;}
     h+=`<p class="lead">${tr('hud_and_panels.every_network_on_the_map_traffic')}</p>`;
     {const nc=conns().length;if(nc)h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.all_connections_n',{n:nc}),'connOpen',{},'pink sm')}</div>`;}
     const where=netWhereIdx(),tl=NETS.filter(n=>n.tail),tlOn=tl.filter(n=>where(n.id).some(x=>x[2]==='ix')).length;

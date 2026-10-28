@@ -13,7 +13,7 @@ function shareCanvas(){const Wc=1200,Hc=630,cv=document.createElement('canvas');
   g.restore();g.strokeStyle='#1E2640';g.lineWidth=5;g.strokeRect(mx,my,mw,mh);
   // header
   g.fillStyle='#1E2640';g.font='900 54px "Baloo 2", sans-serif';g.textBaseline='top';g.fillText(S.name,40,28);
-  g.font='800 26px Nunito, sans-serif';g.fillText(`AS${S.asn} · ${tierLabel()} · ${dateStr(S.day)}${S.mode==='sandbox'?' · '+tr('common.sandbox'):''}`,42,92);
+  g.font='800 26px Nunito, sans-serif';g.fillText(`AS${S.asn} · ${tierLabel()} · ${dateStr(S.day)}${ruleTag()?' · '+ruleTag():''}`,42,92);
   // stats
   const got=BADGES.filter(b=>S.ach&&S.ach[b.id]!==undefined),rk={l:0,e:1,r:2,c:3},top=got.slice().sort((a,b)=>rk[a.r]-rk[b.r]).slice(0,8);
   const rows=[[tr('common.peak_traffic'),fmtG(S.stats.peak||0)],[tr('common.peered'),pct(R.peerShare||0)],[tr('common.pops'),tr('share_card.n_in_r_regions',{n:Object.keys(S.pops).length,r:regionsCount()})],[tr('common.links'),String(S.links.length)],[tr('common.customers'),String(S.biz.length)],[tr('common.incidents_survived'),String(S.stats.survived||0)],[tr('common.shark_bites'),String(S.stats.sharks||0)],[tr('common.badges'),`${got.length}/${BADGES.length}`]];

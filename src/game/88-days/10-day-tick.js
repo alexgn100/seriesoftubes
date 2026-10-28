@@ -1,6 +1,6 @@
 /* ---------- daily tick ---------- */
 function dayTick(){
-  if(!S||S.lost)return;
+  if(!S||S.lost||!rule('clock'))return; // no clock (puzzles): no days, no bills, nothing fires
   S.day++;
   const d=S.day;
   dkTick(d);ixPriceWar(d);inboxDay(d);pniDay(d);mergerDay(d);
@@ -31,7 +31,7 @@ function dayTick(){
   {const top=custLevel();if(top>(S.lvl||1)){for(let lv=(S.lvl||1)+1;lv<=top;lv++){track('level_'+lv);toast(tr('day_tick.customer_level_lv_name_new_customers',{lv,name:LEVELS[lv-1].n,unlock:LEVELS[lv-1].unlock})+`<br><i>${esc(LEVELS[lv-1].q)}</i>`,'goal');}S.lvl=top;sfx('coin');}}
   for(const l of S.links){if(l.kind!=='df')continue;
     if(l.ready===d){toast(`<b>${l.own?tr('day_tick.your_fiber_is_finished_a_b',{a:CITY[l.a].name,b:CITY[l.b].name}):tr('day_tick.dark_fiber_handed_over_a_b',{a:CITY[l.a].name,b:CITY[l.b].name})}</b><br>${(l.ch||[]).length?tr('day_tick.channels_are_lighting_up_now'):tr('day_tick.it_is_dark_add_optics_to')}`,'goal',[{l:tr('common.open'),act:'selLink',args:{id:l.id}}]);sfx('coin');}
-    if(l.own&&l.ready>d&&Math.random()<0.012){const extra=10+Math.floor(Math.random()*40);setCableReady(l,l.ready+extra);toast(tr('day_tick.construction_delay_n_days_why_a',{n:extra,why:pick(l.sub?SEA_DELAYS.map(x=>tr(x)):[tr('day_tick.archaeologists_found_a_roman'),tr('day_tick.a_protected_hamster_species_lives'),tr('day_tick.the_railway_changed_its_mind_about'),tr('day_tick.the_drilling_crew_hit_a_granite'),tr('day_tick.a_town_council_wants_a_public'),tr('day_tick.somebody_else_s_gas_main_was'),tr('day_tick.the_permit_office_lost_your_permit')]),a:CITY[l.a].name,b:CITY[l.b].name}),'bad');}}
+    if(l.own&&l.ready>d&&Math.random()<0.012){const extra=10+Math.floor(Math.random()*40);setCableReady(l,l.ready+leadDays(extra));toast(tr('day_tick.construction_delay_n_days_why_a',{n:leadDays(extra),why:pick(l.sub?SEA_DELAYS.map(x=>tr(x)):[tr('day_tick.archaeologists_found_a_roman'),tr('day_tick.a_protected_hamster_species_lives'),tr('day_tick.the_railway_changed_its_mind_about'),tr('day_tick.the_drilling_crew_hit_a_granite'),tr('day_tick.a_town_council_wants_a_public'),tr('day_tick.somebody_else_s_gas_main_was'),tr('day_tick.the_permit_office_lost_your_permit')]),a:CITY[l.a].name,b:CITY[l.b].name}),'bad');}}
   // DDoS protection SLA: if a protected customer's own city is hit and still goes down, you pay out (once per attack).
   if(S.ev.ddos&&S.ev.ddos.until>d){const a=S.ev.ddos;
     for(const b of S.biz)if(b.type==='scrub'&&b.city===a.city&&b.slaFor!==a.start&&sfOf(R,b.city)<0.85){
@@ -53,14 +53,15 @@ function dayTick(){
     if(cands.length){cands.sort((a,b)=>(a.pol==='open'?0:1)-(b.pol==='open'?0:1)||b.share-a.share);const n=Math.random()<.6?cands[0]:pick(cands);m.members.push(n.id);toast(tr('day_tick.net_joined_ix_another_member_paying',{net:esc(n.name),ix:esc(m.name),fee:fmt$(MYIX_FEE)}),'good');sfx('coin');}
     m.next=d+8+Math.floor(Math.random()*10);}}
   loanTick(d);
-  if(S.mode==='sandbox'&&S.cash<1e8)S.cash=1e9;
+  if(rule('money')==='infinite'&&S.cash<1e8)S.cash=1e9;
   // offers
   S.offers=S.offers.filter(o=>o.exp>d);
   if(S.offers.length<5&&Math.random()<(0.05+0.01*(S.lvl||1))*(ppol()==='closed'?0.6:1)*(confSpOn()?SP_OFFERS:1))spawnOffer();
   // failures & events
-  let dirty=false;
-  if(d>=S.nextFail){dirty=true;fireFailure();const size=S.links.length+Object.keys(S.pops).length;S.nextFail=d+Math.round((Math.max(22,50-size*1.5)+Math.floor(Math.random()*25))*(scnRule('chaos')?0.5:1));}
-  if(d>=S.nextEvent){dirty=true;fireEvent();S.nextEvent=d+45+Math.floor(Math.random()*45);}
+  // Chaos (the rules) scales how often: calm waits about three times as long, spicy comes almost twice as often, none never.
+  let dirty=false;const cm=chaosMul();
+  if(cm&&d>=S.nextFail){dirty=true;fireFailure();const size=S.links.length+Object.keys(S.pops).length;S.nextFail=d+Math.round((Math.max(22,50-size*1.5)+Math.floor(Math.random()*25))*(scnRule('chaos')?0.5:1)/cm);}
+  if(cm&&d>=S.nextEvent){dirty=true;fireEvent();S.nextEvent=d+Math.round((45+Math.floor(Math.random()*45))/cm);}
   if(dirty)compute();
   // payday floaters
   if(d%30===0){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-(CITY[c].arpu||1));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
@@ -75,7 +76,7 @@ function dayTick(){
   if(d%10===0)save();
 }
 function spawnOffer(){
-  const mine=spMine(Object.keys(S.pops)),lv=S.lvl||1;
+  const mine=spMine(Object.keys(S.pops)),lv=lvl();
   const types=['dia','dia','game','host'];if(mine.length>=2)types.push('l2vpn','l2vpn');if(S.day>60)types.push('scrub');
   if(lv>=2)types.push('isp','stream','edu','host','hft','bulk','event','event');if(mine.length>=3&&lv>=2)types.push('sdwan','sdwan');
   if(S.links.some(l=>l.kind==='df'&&l.ready<=S.day))types.push('wwave','wwave');if(S.links.some(l=>l.kind==='df'&&l.own&&l.ready<=S.day))types.push('dfpair');if(lv>=3)types.push('gpu','gpu','onramp','onramp');if(lv>=4)types.push('ai','ai','hyper','hyper');

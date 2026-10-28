@@ -7,7 +7,8 @@ function fireFailure(){
   if(S.transit.some(t=>!(t.down>S.day)))opts.push(['transit',3]);
   if(Object.keys(S.ixp).length)opts.push(['ixloop',2]);
   if(S.transit.length&&S.day>60)opts.push(['leak',2]);
-  if(S.day>40&&!scnRule('ddos'))opts.push(['ddos',2]); // Flood Season brings its own
+  // Flood Season brings its own; Change Freeze has none, BGP at 3 a.m. twice as many.
+  if(S.day>40&&!scnRule('ddos')&&rule('chaos')!=='calm')opts.push(['ddos',rule('chaos')==='spicy'?4:2]);
   if(fabsUsed.length)opts.push(['fabric',1.5]);
   const lit=S.links.filter(l=>l.kind==='df'&&dfCap(l)>0&&!linkDown(l));if(lit.length)opts.push(['amp',1.5+lit.length*0.3],['optic',1.5+lit.length*0.3]);
   opts.push(['funny',4]);
