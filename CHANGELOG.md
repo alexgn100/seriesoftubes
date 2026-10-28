@@ -22,6 +22,7 @@ All notable changes to this project are documented here. The project follows
 - Each live attack in the NOC now shows incoming bandwidth, upstream scrubbing, edge filtering, scrubbing-center use and any traffic still leaking through.
 - DDoS bandwidth now adds up: upstream scrubbing, edge filters and scrubbing centers work in sequence. The NOC uses the same figures as traffic routing, including floods that cannot reach a remote center.
 - Attacks can now use Memcached amplification or an ACK flood. Flowspec catches the former; the latter need mitigation.
+- Set the number of each optic model directly on land and subsea fiber links. Apply a whole change at once, with its total price shown before buying; removed optics return to the spares shelf.
 
 ## [1.36.0] — 2026-10-28
 
