@@ -54,3 +54,28 @@ test('indexed routing matches the simple allocation loop across network changes'
   } finally { dom.window.close(); }
 });
 
+
+// Islands: POPs no backbone joins. Exit lists are split per island (a flow only scans exits it can reach),
+// and must route exactly like the full scan, also when a cut splits an island or joins two.
+test('indexed routing matches the simple allocation loop on a network of islands', () => {
+  const { ev, dom, errors } = load();
+  try {
+    network(ev);
+    ev("S.links=S.links.filter(l=>!['df4','df9','w3','w4','w8','w9'].includes(l.id));compute()");
+    assert.ok(ev("Object.keys(S.pops).some(c=>!pathExists('fra',c))"), 'the network is in pieces');
+    const changes = [
+      '',
+      "S.pni.forEach((p,i)=>p.pref=i%3===0?'high':i%3===1?'low':'normal')",
+      "S.te={on:true,script:'prefer pni for goggle\\nspill at 80%'}",
+      "S.ev.ddos={city:'fra',until:S.day+3,gbps:300,vec:'syn',entry:{k:'edge'}}",
+      "S.links[0].cut=S.day+2",
+      "S.te=null;S.links[0].cut=0;S.links.push({id:'join',a:'par',b:'pek',kind:'wave',tier:2,km:8000,cut:0,mo:100})",
+    ];
+    for (const change of changes) {
+      ev(change);
+      ev('window.priorR=JSON.stringify(R);referenceCompute();window.expectedR=JSON.stringify(R);R=JSON.parse(priorR);compute()');
+      assert.deepEqual(JSON.parse(ev('JSON.stringify(R)')), JSON.parse(ev('expectedR')), change || 'baseline');
+    }
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
