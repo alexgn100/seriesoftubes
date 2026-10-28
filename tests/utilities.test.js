@@ -89,11 +89,12 @@ test('bulk peering skips disconnected IXs, route server coverage and existing do
   assert.deepEqual(errors, []);
 });
 
-test('utilities are available from the menu and PoP Infra in every language', t => {
+test('utilities are available from the Ops sheet in the menu and from PoP Infra in every language', t => {
   for (const lang of ['en', 'it', 'pt', 'fr', 'es']) {
     const { ev, dom, errors } = setup(t, lang === 'en' ? {} : { lang });
     ev('ACT.menu()');
-    assert.ok(dom.window.document.querySelector('[data-act="utilities"]'), lang);
+    dom.window.document.querySelector('#modalCard [data-act="opsOpen"]').click();
+    assert.ok(dom.window.document.querySelector('#modalCard [data-act="utilities"]'), lang);
     ev("selectCity('fra');ACT.tab({t:'links'})");
     assert.ok(dom.window.document.querySelector('#panelBody [data-act="utilityKit"]'), lang);
     ev('ACT.utilities()');

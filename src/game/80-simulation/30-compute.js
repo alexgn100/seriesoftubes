@@ -157,8 +157,7 @@ function compute(){
   const ingressE={};for(const e of E)(ingressE[e.ek]||(ingressE[e.ek]=[])).push(e);
   /* A network in a peer's customer cone, reached through that peer (#85): after every network you peer with directly
      (its AS path is one hop longer) and before transit. */
-  // An attack pinned to the port it enters by (rank0) has no AS path to compare, so cones do not apply to it.
-  const rank0=e=>e.pref==='low'?4:e.rank,base=(e,n)=>e.pref==='low'?4:e.rank>0&&e.rank<3&&coneOf(e,n)?CONE_RANK:e.rank;
+  const base=(e,n)=>e.pref==='low'?4:e.rank>0&&e.rank<3&&coneOf(e,n)?CONE_RANK:e.rank;
   // LOCAL_PREF on an upstream moves it ahead of or behind the other transits, never ahead of peering (#96).
   const eff=(e,n)=>{let r=base(e,n);if(TR){if(e.k==='t'&&TR.up[e.net])r=TR.up[e.net]==='prefer'?2.9:3.5;if(e.prep)r=4.4;if(e.k!=='c'&&TR.drain.has(e.city))r=4.6;const o=TR.net[n];if(o){if(o.prefer===e.k)r=0.5;else if(o.avoid===e.k)r=4.5;}}return r;};
   const RANKS=TR?[0,0.5,1,2,CONE_RANK,2.9,3,3.5,4,4.4,4.5,4.6]:[0,1,2,CONE_RANK,3,4];
@@ -168,8 +167,6 @@ function compute(){
   // Each list also knows whether it holds a preferred exit (hi) and its exits by city (at), in list order.
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
     for(const r in m){const L=m[r];L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}}}
-  // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
-  for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(rank0(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
   // An exit the flow can still try: not visited yet, not full when the flow started, and reachable from the POP.
@@ -218,7 +215,7 @@ function compute(){
     for(let fi=0,FN=flows.length;fi<FN;fi++){f=flows[fi];
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
       Dv=SDi[f.ci];Pv=SPi[f.ci];PP=walked[f.ci]||(walked[f.ci]=[]);vis++;
-      if(f.pin){for(const e of ingressE[f.pin]||[])if(rank0(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
+      if(f.pin){for(const e of ingressE[f.pin]||[])if(base(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
       const lst=byRank[f.n][rank];if(!lst)continue;
       /* Groups are tried nearest first, preferred exits before the rest, in the order a stable sort of the usable
          exits gives. Exits only fill up once tried, so the usable ones stay the same until then. Nearly every flow
@@ -274,7 +271,7 @@ function compute(){
   C.pni=S.pni.reduce((a,p)=>a+pniMo(p,R2.usePni[p.id]||0),0);
   C.caches=S.caches.length*CACHE_MO;
   C.loans=(S.loans||[]).reduce((a,l)=>a+(BANKS[l.bank].equity?0:l.model==='transit'?Math.round((C.transit||0)*(l.cut||0.3)):l.pay)+loanFees(l),0);
-  C.extras=(S.cnLic&&S.cnLic.state==='ok'?CN_JV_MO:0)+scrubMo()+Object.keys(S.pops).filter(ruCity).length*RU_BOX_MO+Object.values(S.pops).filter(p=>p.site2).length*SITE2_MO+(S.te?TE_MO:0)+(S.inbox&&S.inbox.bot?AI_MO:0);
+  C.extras=(S.cnLic&&S.cnLic.state==='ok'?CN_JV_MO:0)+scrubMo()+Object.keys(S.pops).filter(ruCity).length*RU_BOX_MO+Object.values(S.pops).filter(p=>p.site2).length*SITE2_MO+(S.te?TE_MO:0)+(S.inbox&&S.inbox.bot?AI_MO:0)+(S.ops&&S.ops.intern?INTERN_MO:0);
   V.eyeballs=0;V.business=0;V.ix=0;V.grant=grantOn(R2)?GRANT_MO:0;
   C.wholesale=0;C.levy=0;const lev=scnRule('levy');for(const c in S.pops){const sf=sfOf(R2,c),v=R2.cityEye[c]*sf*EYE_RATE*(CITY[c].arpu||1);V.eyeballs+=v;if(CITY[c].au){if(lev)C.levy+=v*AU_LEVY;else C.wholesale+=v*AU_WHOLESALE;}}
   const ids=linkIds();for(const b of S.biz){if(capPend(b))continue;const sf=BIZ_T[b.type].fiber?(fiberOk(b,ids)?1:0):BIZ_T[b.type].l2?clamp((R2.l2[b.id]||0)/b.bw,0,1):sfOf(R2,b.city);V.business+=b.bw*b.rate*Math.min(1,sf/0.95);}

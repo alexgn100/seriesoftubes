@@ -30,7 +30,7 @@ Object.assign(ACT,{
    ${btn(tr('puzzles.puzzles'),'puzzleMenu',{},'ghost')}
    ${btn(tr('common.how_to_play'),'help',{},'ghost')}
    ${RELEASE_NOTES.length?btn(tr('common.what_s_new_in_v',{v:esc(APP_VERSION)}),'whatsNewShow',{},'ghost'):''}
-   ${btn(tr('utilities.title'),'utilities',{},'')}
+   ${btn('🧑‍💻 '+tr('ops.standing_orders'),'opsOpen',{},'')}
    ${btn(tr('common.settings'),'settings',{},'ghost')}
    ${btn(tr('common.start_a_new_network'),'resetAsk',{},'red')}
   </div>${chatHtml()}${issueHtml()}`);},
