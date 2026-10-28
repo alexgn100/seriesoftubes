@@ -12,8 +12,8 @@ const SCN_PROG={stg:()=>[{l:tr('common.reach'),v:R.reach,max:0.45,txt:`${pct(R.r
   darien:()=>[...['bog','lim','scl','sao'].map(c=>pChk(tr('progress.pop_in_city',{city:CITY[c].name}),!!S.pops[c])),pSrv(150)],
   gangnam:()=>[pReach(),pSrv(200)],
   fttb:()=>[...AU_BB.map(c=>pChk(tr('progress.broadband_in_city',{city:CITY[c].name}),!!(S.pops[c]&&S.pops[c].bb))),{l:tr('common.cables_overseas'),v:Math.min(2,auExits()),max:2,txt:`${auExits()} / 2`}],
-  flood:()=>{const ok=S.stats.ddosOk||0,big=S.stats.ddosOkBig||0,a=S.ev.ddos&&S.ev.ddos.until>S.day?S.ev.ddos:null;
-    return [{l:tr('common.floods_held'),v:ok,max:20,txt:`${ok} / 20`},{l:tr('progress.terabit_floods_held'),v:big,max:5,txt:`${big} / 5`},{l:tr('progress.floods_that_got_through'),v:0,max:0,txt:String(S.stats.ddosLost||0)}].concat(a?[{l:tr('progress.under_attack_now'),v:0,max:0,txt:`${fmtG(a.gbps)} · ${CITY[a.city].name} · ${pct(a.worst===undefined?1:a.worst)}`}]:[]);},baltic:()=>[{l:tr('progress.days_in_a_row_with_99'),v:S.stats.clean||0,max:90,txt:tr('progress.n_of_m',{n:S.stats.clean||0,m:90})}]};
+  flood:()=>{const ok=S.stats.ddosOk||0,big=S.stats.ddosOkBig||0,attacks=ddosAll();
+    return [{l:tr('common.floods_held'),v:ok,max:20,txt:`${ok} / 20`},{l:tr('progress.terabit_floods_held'),v:big,max:5,txt:`${big} / 5`},{l:tr('progress.floods_that_got_through'),v:0,max:0,txt:String(S.stats.ddosLost||0)}].concat(attacks.map(a=>({l:tr('progress.under_attack_now'),v:0,max:0,txt:`${fmtG(a.gbps)} · ${CITY[a.city].name} · ${pct(a.worst===undefined?1:a.worst)}`})));},baltic:()=>[{l:tr('progress.days_in_a_row_with_99'),v:S.stats.clean||0,max:90,txt:tr('progress.n_of_m',{n:S.stats.clean||0,m:90})}]};
 function scnProg(){const sc=S&&S.scn;if(!sc)return null;
   if(sc.id==='weekly')return {goal:tr('common.serve_as_much_traffic_as_you'),items:[{l:tr('progress.your_score_peak_traffic'),v:0,max:0,txt:fmtG(S.stats.peak||0)}],f:Math.min(1,S.day/sc.days)};
   const def=SCN.find(x=>x.id===sc.id),fn=SCN_PROG[sc.id];if(!def)return null;let items=[];try{items=fn?fn():[];}catch(e){items=[];}

@@ -1,7 +1,7 @@
 /* ================= BUSINESSES ================= */
 const BIZ_T={
  dia:{l:tr('common.enterprise_dia'),opts:[1,2,5,10],rate:600},
- game:{l:tr('common.game_servers'),opts:[5,10,20,40],rate:120},
+ game:{l:tr('common.game_servers'),gaming:true,opts:[5,10,20,40],rate:120},
  host:{l:tr('common.hosting'),opts:[10,20,40,80],rate:60},
  isp:{l:tr('businesses.downstream_isp_buys_transit'),opts:[100,200,400,800],rate:15,lv:2},
  l2vpn:{l:tr('common.l2vpn_circuit'),opts:[1,10,40,100],rate:0,l2:true,km:1,lv:1},
@@ -26,7 +26,7 @@ const BIZ_T={
  pairs:{l:tr('businesses.hundreds_of_fiber_pairs'),opts:[1],rate:0,fiber:true,mega:true,lv:4,names:['A Hyperscaler Who Shall Not Be Named','Planet-Scale AI WAN Team','The Fiber-Hungry Giant','Project Very Long Glass']},
  esport:{l:tr('businesses.esports_world_final'),opts:[400,800,1600,3200],rate:0,event:true,lv:5,names:['League of Lag Finals','Counter-Ping Major','Fortnightly World Cup','Dota Two Many Viewers','Rocket Leak Championship','Street Frighter Evo']},
  sov:{l:tr('businesses.sovereign_cloud_region'),opts:[400,800,1600],rate:0,l2:true,div:true,km:0.6,lv:6,names:['Gaia-Ex Sovereign Cloud','Bundeswolke (Very Secure)','Le Cloud Souverain','Datenschutz Deluxe','Your Data Stays Here, Probably','A Cloud With a Flag on It','Data Residency Is a State of Mind']},
- cgame:{l:tr('businesses.cloud_gaming_platform'),opts:[800,1600,3200],rate:45,lv:8,names:['Stadia-ium (Back Again)','GeForce Later','Ping Station Now','Luna-tick Gaming','Shadow of a Doubt Cloud PC','Input Lag Arcade','Bufferbloat Bros. Streaming']},
+ cgame:{l:tr('businesses.cloud_gaming_platform'),gaming:true,opts:[800,1600,3200],rate:45,lv:8,names:['Stadia-ium (Back Again)','GeForce Later','Ping Station Now','Luna-tick Gaming','Shadow of a Doubt Cloud PC','Input Lag Arcade','Bufferbloat Bros. Streaming']},
  metav:{l:tr('common.metaverse_platform'),opts:[1600,3200,6400],rate:35,lv:9,names:['Meh-taverse','Second Second Life','Horizon Worlds Apart','The Oasis (Ready Player Done)','Legs Finally Shipped Inc.','Decentra-landlocked']},
  agi:{l:tr('businesses.agi_lab_allegedly'),opts:[12800,25600],rate:0,l2:true,div:true,mega:true,km:0.4,lv:11,names:['Almost General Intelligence Inc.','Superintelligence Pending','The Lab That Said Two More Years','Paperclip Maximizer Labs','Deep Thought Two','Benevolent Overlord Research']},
  mars:{l:tr('businesses.mars_mission_ground_station'),opts:[100,200,400],rate:0,l2:true,lat:true,km:4,lv:13,names:['Red Planet Relay','Ares Ground Segment','Olympus Mons Uplink','Mars or Bust Mission Control','Interplanetary Ping Society','Light-Minute Logistics','RFC 1149 Avian Carriers (Mars Division)']},

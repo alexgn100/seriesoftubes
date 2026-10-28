@@ -38,9 +38,13 @@ const FS_RES=[1,0.4,0.15];
 const DDOS_VEC={
  dns:{n:tr('common.dns_reflection'),fs:true},
  ntp:{n:tr('common.ntp_amplification'),fs:true},
+ memcached:{n:tr('common.memcached_amplification'),fs:true},
+ ack:{n:tr('common.ack_flood'),fs:false},
  cldap:{n:tr('common.cldap_flood'),fs:true},
  syn:{n:tr('common.syn_flood'),fs:true},
  http:{n:tr('common.http_flood'),fs:false},
+ racknet:{n:tr('common.racknet'),fs:false,gaming:true},
+ teamspooked:{n:tr('common.teamspooked'),fs:false,gaming:true},
 };
 const MYIX_COST=80000, MYIX_MO=3000, MYIX_FEE=1500, START_CASH=200000;
 // Your own exchange's switching fabric. Bigger fabrics carry more and attract more members.

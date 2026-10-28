@@ -12,6 +12,16 @@ All notable changes to this project are documented here. The project follows
 - Check a selected link’s redundancy against current demand: see disconnected endpoints, additional service loss and full fallback links without changing the live network.
 - Links can now use a custom routing metric, set either as a multiplier or as an exact cost. Pick Custom under Routing metric to fine-tune where your traffic goes; it explains how a link's cost is worked out and what each preset comes to on that link.
 - Prices now follow how connected each city really is, based on PeeringDB and Hurricane Electric data. Transit costs up to 1.8× more in cities where few networks are present, a POP costs 1.25× to 1.5× where there is little or no carrier-neutral data center, and countries with thousands of networks, like Brazil and the US, bring more ISP customers. Big hubs such as Frankfurt, Amsterdam, New York and São Paulo keep their prices.
+- Attacks are more varied: sizes, lengths and ingress ports change from one attack to the next, and several can hit at once. Hosting game servers or cloud gaming makes attacks more frequent, as it does in real life.
+- The link traffic breakdown now shows the correct source city for scrubbing traffic. Cities using the same center no longer overwrite each other's labels.
+- Live attacks now show one scrubbing detour from the attacked city to its nearest active scrubbing center, using the links' one-way latency.
+- Game server and cloud gaming customers now carry a “Gaming attracts attacks” note on their offers and customer lists, so you can see the DDoS risk before signing them.
+- Live attacks now show how much traffic Flowspec actually drops at the ingress routers. Routers without TCAM no longer claim to filter attacks, mixed router capabilities are called out, and Flowspec drops are counted separately from other edge filters.
+- Hosting game servers or cloud gaming brings RackNet and TeamSpooked attacks. Both bypass Flowspec and require dedicated mitigation.
+- Flood Season keeps sending ever larger attacks when you keep playing after winning or running out of time. Finishing the challenge no longer switches the floods off.
+- Each live attack in the NOC now shows incoming bandwidth, upstream scrubbing, edge filtering, scrubbing-center use and any traffic still leaking through.
+- DDoS bandwidth now adds up: upstream scrubbing, edge filters and scrubbing centers work in sequence. The NOC uses the same figures as traffic routing, including floods that cannot reach a remote center.
+- Attacks can now use Memcached amplification or an ACK flood. Flowspec catches the former; the latter need mitigation.
 
 ## [1.36.0] — 2026-10-28
 

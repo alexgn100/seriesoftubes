@@ -57,7 +57,7 @@ function teOptimize(){const L=[tr('routescript.suggested_by_the_optimizer_from_l
   return L.join('\n');}
 // Ready-made RouteScripts, filled in from the live network. Players load them from the help; the AI button picks them too.
 const teUps=()=>[...new Set(S.transit.map(t=>t.net))].map(n=>({n,p:Math.min(...S.transit.filter(t=>t.net===n).map(t=>NET[n].price*netMult(NET[n],t.city)))})).sort((a,b)=>a.p-b.p);
-const teNm=n=>NET[n].name.toLowerCase(),teAtk=()=>!!(S.ev.ddos&&S.ev.ddos.until>S.day);
+const teNm=n=>NET[n].name.toLowerCase(),teAtk=()=>ddosAll().length>0;
 const teSad=()=>S.biz.some(b=>!BIZ_T[b.type].l2&&!BIZ_T[b.type].fiber&&!BIZ_T[b.type].event&&sfOf(R,b.city)<0.95);
 const TE_RECIPES=[
  {id:'shield',n:N_('common.shields_up'),d:N_('routescript.for_a_ddos_drop_the_junk'),fit:()=>teAtk()?9:0.3,

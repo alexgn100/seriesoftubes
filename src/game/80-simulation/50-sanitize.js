@@ -60,10 +60,15 @@ function sanitize(s){
   if(!Array.isArray(s.scrubs))s.scrubs=s.scrubAt&&isCity(s.scrubAt)?[{city:s.scrubAt,tier:s.scrubTier}]:[];delete s.scrubAt;delete s.scrubTier;
   {const seen=new Set();s.scrubs=s.scrubs.filter(x=>x&&typeof x==='object'&&isCity(x.city)&&s.pops[x.city]&&!seen.has(x.city)&&seen.add(x.city)).map(x=>({city:x.city,tier:int(x.tier,0,SCRUB_TIERS.length-1,0)}));}
   s.scrubMode=s.scrubMode==='ondemand'?'ondemand':'always';
-  if(s.ev&&s.ev.ddos){const a=s.ev.ddos;
-    if(!a||typeof a!=='object'||!isCity(a.city)||!own(DDOS_VEC,a.vec))delete s.ev.ddos;
-    else{a.gbps=num(a.gbps,2);a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=num(a.start,s.day);
-      if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}}}
+  // Keep the legacy primary attack so old saves and imports remain compatible; additional floods overlap it.
+  const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
+    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+7);
+    if(Array.isArray(a.entries)){a.entries=a.entries.filter(en=>en&&['t','ix','p'].includes(en.k)&&isCity(en.city)&&typeof en.id==='string'&&Number.isFinite(+en.share)&&+en.share>0).slice(0,3000).map(en=>({k:en.k,id:en.id.slice(0,40),city:en.city,lab:String(en.lab||'').slice(0,60),share:+en.share}));const sum=a.entries.reduce((n,en)=>n+en.share,0);if(Number.isFinite(sum)&&sum>0)for(const en of a.entries)en.share/=sum;else delete a.entries;}else delete a.entries;
+    a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
+    if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
+  const attacks=[s.ev.ddos,...(Array.isArray(s.ev.ddosMore)?s.ev.ddosMore:[])].map(repairAttack).filter(Boolean).slice(0,14);
+  if(attacks.length)s.ev.ddos=attacks[0];else delete s.ev.ddos;s.ev.ddosMore=attacks.slice(1);
+  s.ddosStarts=(Array.isArray(s.ddosStarts)?s.ddosStarts:attacks.map(a=>a.start)).filter(d=>typeof d==='number'||typeof d==='string').map(Number).filter(d=>Number.isFinite(d)&&d>s.day-7&&d<=s.day).sort((a,b)=>a-b).slice(-14);
   s.auV=s.auV===1?1:0;if(s.auNews!==true)delete s.auNews;
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
   if(s.te){if(typeof s.te!=='object')s.te=null;else{s.te.on=!!s.te.on;s.te.script=typeof s.te.script==='string'?s.te.script.slice(0,4000):'';}}

@@ -8,8 +8,9 @@ function dayTick(){
   if(R&&R.teMoved)S.stats.teMax=Math.max(S.stats.teMax||0,R.teMoved);
   {const t1=!!S.won&&isTier1();if(S.t1Now&&!t1)toast(tr('day_tick.you_are_no_longer_tier_1',{why:t1Why()}),'bad');S.t1Now=t1;}
   if(S.grace&&S.grace.until===d){toast(tr('day_tick.the_courtesy_route_has_ended_new'),'bad',[{l:tr('common.open_noc'),act:'leftTab',args:{t:'noc'}}]);}
-  {const a=S.ev.ddos;if(a&&a.until>d&&R&&S.pops[a.city])a.worst=Math.min(a.worst===undefined?1:a.worst,sfOf(R,a.city));}
-  if(scnRule('ddos')&&!(S.scn.done||S.scn.failed)&&d>=(+S.scn.nextDdos||3)&&!(S.ev.ddos&&S.ev.ddos.until>d)){ddosAttack();S.scn.nextDdos=d+3+Math.floor(Math.random()*5);}
+  for(const a of ddosAll(S,false))if(a.until>=d&&R&&S.pops[a.city])a.worst=Math.min(a.worst===undefined?1:a.worst,ddosSf(a));
+  ddosExpire();
+  ddosTick();
   if(R&&R.demand>0)S.stats.clean=R.served/R.demand>=0.995?(S.stats.clean||0)+1:0;
   if(S.scn&&S.scn.id==='redsea')S.stats.asiaRun=asiaG()>=RS_G?(S.stats.asiaRun||0)+1:0;
   if(S.ev.php===d)toast(tr('day_tick.the_internet_is_back_half_of'),'good');
@@ -24,6 +25,7 @@ function dayTick(){
     if(sf>=0.9){const g=(CITY[c].be&&!(p.boost>d)?0.35:1)*0.025*(scnRule('boom')?1.5:1)*(p.boost>d?2:1)*sf*(0.7+0.6*(R.peerShare||0))*(CITY[c].reg==='AS'&&!CITY[c].cn?1.6:1);p.bb.d+=g*p.bb.d*(1-p.bb.d/P);}
     else p.bb.d=Math.max(Math.min(3,P),p.bb.d*(1-(0.9-sf)*0.04));}
   compute();
+  for(const a of ddosAll())a.worst=Math.min(a.worst??1,ddosSf(a));
   for(const t of S.transit){(t.hist=t.hist||[]).push(R.useT[t.id]||0);if(t.hist.length>30)t.hist.shift();}
   S.cash+=(R.revMo-R.costMo)/30;
   S.stats.peak=Math.max(S.stats.peak,R.served);
@@ -33,9 +35,9 @@ function dayTick(){
     if(l.ready===d){toast(`<b>${l.own?tr('day_tick.your_fiber_is_finished_a_b',{a:CITY[l.a].name,b:CITY[l.b].name}):tr('day_tick.dark_fiber_handed_over_a_b',{a:CITY[l.a].name,b:CITY[l.b].name})}</b><br>${(l.ch||[]).length?tr('day_tick.channels_are_lighting_up_now'):tr('day_tick.it_is_dark_add_optics_to')}`,'goal',[{l:tr('common.open'),act:'selLink',args:{id:l.id}}]);sfx('coin');}
     if(l.own&&l.ready>d&&Math.random()<0.012){const extra=10+Math.floor(Math.random()*40);setCableReady(l,l.ready+extra);toast(tr('day_tick.construction_delay_n_days_why_a',{n:extra,why:pick(l.sub?SEA_DELAYS.map(x=>tr(x)):[tr('day_tick.archaeologists_found_a_roman'),tr('day_tick.a_protected_hamster_species_lives'),tr('day_tick.the_railway_changed_its_mind_about'),tr('day_tick.the_drilling_crew_hit_a_granite'),tr('day_tick.a_town_council_wants_a_public'),tr('day_tick.somebody_else_s_gas_main_was'),tr('day_tick.the_permit_office_lost_your_permit')]),a:CITY[l.a].name,b:CITY[l.b].name}),'bad');}}
   // DDoS protection SLA: if a protected customer's own city is hit and still goes down, you pay out (once per attack).
-  if(S.ev.ddos&&S.ev.ddos.until>d){const a=S.ev.ddos;
-    for(const b of S.biz)if(b.type==='scrub'&&b.city===a.city&&b.slaFor!==a.start&&sfOf(R,b.city)<0.85){
-      b.slaFor=a.start;S.cash-=SLA_PEN;b.mood=Math.max(0,b.mood-18);S.stats.sla=(S.stats.sla||0)+1;
+  for(const a of ddosAll()){
+    for(const b of S.biz)if(b.type==='scrub'&&ddosCities(a).includes(b.city)&&!(a.sla||[]).includes(b.id)&&(a.id||b.slaFor!==a.start)&&sfOf(R,b.city)<0.85){
+      (a.sla||(a.sla=[])).push(b.id);b.slaFor=a.start;S.cash-=SLA_PEN;b.mood=Math.max(0,b.mood-18);S.stats.sla=(S.stats.sla||0)+1;
       toast(tr('day_tick.sla_breach_name_the_attack_on',{name:esc(b.name),city:CITY[a.city].name,pen:fmt$(SLA_PEN)}),'bad');sfx('err');}}
   // businesses mood
   const ids=linkIds();for(const b of S.biz.slice()){if(eventTick(b,d)||capPendTick(b,d))continue;b.pm=b.mood;const sf=bizSf(b,ids),reachOk=BIZ_T[b.type].l2||BIZ_T[b.type].fiber||R.reach>0.99||scnRule('local'),scrubOk=b.type!=='scrub'||(hasScrub()&&!scrubFar(b.city)),divOk=reqOk(b);
