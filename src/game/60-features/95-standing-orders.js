@@ -138,7 +138,8 @@ const OPS_RUN={
    for(const ls of by.values()){if(ls.length<2)continue;const live=ls.filter(l=>!linkDown(l)),big=live.reduce((a,l)=>!a||capOf(l)>capOf(a)?l:a,null);if(!big)continue;
      let cap=live.reduce((a,l)=>a+capOf(l),0);const load=ls.reduce((a,l)=>a+((R.load&&R.load[l.id])||0),0);
      const small=live.filter(l=>l!==big&&l.kind==='wave'&&!l.standby&&!l.premium&&capOf(l)<capOf(big)&&!S.biz.some(b=>b.link===l.id)).sort((a,b)=>capOf(b)-capOf(a));
-     if(keep)small.shift();
+     // The spare is there for when the big link's trench is cut, so it has to live in another trench.
+     if(keep&&small.length){const tr=l=>l.trench||l.id,i=small.findIndex(l=>tr(l)!==tr(big));small.splice(Math.max(0,i),1);}
      for(const l of small.reverse()){if(cap-capOf(l)<load*1.25)break;if(!opsDecomSafe(l))continue;cap-=capOf(l);UI.confirm=l.id;ACT.rmLink({id:l.id});if(!S.links.includes(l))X.did('decom',l.a+'|'+l.b);}}},
 };
 // A wave can carry a promise: diverse paths, no subsea, a latency budget. Try the network without it first.

@@ -381,3 +381,16 @@ test('transit never comes from a provider that breaks a promise: no-Cogentle cus
   assert.equal(ev("cheapestTransit('fra')"), undefined, 'a lone first upstream would break "two upstreams"');
   assert.deepEqual(errors, []);
 });
+
+test('decommission keeps its spare in another trench than the big link', t => {
+  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T1'],['s2',0,'T2']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:tr});compute()");
+  hire(ev); on(ev, 'decom', { keep: true });
+  ev("R.load={big:1,s1:0,s2:0}");
+  shift(ev);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['big', 's2'], 'the 100G in the same trench goes, the 10G in its own trench stays');
+  // Every small wave shares the big one's trench: keep the largest, as before.
+  ev("S.links=S.links.filter(l=>l.id==='big');for(const [id,tier] of [['a',1],['b',0]])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:'T1'});compute();R.load={big:1}");
+  shift(ev);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['a', 'big']);
+  assert.deepEqual(errors, []);
+});
