@@ -84,3 +84,25 @@ test('an attack keeps its biggest ingress ports and folds the long tail, so save
   assert.equal(ev("S.ev.ddos.entries.find(e=>e.k==='rest').share.toFixed(4)"), (288/300).toFixed(4));
   assert.deepEqual(errors, []);
 });
+
+test('spicy chaos stretches exactly the attack (or outage) an incident is about, and saves keep it', () => {
+  const { ev, errors } = load({ seed: 99 });
+  ev("beginGame('R','fra',{mode:'normal',preset:'bgp'});if(UI.pendGame)ACT.pitchSkip();S.cash=1e12;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buildPop({city:'ams'});S.links.push({id:'L',a:'fra',b:'ams',kind:'wave',tier:1,km:400,mo:1,cut:0});S.day=50");
+  // A link that happens to be cut until the same day as the next attacks must stay as it is.
+  ev("S.links[0].cut=S.day+2");
+  for (let k = 0; k < 4; k++) ev("const old=Math.random;let n=0;Math.random=()=>n++===3?0:old();ddosAttack();Math.random=old");
+  const rows = JSON.parse(ev("JSON.stringify(S.inc.filter(i=>i.type==='ddos').map(i=>[i.until,ddosAll(S,false).find(a=>a.id===i.atk).until]))"));
+  assert.equal(rows.length, 4);
+  for (const [inc, atk] of rows) { assert.equal(atk, inc, 'the attack lasts as long as its incident'); assert.equal(inc, 52, 'one day, stretched by half'); }
+  assert.equal(ev('S.links[0].cut'), 52, 'an unrelated cut ending the same day is not stretched');
+  // The longest spicy attack (7 days, stretched to 11) survives a reload.
+  ev("S.ev.ddos.until=S.day+11;S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.ev.ddos.until-S.day'), 11);
+  ev("S.ev.ddos.until=S.day+40;S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.ev.ddos.until-S.ev.ddos.start'), 11, 'but not longer');
+  // Outages are found by their ref: a fiber cut stretches its own link only.
+  ev("S.links.push({id:'M',a:'fra',b:'ams',kind:'wave',tier:1,km:400,mo:1,cut:S.day+4});S.links[0].cut=S.day+4;S.links[0].trench='T';addInc({type:'cut',ref:'T',until:S.day+4,msg:'x'})");
+  assert.equal(ev("S.links[0].cut-S.day"), 6);
+  assert.equal(ev("S.links.find(l=>l.id==='M').cut-S.day"), 4);
+  assert.deepEqual(errors, []);
+});

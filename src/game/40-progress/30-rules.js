@@ -31,12 +31,18 @@ function makeRules(preset,o){const p=Object.prototype.hasOwnProperty.call(PRESET
 // What the HUD and the share card say about the rules. On-call says nothing: it is the game.
 function ruleTag(){const p=rulePreset();if(S&&S.mode==='sandbox'){const c=CHAOS[rule('chaos')];return tr('common.sandbox')+(c&&rule('chaos')!=='none'?' '+c.i:'');}
   return p==='oncall'||p==='sandbox'?'':PRESETS[p].i+' '+PRESETS[p].n;}
-/* Spicy outages last longer: stretch a fresh incident, and whatever it holds down until the same day, by half. */
+/* Spicy outages last longer: stretch a fresh incident by half, and exactly what it holds down (found by its ref, as
+   clearInc() finds it), never something else that happens to end the same day. */
 function stretchInc(i){if(rule('chaos')!=='spicy'||!i||!(i.until>S.day)||i.start!==S.day)return;const U=i.until,V=S.day+Math.ceil((U-S.day)*SPICY_LONG);if(V===U)return;i.until=V;
-  const f=(o,k)=>{if(o&&o[k]===U)o[k]=V;},E=S.ev;
-  for(const l of S.links){f(l,'cut');f(l,'eqDown');f(l,'deg');f(l.loss,'until');f(l.chFail,'until');}
-  for(const c in S.pops){const p=S.pops[c];f(p,'down');f(p,'ringcut');f(p,'hot');}
-  for(const t of S.transit){f(t,'down');f(t.lacp,'until');}for(const p of S.pni)f(p.lacp,'until');
-  for(const k of ['ixdown','fab'])if(E[k])for(const x in E[k])if(E[k][x]===U)E[k][x]=V;
-  if(E.ixlacp)for(const x in E.ixlacp)f(E.ixlacp[x],'until');
-  for(const k of ['leak','rpki','pmtud','ddos'])f(E[k],'until');}
+  const f=(o,k)=>{if(o&&o[k]===U)o[k]=V;},E=S.ev,T=i.type,r=i.ref,L=()=>S.links.find(l=>l.id===r);
+  if(T==='cut'||T==='redsea'){for(const l of S.links)if((l.trench||l.id)===r)f(l,'cut');}
+  else if(T==='fatwave'||T==='label')f(L(),'cut');
+  else if(T==='ctrlplane'){for(const id of Array.isArray(i.links)?i.links:[])f(S.links.find(l=>l.id===id),'cut');}
+  else if(T==='amp'||T==='roadmff')f(L(),'eqDown');else if(T==='mtu')f(L(),'deg');else if(T==='loss')f(L()?.loss,'until');else if(T==='optic')f(L()?.chFail,'until');
+  else if(['crash','power','oops','cleaner','maint','shutdown'].includes(T))f(S.pops[r],'down');
+  else if(T==='ring')f(S.pops[r],'ringcut');else if(T==='ac')f(S.pops[r],'hot');
+  else if(T==='transit'||T==='prepend')f(S.transit.find(t=>t.id===r),'down');
+  else if((T==='ixloop'||T==='maxpfx')&&E.ixdown)f(E.ixdown,r);else if(T==='fabric'&&E.fab)f(E.fab,r);
+  else if(T==='lacp'){const [k,...x]=String(r).split(':'),id=x.join(':');f(k==='ix'?E.ixlacp&&E.ixlacp[id]:(k==='t'?S.transit:S.pni).find(o=>o.id===id)?.lacp,'until');}
+  else if(T==='rpki'||T==='hijack')f(E.rpki,'until');else if(T==='leak'||T==='pmtud')f(E[T],'until');else if(T==='krroute'||T==='depeer')f(E,T);
+  else if(T==='ddos')f(ddosAll(S,false).find(a=>a.id===i.atk),'until');}

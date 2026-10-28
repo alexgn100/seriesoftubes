@@ -65,7 +65,7 @@ function sanitize(s){
   s.scrubMode=s.scrubMode==='ondemand'?'ondemand':'always';
   // Keep the legacy primary attack so old saves and imports remain compatible; additional floods overlap it.
   const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
-    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+7);
+    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+Math.ceil(7*SPICY_LONG));
     if(Array.isArray(a.entries)){a.entries=a.entries.slice(0,3000).filter(en=>en&&isCity(en.city)&&Number.isFinite(+en.share)&&+en.share>0&&(en.k==='rest'||['t','ix','p'].includes(en.k)&&typeof en.id==='string')).map(en=>en.k==='rest'?{k:'rest',city:en.city,share:+en.share}:{k:en.k,id:en.id.slice(0,40),city:en.city,lab:String(en.lab||'').slice(0,60),share:+en.share});const sum=a.entries.reduce((n,en)=>n+en.share,0);if(Number.isFinite(sum)&&sum>0){for(const en of a.entries)en.share/=sum;a.entries=ddosFold(a.entries,a.city);}else delete a.entries;}else delete a.entries;
     a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
     if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
