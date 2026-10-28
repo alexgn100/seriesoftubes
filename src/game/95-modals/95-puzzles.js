@@ -15,7 +15,8 @@ function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hi
   let h=`<div class="grab" data-grab="pz" aria-hidden="true"></div><div class="pzh"><div class="grow"><div class="eyebrow">${pk?esc(pk.n):tr('puzzles.weekly_puzzle')}</div><h3>${esc(pzName(d||P))}</h3></div>${btn('☰','puzzleMenu',{},'ghost sm')}</div>`;
   if(d)h+=`<p class="pzj">${esc(d.j)}</p>`;
   h+=`<div class="pzs">${star(e.goal,tr('puzzles.goal'))}${star(e.goal&&e.cheap,P.budget?tr('puzzles.budget'):tr('puzzles.free'))}${star(e.goal&&e.n1,'N-1')}</div>`;
-  h+=`<div class="pzck">${e.marks.map(m=>`<span class="pzc s${m.st}">${esc(CITY[m.c].name)}${m.st===2?' ✓':m.st===1?' ·':' …'}</span>`).join('')}</div>`;
+  // ○ still to reach, ◐ has a POP, ✓ joined up. A leading mark, so nothing looks cut off.
+  h+=`<div class="pzck">${e.marks.map(m=>`<span class="pzc s${m.st}"><i aria-hidden="true">${m.st===2?'✓':m.st===1?'◐':'○'}</i> ${esc(CITY[m.c].name)}</span>`).join('')}</div>`;
   // Cities to avoid cannot be built in at all, so they read as a rule, not as a box to tick.
   for(const t of e.tw)h+=t.k==='avoid'?`<div class="pztw rule">🚫 ${tr('puzzles.rule_not_via_list',{list:P.avoid.map(c=>esc(CITY[c].name)).join(', ')})}</div>`:`<div class="pztw ${t.ok?'ok':''}">${t.ok?'✓':'✗'} ${pzTwistTxt(t)}</div>`;
   const sp=fmt$(e.spend);

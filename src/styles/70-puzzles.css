@@ -6,6 +6,7 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
 .pzs{display:flex;gap:6px;margin:6px 0}.pzs span{flex:1;display:flex;flex-direction:column;align-items:center;border:2.5px solid var(--ink);border-radius:11px;padding:3px 0;font-size:20px;filter:grayscale(1);opacity:.45;transition:transform .25s,opacity .25s}
 .pzs span small{font:900 10px var(--body);text-transform:uppercase;letter-spacing:.05em}.pzs span.on{filter:none;opacity:1;background:#FFF3C4;transform:scale(1.05)}
 .pzck{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}.pzc{font-weight:900;font-size:12px;border:2px solid var(--ink);border-radius:999px;padding:1px 8px;background:#fff}
+.pzc i{font-style:normal}
 .pzc.s1{background:#FFE3F0}.pzc.s2{background:var(--ok);color:#fff}
 .pztw{font-size:12.5px;font-weight:800;color:var(--bad);margin:3px 0}.pztw.ok{color:var(--eye)}.pztw.rule{color:var(--ink2)}
 .pzbud{margin:6px 0}.pzbud .kv{font-size:12.5px}
@@ -26,6 +27,9 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
 @media (max-width:760px),(max-height:500px) and (pointer:coarse){
   #pzBox{top:auto;left:0;right:0;width:auto;bottom:0;max-height:min(46%,330px);border-radius:20px 20px 0 0;border-bottom:0;box-shadow:0 -3px 0 var(--ink);padding:0 12px calc(10px + env(safe-area-inset-bottom,0px))}
   #pzBox .grab{display:block}
+  #pzBox .btns .b,#pzBox .pzh .b{min-height:40px;min-width:40px;padding:4px 12px}
+  /* Long languages make the sheet scroll: Undo, Reset and Back stay pinned at its foot. */
+  #pzBox>.btns{position:sticky;bottom:0;background:var(--paper);margin:6px -12px 0;padding:6px 12px 0;box-shadow:0 -6px 6px -6px rgba(30,38,64,.25)}
   #pzBox.mini{max-height:none}#pzBox.mini>:not(.grab):not(.pzh):not(.pzs){display:none}
   #pzBox.mini .pzs{margin-top:0}
   body.pz.sheet-open #pzBox{display:none}
@@ -34,7 +38,8 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
   .pzbig{font-size:40px}
 }
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse),(orientation:landscape) and (max-width:760px) and (max-height:500px){
-  #pzBox{left:auto;right:0;width:min(360px,52%);top:calc(env(safe-area-inset-top,0px) + 50px);max-height:none;border-radius:20px 0 0 0;border-right:0}
+  #pzBox{left:auto;right:0;width:min(360px,52%);top:calc(env(safe-area-inset-top,0px) + 50px);max-height:calc(100% - 50px - env(safe-area-inset-top,0px));overscroll-behavior:contain;border-radius:20px 0 0 0;border-right:0}
+  #pzBox .pzj{display:none}#pzBox .pzs span{font-size:16px;padding:1px 0}
   body.pz #hint{bottom:12px !important;left:30% !important}
   body.pz #toasts{left:8px !important;transform:none !important;width:calc(48% - 16px) !important}
 }

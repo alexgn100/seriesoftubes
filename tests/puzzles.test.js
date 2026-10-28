@@ -391,3 +391,23 @@ test('a city to avoid reads as a rule, not a goal that can fail', () => {
   assert.equal(evalP(ev).stars, 3);
   assert.deepEqual(errors, []);
 });
+
+test('phone sheet: 40 px touch targets, pinned actions, and goal chips with a clear mark', () => {
+  const { ev, errors } = load();
+  // jsdom has no layout: read the phone media rules from the page's stylesheet (Chromium at 360 px measures 40 px).
+  const rules = JSON.parse(ev(`JSON.stringify([...document.styleSheets].flatMap(s=>[...s.cssRules]).filter(r=>r.media&&/max-width: ?760px/.test(r.media.mediaText))
+    .flatMap(m=>[...m.cssRules]).filter(r=>/#pzBox/.test(r.selectorText||'')).map(r=>({sel:r.selectorText,mh:r.style.getPropertyValue('min-height'),mw:r.style.getPropertyValue('min-width'),pos:r.style.getPropertyValue('position'),bottom:r.style.getPropertyValue('bottom')})))`));
+  const tap = rules.find((r) => /#pzBox \.btns \.b/.test(r.sel) && /#pzBox \.pzh \.b/.test(r.sel));
+  assert.ok(tap && parseFloat(tap.mh) >= 40 && parseFloat(tap.mw) >= 40, `Undo/Reset/Back/☰ are at least 40 px (${JSON.stringify(tap)})`);
+  const pin = rules.find((r) => /^#pzBox ?> ?\.btns$/.test(r.sel));
+  assert.ok(pin && pin.pos === 'sticky' && parseFloat(pin.bottom) === 0, `the action row stays at the foot of a scrolling sheet (${JSON.stringify(pin)})`);
+  ev("innerWidth=360;innerHeight=740;dispatchEvent(new Event('resize'));pzBegin(pzDef('braces'))");
+  const chips = () => ev("[...document.querySelectorAll('#pzBox .pzc')].map(x=>x.textContent).join('|')");
+  assert.equal(chips(), '○ New York|○ London|○ Dublin', 'not reached yet: a hollow mark, nothing that looks cut off');
+  assert.doesNotMatch(chips(), /…/);
+  build(ev, [['nyc', 'lon', 'grace']]);
+  ev("ACT.pzPop({city:'dub'})");
+  assert.equal(chips(), '✓ New York|✓ London|◐ Dublin');
+  assert.ok(ev("[...document.querySelectorAll('#pzBox button')].every(b=>b.classList.contains('b'))"), 'every sheet button is a .b the rule sizes');
+  assert.deepEqual(errors, []);
+});
