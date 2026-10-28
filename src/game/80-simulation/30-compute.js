@@ -93,6 +93,8 @@ function compute(){
   const carry=(l,eg,nr,ci,a)=>{let t=l.tr;if(!t){t=l.tr={g:new Map(),n:[],d:[]};EL.push(l);}t.g.set(eg,(t.g.get(eg)||0)+a);
     let k=l.i*NKN+nr;if(!SEN[k]){SEN[k]=1;t.n.push(nr);}ACN[k]=(ACN[k]||0)+a;k=l.i*NC+ci;if(!SED[k]){SED[k]=1;t.d.push(ci);}ACD[k]=(ACD[k]||0)+a;};
   R2.l2route={};R2.l2split={};
+  /* compute() reads only S, except here: scenic circuits remember yesterday's path in R.l2route and R.efg (deliberate
+     hysteresis, so they do not flap). A second call can still move one; the third gives the same answer as the second. */
   /* Scenic routing (#28). "Busy" is judged without the customer's own traffic, or it flees its own load and
      flips paths every day. Two paths that are about as quiet share the load, and yesterday's choice is kept
      unless today's is clearly better. */
@@ -280,7 +282,7 @@ function compute(){
   C.optical=S.links.filter(l=>l.kind==='df').reduce((a,l)=>a+(l.ready>S.day?0:ampCount(l.km)*AMP_MO*(l.own&&isRdm(l.sys)&&!l.sub?Math.max(1,l.pairs|0):1)+(l.regen|0)*REGEN_MO)+(l.spares?Math.round(150+(l.ch||[]).length*80):0),0);
   C.links=S.links.reduce((a,l)=>a+(l.mo||0),0);
   C.nni=(S.nni||[]).reduce((a,x)=>a+NNI[x.tier].mo,0);
-  C.transit=S.transit.reduce((a,t)=>{const q=p95(t,R2.useT[t.id]||0);R2.p95[t.id]=q;return a+transitMo(t,q);},0);
+  const htd=histToday();C.transit=S.transit.reduce((a,t)=>{const q=p95(t,R2.useT[t.id]||0,htd);R2.p95[t.id]=q;return a+transitMo(t,q);},0);
   C.ix=Object.keys(S.ixp).reduce((a,c)=>a+ixMo(c),0);
   C.pni=S.pni.reduce((a,p)=>a+pniMo(p,R2.usePni[p.id]||0),0);
   C.caches=S.caches.length*CACHE_MO;
