@@ -323,3 +323,19 @@ test('the Ops sheet works at 360 px in every language, from the NOC tab and the 
     dom.window.close();
   }
 });
+
+test('sales trial at most one offer a shift, and an offer that did not fit waits a week', t => {
+  const { ev, errors } = game(t);
+  hire(ev); on(ev, 'sales', { acc: true, min: 0 });
+  ev("S.offers=['a','b','c'].map(id=>({id,city:'fra',name:id,type:'dia',bw:1e5,rate:600,reqs:[],exp:60}));window.__t=0;window.__a=autoOffer;autoOffer=o=>{__t++;return __a(o)}");
+  shift(ev);
+  assert.equal(ev('__t'), 1, 'one routing trial per shift');
+  for (let i = 0; i < 2; i++) { ev('S.day++'); shift(ev); }
+  assert.equal(ev('__t'), 3, 'each offer once');
+  ev('S.day++'); shift(ev);
+  assert.equal(ev('__t'), 3, 'too big for the network: not tried again within the week');
+  ev('S.day+=7'); shift(ev);
+  assert.equal(ev('__t'), 4);
+  ev('autoOffer=__a');
+  assert.deepEqual(errors, []);
+});

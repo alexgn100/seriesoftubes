@@ -26,7 +26,7 @@ const OPS_TPL=['bb','transit','ix','kit'];
 const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_('ops.l_caches'),rs:N_('ops.l_rs'),peer:N_('ops.l_peer'),pni:N_('ops.l_pni'),sales:N_('ops.l_sales'),decline:N_('ops.l_decline'),repair:N_('ops.l_repair'),optics:N_('ops.l_optics'),decom:N_('ops.l_decom'),broke:N_('ops.l_broke')};
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
-const OPS_FF_RATE={oncall:1/150,bgp:1/60};
+const OPS_TRIALS=1,OPS_FF_RATE={oncall:1/150,bgp:1/60};
 function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
 const opsO=()=>S.ops||(S.ops=opsNew());
 const opsHired=()=>!!(S&&S.ops&&S.ops.intern&&own(INTERNS,S.ops.intern));
@@ -72,10 +72,12 @@ const cheapestTransit=c=>NETS.filter(n=>sellsAt(n,c)).sort((a,b)=>transitPerG(a,
 // The orders. Each takes the shift and does its jobs through the player's own actions.
 const OPS_RUN={
  repair(X){purgeInc();for(const i of S.inc.slice())if(i.type!=='ddos'&&i.until>S.day&&i.cost>0&&!(i.slow&&i.rushed)&&X.can('repair',i.cost)&&X.pay('repair',()=>ACT.fixInc({id:i.id})))X.did('repair');},
- sales(X){const min=opsP('sales','min'),acc=opsP('sales','acc');
+ sales(X){const min=opsP('sales','min'),acc=opsP('sales','acc');let tries=0;
    for(const o of S.offers.slice()){const T=BIZ_T[o.type];if(!T)continue;const v=T.event?(o.fee||0):bizMo(o);
      if(min&&v<min){S.offers=S.offers.filter(x=>x!==o);X.did('decline');continue;}
-     if(acc){ACT.accept({id:o.id,auto:true});if(!S.offers.includes(o)){X.did('sales');compute();}}}},
+     // Each trial is a full routing pass: at most one a shift, and an offer that did not fit waits a week.
+     if(acc&&o.exp>S.day&&bCities(o).every(popUp)&&reqOk(o)&&tries<OPS_TRIALS&&!(UI.opsTried&&UI.opsTried.s===S&&UI.opsTried.m.get(o.id)>S.day-7)){tries++;ACT.accept({id:o.id,auto:true});
+       if(!S.offers.includes(o))X.did('sales');else{if(!UI.opsTried||UI.opsTried.s!==S)UI.opsTried={s:S,m:new Map()};UI.opsTried.m.set(o.id,S.day);}}}},
  routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how');
    for(const c of opsPops('routers')){const p=S.pops[c];if(p.rupDay===S.day)continue;
      const ld=Math.max((R.nodeLoad[c]||0)/(R.nodeCap[c]||nodeCap(c)||1),portsUsed(c)/Math.max(1,portsMax(c)));if(ld<at)continue;
