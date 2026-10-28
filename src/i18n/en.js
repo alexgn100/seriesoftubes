@@ -692,6 +692,7 @@
 "city_panel.every_port_is_taken_add_a":"Every port is taken. Add a router or swap to a model with more ports before you plug in anything new.",
 "city_panel.everything_is_in_one_building_move":"Everything is in one building. Move some uplinks to the other site from the Transit and Peering tabs.",
 "city_panel.fabrics_list":"Fabrics: {list}",
+"city_panel.few_data_centers_pops_x":"Few data centers: POPs {x}×",
 "city_panel.fiber_from_city":"Fiber from {city}",
 "city_panel.fiber_is_down":"fiber is down",
 "city_panel.g_of_circuits":"{g} of circuits",

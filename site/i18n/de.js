@@ -693,6 +693,7 @@
 "city_panel.every_port_is_taken_add_a":"Alle Ports sind belegt. Füg einen Router hinzu oder wechsle auf ein Modell mit mehr Ports, bevor du etwas Neues ansteckst.",
 "city_panel.everything_is_in_one_building_move":"Alles steht in einem Gebäude. Verschieb ein paar Uplinks in den Tabs Transit und Peering an den anderen Standort.",
 "city_panel.fabrics_list":"Fabrics: {list}",
+"city_panel.few_data_centers_pops_x":"Wenige Rechenzentren: POPs {x}×",
 "city_panel.fiber_from_city":"Glasfaser von {city}",
 "city_panel.fiber_is_down":"Glasfaser ist down",
 "city_panel.g_of_circuits":"{g} an Verbindungen",

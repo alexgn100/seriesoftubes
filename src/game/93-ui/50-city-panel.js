@@ -1,12 +1,12 @@
 function cityPanel(c){
   const C=CITY[c],p=S.pops[c],ix=ixName(c),down=p&&p.down>S.day;
   let h=`<div class="ph"><div style="min-width:0"><div class="eyebrow">${REG[C.reg]} · ${esc(siteName(c,'a'))}</div><h2>${C.name}</h2>
-  <div class="facts"><span class="fact">${tr('city_panel.g_of_eyeballs',{g:fmtG(eyeP(c))})}</span>${grantFact(c)}${latSlow(c)?`<span class="fact bad">🐢 ${tr('city_panel.ms_ms_to_transit',{ms:Math.round(R.latFar[c].ms)})}</span>`:''}${regionMult(c)>1?`<span class="fact">${tr('city_panel.transit_x_pricier',{x:regionMult(c)})}</span>`:''}${C.reg==='AS'&&!C.cn?'<span class="fact ixf">'+tr('city_panel.underserved_users_grow_60_faster')+'</span>':''}${ix?`<span class="fact ixf">${tr('city_panel.ix_ix',{ix:esc(ix)})}</span>`:''}${p?`<span class="fact mine">${tr('common.your_pop')}</span><button class="fact trb" data-act="trace" data-args='{"city":"${c}"}'>🔍 ${tr('common.traceroute')}</button>`:''}${down?`<span class="fact down">DOWN</span>`:''}</div></div>
+  <div class="facts"><span class="fact">${tr('city_panel.g_of_eyeballs',{g:fmtG(eyeP(c))})}</span>${grantFact(c)}${latSlow(c)?`<span class="fact bad">🐢 ${tr('city_panel.ms_ms_to_transit',{ms:Math.round(R.latFar[c].ms)})}</span>`:''}${regionMult(c)>1?`<span class="fact">${tr('city_panel.transit_x_pricier',{x:regionMult(c)})}</span>`:''}${colo(c)>1?`<span class="fact">${tr('city_panel.few_data_centers_pops_x',{x:colo(c)})}</span>`:''}${C.reg==='AS'&&!C.cn?'<span class="fact ixf">'+tr('city_panel.underserved_users_grow_60_faster')+'</span>':''}${ix?`<span class="fact ixf">${tr('city_panel.ix_ix',{ix:esc(ix)})}</span>`:''}${p?`<span class="fact mine">${tr('common.your_pop')}</span><button class="fact trb" data-act="trace" data-args='{"city":"${c}"}'>🔍 ${tr('common.traceroute')}</button>`:''}${down?`<span class="fact down">DOWN</span>`:''}</div></div>
   <button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   if(!p){
     h+=`<div class="scroll">${C.note?`<p class="note" style="margin-top:0">${esc(C.note)}</p>`:''}
     ${C.cn?chinaSection(c):''}${C.cn&&!cnOk()?'':`<section><h3>${tr('city_panel.open_a_pop_here')}</h3><p class="lead">${tr('city_panel.a_pop_point_of_presence_is')}</p>
-    ${C.ru?`<p class="why">${tr('city_panel.includes_the_mandatory_government',{cost:fmt$(RU_BOX),mo:fmt$(RU_BOX_MO)})}</p>`:''}${btn(tr('city_panel.build_pop_cost_mo_mo',{cost:fmt$(popCost(c)),mo:fmt$(POP_MO)}),'buildPop',{city:c},'pink big',S.cash<popCost(c))}
+    ${C.ru?`<p class="why">${tr('city_panel.includes_the_mandatory_government',{cost:fmt$(RU_BOX),mo:fmt$(RU_BOX_MO)})}</p>`:''}${btn(tr('city_panel.build_pop_cost_mo_mo',{cost:fmt$(popCost(c)),mo:fmt$(popMo(c))}),'buildPop',{city:c},'pink big',S.cash<popCost(c))}
     <p class="note">${tr('city_panel.or_drag_from_one_of_your')}</p></section>`}`;
     h+=offersHere(c);
     const trs=NETS.filter(n=>sellsAt(n,c));

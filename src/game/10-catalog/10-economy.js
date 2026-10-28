@@ -20,7 +20,7 @@ const SITE2_N=[tr('economy.the_other_building'),tr('economy.campus_b_the_one_wit
 const siteNo=(name,n)=>name.replace('#',1+((S&&S.asn)|0)%(n||1));
 const siteName=(c,s)=>s==='b'?CITY[c].dc2?siteNo(CITY[c].dc2,CITY[c].dc2N):SITE2_N[hstr(c)%SITE2_N.length]:siteNo(CITY[c].dc,CITY[c].dcN);
 const BE_TAPE=30000;
-const popCost=c=>POP_COST+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
+const popCost=c=>Math.round(POP_COST*colo(c))+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
 const CN_LIC=150000, CN_JV_MO=6000;
 // Scrubbing centers come in tiers by clean bandwidth. Always-on diverts instantly; on-demand is cheaper
 // but takes a couple of days to engage. A clean-pipe add-on on a transit scrubs upstream, per port.

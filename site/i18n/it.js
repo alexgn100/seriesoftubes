@@ -691,6 +691,7 @@
 "city_panel.every_port_is_taken_add_a":"Tutte le porte sono occupate. Aggiungi un router o passa a un modello con più porte prima di collegare altro.",
 "city_panel.everything_is_in_one_building_move":"È tutto in un solo edificio. Sposta alcuni uplink sull’altro sito dalle schede Transit e Peering.",
 "city_panel.fabrics_list":"Fabric: {list}",
+"city_panel.few_data_centers_pops_x":"Pochi data center: POP {x}×",
 "city_panel.fiber_from_city":"Fibra da {city}",
 "city_panel.fiber_is_down":"la fibra è down",
 "city_panel.g_of_circuits":"{g} di circuiti",
