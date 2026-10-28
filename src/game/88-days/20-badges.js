@@ -70,16 +70,33 @@ const BADGES=[
  {id:'skynot',i:'🤖',t:tr('common.skynot_smiles'),d:tr('badges.land_a_hackback_3000tm_that_actually'),r:'e',secret:true,ok:()=>(st().hackWin||0)>=1},
  {id:'zero',i:'🕳️',t:tr('badges.zero_peers_given'),d:tr('badges.reach_tier_2_with_every_single'),r:'l',secret:true,ok:()=>isTier2()&&!Object.keys(S.peers).length&&!S.pni.length},
 ];
-function hof(){try{return JSON.parse(localStorage.getItem('sot-badges')||'{}')||{};}catch(e){return {};}}
-function checkBadges(){S.ach=S.ach||{};if(S.mode==='sandbox')return;let h=null;
-  for(const b of BADGES){if(S.ach[b.id]!==undefined)continue;let ok=false;try{ok=b.ok();}catch(e){}
-    if(!ok)continue;S.ach[b.id]=S.day;const R0=RARITY[b.r];
-    if(!h)h=hof();if(!h[b.id])h[b.id]={d:new Date().toISOString().slice(0,10),n:S.name};
-    toast(`<b>${b.i} ${tr('badges.badge_unlocked_name',{name:esc(b.t)})}</b><br><span style="color:${R0.col};font-weight:900">${R0.n}</span> · ${esc(b.d)}`,'goal',[],{a:'tab',v:'goals'});sfx('coin');track('badge_'+b.id);}
+/* Badge variants by ruleset (2.0): On-call earns the standard badge, Change Freeze a frosted one and BGP at 3 a.m. a
+   fiery one; Sandbox and the puzzles earn none (puzzles have stars). Earning a badge again under a harder preset
+   upgrades its look, here and in the hall of fame. S.ach[id] stays the day it was earned; S.achP[id] is its variant. */
+const BVAR={freeze:{k:'freeze',lv:1,i:'🧊',n:N_('badges.variant_freeze_dried'),col:'#5BC0EB'},oncall:{k:'oncall',lv:2,i:'⭐',n:N_('badges.variant_on_call'),col:'#FFD23F'},bgp:{k:'bgp',lv:3,i:'🔥',n:N_('badges.variant_forged_at_3_a_m'),col:'#FF5A1F'}};
+const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>BVAR[k]||BVAR.oncall;
+// The preset this save plays under ('oncall' for every save from before rulesets), and the variant it earns (null: none).
+const rulePre=()=>(typeof rulePreset==='function'?rulePreset():(S&&S.rules&&S.rules.preset))||'oncall';
+function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:BVAR[p]?p:'oncall';}
+// The hall of fame is this device's localStorage, so it is checked like a save: unknown variants count as standard.
+function hof(){let h;try{h=JSON.parse(localStorage.getItem('sot-badges')||'{}');}catch(e){h=null;}if(!h||typeof h!=='object'||Array.isArray(h))return {};
+  for(const k of Object.keys(h)){const x=h[k];if(!x||typeof x!=='object'){delete h[k];continue;}const vs=x.vs&&typeof x.vs==='object'&&!Array.isArray(x.vs)?x.vs:{};
+    x.vs={};for(const v of BVAR_IDS)if(typeof vs[v]==='string')x.vs[v]=vs[v];if(!Object.keys(x.vs).length)x.vs.oncall=typeof x.d==='string'?x.d:'';
+    x.v=BVAR_IDS.filter(v=>x.vs[v]!==undefined).pop();}
+  return h;}
+function checkBadges(){S.ach=S.ach||{};S.achP=S.achP||{};const v=badgeVar();if(!v)return;let h=null;const V=BVAR[v];
+  for(const b of BADGES){const had=S.ach[b.id]!==undefined;if(had&&bvar(S.achP[b.id]).lv>=V.lv)continue;let ok=false;try{ok=b.ok();}catch(e){}
+    if(!ok)continue;if(!had)S.ach[b.id]=S.day;S.achP[b.id]=v;const R0=RARITY[b.r];
+    if(!h)h=hof();const today=new Date().toISOString().slice(0,10),x=h[b.id]||(h[b.id]={d:today,n:S.name,vs:{}});if(x.vs[v]===undefined)x.vs[v]=today;if(bvar(x.v).lv<V.lv||!x.v)x.v=v;
+    toast(`<b>${b.i} ${had?tr('badges.badge_upgraded_name',{name:esc(b.t)}):tr('badges.badge_unlocked_name',{name:esc(b.t)})}</b><br><span style="color:${R0.col};font-weight:900">${R0.n}</span>${v==='oncall'?'':` · <span class="bvt v-${v}">${V.i} ${tr(V.n)}</span>`} · ${esc(b.d)}`,'goal',[],{a:'tab',v:'goals'});sfx('coin');track('badge_'+b.id+(v==='oncall'?'':'_'+v));}
   if(h)try{localStorage.setItem('sot-badges',JSON.stringify(h));}catch(e){}}
-function badgeGrid(){const h=hof(),got=BADGES.filter(b=>S.ach&&S.ach[b.id]!==undefined).length;
-  return `<h3 style="font-size:15px;margin:14px 0 6px">${tr('common.badges')} <span class="meta">${tr('badges.got_total_this_game_ever_ever',{got,total:BADGES.length,ever:Object.keys(h).filter(k=>BADGES.some(b=>b.id===k)).length})}</span></h3><div class="badges">${BADGES.map(b=>{const on=S.ach&&S.ach[b.id]!==undefined,ever=!!h[b.id],R0=RARITY[b.r],hide=b.secret&&!on&&!ever;
-    return `<div class="bdg ${on?'on':ever?'ever':''}" style="--rc:${R0.col}" title="${esc(hide?tr('badges.a_secret_badge'):b.t+': '+b.d)}"><span class="bi">${hide?'❔':b.i}</span><span class="bt">${esc(hide?'???':b.t)}</span><span class="br">${R0.n}${ever&&!on?' · '+tr('common.earned_before'):''}</span>${hide?'':`<span class="bd">${esc(b.d)}</span>`}</div>`;}).join('')}</div>`;}
+// How many badges this device has ever earned in each variant: the collection.
+function badgeShelf(h){const o={freeze:0,oncall:0,bgp:0};for(const b of BADGES){const x=h[b.id];if(x)for(const v of BVAR_IDS)if(x.vs[v]!==undefined)o[v]++;}return o;}
+function badgeGrid(){const h=hof(),got=BADGES.filter(b=>S.ach&&S.ach[b.id]!==undefined).length,sh=badgeShelf(h),V=badgeVar();
+  return `<h3 style="font-size:15px;margin:14px 0 6px">${tr('common.badges')} <span class="meta">${tr('badges.got_total_this_game_ever_ever',{got,total:BADGES.length,ever:Object.keys(h).filter(k=>BADGES.some(b=>b.id===k)).length})}</span></h3>
+  <div class="bshelf">${BVAR_IDS.map(v=>`<span class="bsh v-${v}${V===v?' cur':''}">${BVAR[v].i} ${esc(tr(BVAR[v].n))} <b>${sh[v]}/${BADGES.length}</b></span>`).join('')}</div>${V&&V!=='oncall'?`<p class="meta" style="margin:0 0 6px">${V==='bgp'?tr('badges.this_game_earns_fiery_badges'):tr('badges.this_game_earns_frosted_badges')}</p>`:''}
+  <div class="badges">${BADGES.map(b=>{const on=S.ach&&S.ach[b.id]!==undefined,ever=!!h[b.id],R0=RARITY[b.r],hide=b.secret&&!on&&!ever,vk=on?bvar(S.achP&&S.achP[b.id]).k:ever?h[b.id].v:'',vn=vk&&vk!=='oncall'?' · '+BVAR[vk].i+' '+tr(BVAR[vk].n):'';
+    return `<div class="bdg ${on?'on':ever?'ever':''}${vk?' v-'+vk:''}" style="--rc:${R0.col}" title="${esc(hide?tr('badges.a_secret_badge'):b.t+': '+b.d+vn)}"><span class="bi">${hide?'❔':b.i}</span><span class="bt">${esc(hide?'???':b.t)}</span><span class="br">${R0.n}${ever&&!on?' · '+tr('common.earned_before'):''}</span>${vk&&vk!=='oncall'?`<span class="bv">${BVAR[vk].i} ${esc(tr(BVAR[vk].n))}</span>`:''}${hide?'':`<span class="bd">${esc(b.d)}</span>`}</div>`;}).join('')}</div>`;}
 function checkGoals(){checkBadges();
   for(const g of GOALS){if(S.done[g.id]!==undefined)continue;let ok=false;try{ok=g.ok();}catch(e){}
     if(ok){S.done[g.id]=S.day;if(g.r&&S.mode!=='sandbox'){S.cash+=g.r;}
