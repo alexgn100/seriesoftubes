@@ -169,8 +169,11 @@ function compute(){
   // Each list also knows whether it holds a preferred exit (hi) and its exits by city (at), in list order.
   // With several islands (POPs no backbone joins), each list is split by island: a flow only scans exits it can reach.
   const idx=L=>{L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}};
+  // Networks with the same exits at a rank share one list (LIST, by content), so what one flow learns serves them all.
+  const LIST=new Map();for(let i=0;i<E.length;i++)E[i].xi=i;
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
-    for(const r in m){const L=m[r];if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);m[r]={cs};}else idx(L);}}
+    for(const r in m){const L=m[r],key=L.map(e=>e.xi).join(','),o=LIST.get(key);if(o){m[r]=o;continue;}
+      let V=L;if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);V={cs};}else idx(L);LIST.set(key,V);m[r]=V;}}
   // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
   for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(base(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
@@ -234,13 +237,18 @@ function compute(){
         // One scan: the best (preference, distance) so far and, in list order, the exits within 1e-6 of it. The best
         // distance only goes down, so dropping the ones it leaves behind gives exactly the exits a second scan would.
         // Exits that are full stay full for this pass: when a quarter of a list is, it is rewritten without them.
+        /* gc[ci]: the first group this list gave a flow from city ci. Exits only fill up during routing, so while all of
+           them still have room no other exit can have become better, and the scan would find the same group (an
+           empty one, no usable exit, stays empty). */
+        const gc=lst.gc||(lst.gc=[]),c=gc[f.ci];
+        if(c!==undefined&&c.every(e=>e.used<e.cap)){if(!c.length)continue;for(let k=0;k<c.length;k++)G.push(c[k]);}else{
         let bh=2,bd=Infinity,full=0;
         for(let li=0,LN=lst.length;li<LN;li++){const e=lst[li];if(e.used>=e.cap){full++;continue;}const d=Dv[e.ci];if(d===Infinity)continue;const h=e.hp;
           if(h<bh){bh=h;bd=d;G.length=0;G.push(e);}
           else if(h===bh){if(d<bd){bd=d;let k=0;for(let gi=0;gi<G.length;gi++){const x=G[gi];if(Dv[x.ci]-d<1e-6)G[k++]=x;}G.length=k;G.push(e);}else if(d-bd<1e-6)G.push(e);}}
         if(full*4>=lst.length&&full){let k=0;for(let li=0;li<lst.length;li++){const e=lst[li];if(e.used<e.cap)lst[k++]=e;}lst.length=k;}
-        if(bh>1)continue;
-        if(G.length>1)sortD(G);}
+        if(bh>1){gc[f.ci]=[];continue;}
+        if(G.length>1)sortD(G);gc[f.ci]=G.slice();}}
       sendGroup(G,0,G.length);
       if(f.rem<=1e-6)continue;
       REST.length=0;for(let li=0;li<lst.length;li++)if(usable(lst[li]))REST.push(lst[li]);sortD(REST);
