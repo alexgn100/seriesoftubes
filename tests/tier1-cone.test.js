@@ -164,3 +164,17 @@ test('the panel names the peer that really carries a network, not the first Tier
   assert.match(ev(`(ACT.netFocus({id:'${t}'}),document.getElementById('leftBody').textContent)`), /Buys transit from Cogentle/);
   assert.deepEqual(errors, []);
 });
+
+test('a traceroute down a two-level cone shows every network on the way', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=6;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=50");
+  // Doodoo buys from Hocus Pocus, which buys from Not That Telecom; a PNI with Not That Telecom only
+  ev("S.transit=[];S.ixp={};S.peers={};S.grace=null;S.pni=[{id:'pn',net:'ntt',city:'fra',tier:2}];compute()");
+  const tr = JSON.parse(ev("JSON.stringify(traceroute('fra',{net:'ddo'}))"));
+  assert.deepEqual(tr.asPath, [ev('S.asn'), ev('NET.ntt.asn'), ev('NET.voc.asn'), ev('NET.ddo.asn')]);
+  assert.match(tr.text, /Not That Telecom hands it to its customer Hocus Pocus/);
+  assert.match(tr.text, /Hocus Pocus hands it to its customer Doodoo/);
+  assert.equal(ev("coneChain('ntt','ddo').join()"), 'ntt,voc,ddo');
+  assert.equal(ev("R.cone.ddo"), 'ntt');
+  assert.deepEqual(errors, []);
+});
