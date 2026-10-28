@@ -231,13 +231,32 @@ test('the shift runs inside dayTick, respects a stopped clock, batches its work 
   assert.deepEqual(errors, []);
 });
 
-test('the daily log line is folded into one NOC notification', t => {
+test('the NOC gets one notice a week, the shift report; the daily lines stay in the Ops sheet', t => {
   const { ev, errors } = game(t, "S.transit[0].hist=[600]");
-  hire(ev); on(ev, 'transit', { x: 1.5 });
+  ev('S.day=14');
+  hire(ev); on(ev, 'transit', { x: 1.5 }); on(ev, 'sales', { acc: true, min: 5000 });
+  ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
   const n0 = ev('S.log.length');
-  shift(ev);
-  assert.equal(ev('S.log.length'), n0 + 1);
-  assert.match(ev('S.log[0].t'), /Kevin's shift Kevin topped up transit/);
+  for (let d = 14; d < 21; d++) {
+    if (d === 15) ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:60},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:60}]");
+    ev(`S.day=${d}`); shift(ev);
+  }
+  assert.equal(ev('S.log.length'), n0, 'a whole week of shifts: no NOC notice yet');
+  assert.ok(ev('S.ops.log.length') >= 2, 'the Ops sheet has the daily detail');
+  ev('S.day=21'); shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 1, 'one notice for the week');
+  assert.match(ev('S.log[0].t'), /^Kevin's week Kevin signed a customer \(\+\$6\.0k\/mo\), topped up transit .*declined a tiny offer.*Week total: \$[\d.]+k up front, \+\$[\d.]+k\/mo\./);
+  assert.equal(ev('S.log[0].k'), 'good');
+  ev('S.day=22'); shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 1, 'and nothing more until the next week ends');
+  // Only the sales order now: one tiny offer declined on day 23, reported when the week ends.
+  ev("for(const k in S.ops.on)S.ops.on[k]=false;S.ops.on.sales=true;S.offers=[{id:'t2',city:'fra',name:'T2',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=23");shift(ev);
+  ev("S.day=28");shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 2);
+  assert.match(ev('S.log[0].t'), /declined a tiny offer\.$/, 'nothing spent: no money line');
+  assert.equal(ev('S.log[0].k'), '');
+  ev("S.day=35");shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 2, 'an idle week: no notice');
   assert.deepEqual(errors, []);
 });
 
@@ -292,6 +311,9 @@ test('saves: old saves load with no intern and everything off, settings survive 
   assert.equal(ev("JSON.stringify(S.ops.skip)"), '{"fra":["transit"]}');
   assert.equal(ev("JSON.stringify(S.ops.log)"), '[{"d":1,"i":"kevin","r":[["transit",2,["fra +1×100G"]]]}]');
   assert.equal(ev('S.ops.floor===50000&&S.ops.tpl.bb===true'), true);
+  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x'},wh:{transit:['fra +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
+  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"sales":2},"wh":{"transit":["fra +1×100G"]},"up":0,"mo":0,"rev":41000,"ff":7}');
+  assert.equal(ev('S.ops.rep'), null);
   assert.deepEqual(errors, []);
 });
 
@@ -503,6 +525,6 @@ test('transit: the log line and budget line show the monthly cost a top-up adds'
   assert.equal(ev('S.ops.log[0].up'), c0 - cash(ev));
   assert.equal(ev('S.ops.log[0].mo'), Math.round(mo));
   assert.equal(ev('Math.round(S.ops.addMo.transit)'), Math.round(mo));
-  assert.match(ev('S.log[0].t'), /Cost: \$[\d.]+k up front, \+\$[\d.]+k?\/mo\./);
+  assert.match(ev('opsEntry(S.ops.log[0])'), /Cost: \$[\d.]+k up front, \+\$[\d.]+k?\/mo\./);
   assert.deepEqual(errors, []);
 });

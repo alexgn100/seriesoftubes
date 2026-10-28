@@ -28,7 +28,7 @@ const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
 const OPS_TRIALS=1,OPS_FF_RATE={oncall:1/150,bgp:1/60};
-function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),addMo:{},mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
+function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),addMo:{},mon:0,skip:{},log:[],wk:null,rep:null,floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
 const opsO=()=>S.ops||(S.ops=opsNew());
 const opsHired=()=>!!(S&&S.ops&&S.ops.intern&&own(INTERNS,S.ops.intern));
 const opsCanHire=()=>lvl()>=2;
@@ -52,6 +52,7 @@ function opsSanitize(s){const o=s.ops&&typeof s.ops==='object'&&!Array.isArray(s
   {const t=ob(o.tpl);for(const k of OPS_TPL)if(typeof t[k]==='boolean')n.tpl[k]=t[k];}
   {const sk=ob(o.skip);for(const c of Object.keys(sk))if(isCity(c)&&own(s.pops,c)&&Array.isArray(sk[c])){const ks=[...new Set(sk[c].filter(k=>OPS_POP.includes(k)))];if(ks.length)n.skip[c]=ks;}}
   if(Array.isArray(o.log))n.log=o.log.map(opsLogOk).filter(Boolean).slice(0,OPS_LOG);
+  n.wk=opsWkOk(o.wk);n.rep=opsWkOk(o.rep);
   if(s.autoSales===true)n.on.sales=true;if(s.autoRepair===true)n.on.repair=true;delete s.autoSales;delete s.autoRepair;
   s.ops=n;}
 // A log entry: {d, i: intern, r: [[kind, n, [where…]]], f: fat-finger index, c: its city, up: paid up front, mo: running costs added}.
@@ -59,6 +60,17 @@ const opsWhereOk=w=>typeof w==='string'&&w.length<=48&&/^[a-z0-9~|]+( [+\w.×→
 function opsLogOk(e){if(!e||typeof e!=='object'||!own(INTERNS,e.i))return null;const r=Array.isArray(e.r)?e.r.filter(x=>Array.isArray(x)&&own(OPS_SAY,x[0])&&Array.isArray(x[2])).map(x=>[x[0],int(x[1],1,1e6,1),x[2].filter(opsWhereOk).slice(0,3)]).slice(0,16):[];
   const f=Number.isInteger(e.f)&&OPS_FF[e.f]?e.f:undefined,up=int(e.up,0,1e12,0),mo=int(e.mo,-1e9,1e9,0);
   return {d:int(e.d,0,1e7,0),i:e.i,r,...(f!==undefined&&isCity(e.c)?{f,c:e.c}:{}),...(up?{up}:{}),...(mo?{mo}:{})};}
+// A week's tally, for the shift report and the one NOC notice a week: {w: week, i: intern, n: {kind: count}, wh: {kind: [where…]}, up, mo, rev, ff}.
+function opsWkOk(x){if(!x||typeof x!=='object'||Array.isArray(x)||!own(INTERNS,x.i))return null;const n={},wh={},xn=x.n&&typeof x.n==='object'?x.n:{},xw=x.wh&&typeof x.wh==='object'?x.wh:{};
+  for(const k of Object.keys(OPS_SAY)){if(own(xn,k)){const v=int(xn[k],0,1e6,0);if(v)n[k]=v;}if(own(xw,k)&&Array.isArray(xw[k])){const w=xw[k].filter(opsWhereOk).slice(0,3);if(w.length)wh[k]=w;}}
+  return {w:int(x.w,0,1e6,0),i:x.i,n,wh,up:int(x.up,0,1e12,0),mo:int(x.mo,-1e9,1e9,0),rev:int(x.rev,0,1e9,0),ff:int(x.ff,0,7,0)};}
+const opsWkNew=w=>({w,i:S.ops.intern,n:{},wh:{},up:0,mo:0,rev:0,ff:0});
+const opsWkAny=x=>!!x&&(Object.keys(x.n).length>0||x.ff>0);
+// "Kevin's week: signed 3 customers (+$41k/mo), topped up transit 2 times (Frankfurt +1×100G), declined 17 tiny offers. Week total: …"
+function opsWeekLine(x){const I=INTERNS[x.i],name=I?tr(I.s):'',ks=Object.keys(x.n).sort((a,b)=>(a==='sales'?-1:b==='sales'?1:0)||(a==='broke')-(b==='broke'));
+  const parts=ks.map(k=>k==='sales'?trn('ops.w_sales',x.n[k],{rev:opsMo$(x.rev)}):trn(OPS_SAY[k],x.n[k],{where:(x.wh[k]||[]).map(opsWhere).join(', ')}));
+  if(x.ff)parts.push(trn('ops.w_oops',x.ff));
+  return tr('ops.w_line',{name,list:parts.join(', ')})+(x.up||x.mo?' '+tr('ops.w_money',{cost:fmt$(x.up),mo:opsMo$(x.mo)}):'');}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
 function opsWhere(w){const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
 function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(opsWhere).join(', ')}));
@@ -171,7 +183,9 @@ function opsDecomSafe(l){const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>k==='dive
 const OPS_ORDER=['repair','sales','routers','transit','optics','caches','ix','pni','decom'];
 // The shift: once per game day from dayTick, after outages and events have had their turn.
 function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;O.addMo={};}
-  const X=opsShift(),cash=S.cash;
+  // A new week: last week's tally becomes the shift report, and the one NOC notice of the week.
+  const w=Math.floor(d/7);if(!O.wk||O.wk.w!==w){if(opsWkAny(O.wk)&&O.wk.w<w){O.rep=O.wk;logNote(`<b>${esc(tr('ops.shift_report',{name:opsName()}))}</b> ${esc(opsWeekLine(O.rep))}`,O.rep.rev>0?'good':'',[],{a:'tab',v:'noc'});}O.wk=opsWkNew(w);}
+  const X=opsShift();
   // One order that trips over something (an odd save, a bug) is paused and noted; payday, goals and the save still happen.
   opsQuiet(()=>{for(const k of OPS_ORDER)if(O.on[k])try{OPS_RUN[k](X);}catch(err){O.on[k]=false;X.dirty=true;X.did('snag',k);console.error('[tubes] standing order failed',k,err);}});
   const e={d,i:O.intern,r:[]};for(const [k,x] of X.r)e.r.push([k,x.n,x.w]);if(X.broke.size)e.r.push(['broke',X.broke.size,[...X.broke]]);
@@ -183,7 +197,9 @@ function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!=
   // Declining an offer or stopping at a budget changes nothing a route depends on: no recompute for those.
   if(X.dirty)compute();
   if(e.r.length||e.f!==undefined){O.log.unshift(e);O.log.length=Math.min(O.log.length,OPS_LOG);}
-  if(e.r.length||e.up||e.mo)logNote(`<b>${esc(tr('ops.shift',{name:opsName()}))}</b> ${esc(opsLine(e))}`,cash>S.cash?'':'good',[],{a:'tab',v:'noc'});}
+  // The day's detail stays in the Ops sheet; the NOC gets one notice a week (above).
+  const W=O.wk;for(const [k,n,ws] of e.r){W.n[k]=(W.n[k]||0)+n;const a=W.wh[k]||(W.wh[k]=[]);for(const x of ws)if(a.length<3&&!a.includes(x))a.push(x);}
+  W.up+=e.up||0;W.mo+=e.mo||0;W.rev+=Math.round(X.rev);if(e.f!==undefined)W.ff=Math.min(7,W.ff+1);}
 // New POP from the template: price the whole bundle first, then click through it in one go.
 function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))return null;const T=S.ops.tpl,parts=[];let cost=popCost(c),net=null,ix=null,kit=null;
   if(T.bb){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}
