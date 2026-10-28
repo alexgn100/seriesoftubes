@@ -4,6 +4,8 @@ const num=(v,d=0)=>{v=+v;return Number.isFinite(v)?v:d;},int=(v,lo,hi,d)=>{v=Mat
 /* Saves come from localStorage or from imported files, so treat them as untrusted: fill in anything
    missing, drop references to cities, networks or types that do not exist, and force numbers to be numbers. */
 function sanitize(s){
+  // A puzzle is never saved; a save that says otherwise is played as a normal game.
+  if(s.mode==='puzzle')s.mode='normal';delete s.pz;
   const arr=k=>{if(!Array.isArray(s[k]))s[k]=[];},obj=k=>{if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};};
   ['links','nni','transit','pni','caches','biz','offers','inc','usedNames','loans','loanOffers','hist','log'].forEach(arr);
   ['pops','ixp','rs','peers','myIx','done','ev','stats','ixn','ixPref','ixSite','confReg','ach','pairMet'].forEach(obj);
@@ -71,6 +73,9 @@ function sanitize(s){
   if(attacks.length)s.ev.ddos=attacks[0];else delete s.ev.ddos;s.ev.ddosMore=attacks.slice(1);
   s.ddosStarts=(Array.isArray(s.ddosStarts)?s.ddosStarts:attacks.map(a=>a.start)).filter(d=>typeof d==='number'||typeof d==='string').map(Number).filter(d=>Number.isFinite(d)&&d>s.day-7&&d<=s.day).sort((a,b)=>a-b).slice(-14);
   s.auV=s.auV===1?1:0;if(s.auNews!==true)delete s.auNews;
+  // Badges: S.ach[id] is the day it was earned (any save); S.achP[id] the variant (2.0). A missing variant is the standard one.
+  for(const k of Object.keys(s.ach))s.ach[k]=num(s.ach[k],0);
+  {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=BVAR[p[k]]?p[k]:'oncall';}
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
   // The rules (2.0): a save without them is the classic game, On-call (or a sandbox or puzzle, if it was one). Locked after the start.
   {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{},p=s.mode==='sandbox'?'sandbox':s.mode==='puzzle'?'puzzle':own(PRESETS,r.preset)?r.preset:'oncall';s.rules=makeRules(p,own(PRESETS,r.preset)?r:{});}
