@@ -14,12 +14,13 @@ const REF = {
   aloha: { one: [['sjc', 'hnl', 'scx'], ['hnl', 'syd', 'hwk']], three: [['sjc', 'hnl', 'scx'], ['sjc', 'hnl', 'aag'], ['hnl', 'syd', 'hwk'], ['hnl', 'syd', 'aloha']] },
   rimshot: { one: [['sea', 'tok', 'fast'], ['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2']], three: [['sea', 'tok', 'fast'], ['sea', 'tok', 'ncp'], ['tok', 'hkg', 'adc'], ['tok', 'hkg', 'apg'], ['hkg', 'sin', 'sjc2'], ['hkg', 'sin', 'land']] },
   fire: { one: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']], three: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']] },
-  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'sea', 'hwk'], ['sea', 'hnl', 'hwk'], ['hnl', 'akl', 'hwk'], ['akl', 'syd', 'tasman'], ['akl', 'syd', 'scx']] },
-  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['tok', 'mnl', 'jup'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam'], ['syd', 'tok', 'guam']] },
+  // Hawaiki is Seattle's only cable south, so the second way out runs overland to LA and on via Suva.
+  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'syd', 'tasman'], ['akl', 'sea', 'hwk'], ['syd', 'suv', 'scxn'], ['sea', 'lax', 'land'], ['lax', 'suv', 'scxn']] },
+  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['tok', 'mnl', 'jup'], ['tok', 'syd', 'sushi'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam']] },
   flash: { one: [['nyc', 'lon', 'hibx']], three: [['nyc', 'lon', 'hibx'], ['nyc', 'lon', 'grace']] },
   pingpong: { one: [['lax', 'tok', 'jup']], three: [['lax', 'tok', 'jup'], ['lax', 'sea', 'land'], ['sea', 'tok', 'fast']] },
   suez: { one: [['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace']], three: [['fra', 'mrs', 'land'], ['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace'], ['mrs', 'bom', 'twoaf'], ['bom', 'sin', 'land']] },
-  samba: { one: [['sao', 'mia', 'monet']], three: [['sao', 'mia', 'monet'], ['sao', 'for', 'land'], ['for', 'mia', 'monet']] },
+  samba: { one: [['sao', 'mia', 'monet']], three: [['sao', 'for', 'land'], ['sao', 'for', 'land'], ['for', 'mia', 'monet'], ['for', 'mia', 'sam1']] },
   sharks: { one: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land']], three: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land'], ['mil', 'lis', 'land']] },
   braces: { one: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix']], three: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix'], ['dub', 'nyc', 'havf']] },
   nofra: { one: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']], three: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land'], ['zrh', 'ams', 'land']] },
@@ -77,6 +78,15 @@ test('stars: goal, budget, N-1 and twists each count', () => {
   build(ev, REF.shining.one);
   ev("ACT.pzLinkTo({a:'nyc',b:'chi'});ACT.pzVia({v:'land'});ACT.pzDiv({v:0});ACT.pzLink({tier:0})");
   assert.equal(ev("new Set(S.links.filter(l=>edgeKey(l)==='chi|nyc').map(pzUnit)).size"), 1, 'same trench shares the cut');
+  // A cable fails as a whole: two waves on one cable, even between different cities, are one cut.
+  ev("pzBegin(pzDef('guam'))");
+  build(ev, [['tok', 'mnl', 'jup'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam'], ['syd', 'tok', 'guam']]);
+  e = evalP(ev);
+  assert.ok(e.goal && !e.n1, 'both of Sydney\'s links ride the Guam cable: one anchor splits Sydney off');
+  assert.equal(ev("new Set(S.links.filter(l=>l.cable==='guam').map(pzUnit)).size"), 1, 'one cable, one failure unit');
+  assert.ok(ev("document.getElementById('pzBox').textContent").includes('One cut splits it: ' + ev('CAB.guam.name')), 'the weak spot names the cable');
+  ev("ACT.pzRmLink({id:S.links[3].id})");build(ev, [['tok', 'syd', 'sushi']]);
+  assert.equal(evalP(ev).stars, 3, 'a second cable into Sydney fixes it');
   // Twists: no subsea, ring, latency, minimum size, cities to avoid.
   ev("pzBegin(pzDef('sharks'))");build(ev, REF.sharks.one);
   assert.ok(evalP(ev).goal);
@@ -180,16 +190,16 @@ test('weekly puzzle: stable seed per ISO week, solvable, share string and streak
   assert.equal(w.key, '2026-W44');
   assert.ok(w.cities.length >= 4 && w.cities.length <= 5 && w.budget > 0);
   // Every week of a few years can be solved with three stars by its own reference ring.
-  for (let i = 0; i < 160; i += 7) {
+  for (let i = 0; i < 400; i += 7) {
     ev(`pzBegin(pzWeekly(new Date(2026,0,1+${i})))`);
-    const ring = JSON.parse(ev('JSON.stringify(pzWeekly(new Date(2026,0,1+' + i + ')).ref)'));
-    const links = ring.map((x, j) => { const y = ring[(j + 1) % ring.length]; return [x, y, ev(`pzRoutes('${x}','${y}').sort((p,q)=>pzLinkCost(p,0)-pzLinkCost(q,0))[0].via`)]; });
-    build(ev, links);
+    const w = JSON.parse(ev('JSON.stringify(pzWeekly(new Date(2026,0,1+' + i + ')))'));
+    const cabs = w.refVia.filter((v) => v !== 'land');
+    assert.equal(new Set(cabs).size, cabs.length, `week +${i}: no two hops of the reference ring share a cable`);
+    build(ev, w.ref.map((x, j) => [x, w.ref[(j + 1) % w.ref.length], w.refVia[j]]));
     assert.equal(evalP(ev).stars, 3, `week +${i}`);
   }
   ev("localStorage.removeItem('sot-puzzles');pzBegin(pzWeekly(new Date(2026,9,28)))");
-  const ring = w.ref;
-  build(ev, ring.map((x, j) => { const y = ring[(j + 1) % ring.length]; return [x, y, ev(`pzRoutes('${x}','${y}').sort((p,q)=>pzLinkCost(p,0)-pzLinkCost(q,0))[0].via`)]; }));
+  build(ev, w.ref.map((x, j) => [x, w.ref[(j + 1) % w.ref.length], w.refVia[j]]));
   assert.match(ev('pzShareText(pzEval())'), /^Series of Tubes puzzle 2026-W44 ⭐⭐⭐ \$\d+k · seriesoftub\.es$/);
   assert.equal(ev("JSON.parse(localStorage.getItem('sot-puzzles')).streak.n"), 1);
   // A streak counts weeks in a row; a gap starts again.

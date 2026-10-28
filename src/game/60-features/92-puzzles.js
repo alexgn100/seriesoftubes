@@ -31,8 +31,9 @@ const pzLinkCost=(r,tier,div)=>pzMo(r,tier,div)*PZ_YEAR;// leased waves have no 
 const pzPopCost=c=>popCost(c)+PZ_YEAR*POP_MO;
 const PZ_TIERS=[0,1,2];
 function pzSpend(){let s=0;for(const c in S.pops)s+=pzPopCost(c);for(const l of S.links)s+=l.mo*PZ_YEAR;return s;}
-// What one backhoe or one anchor takes out: waves in the same trench, or on the same cable between the same cities.
-const pzUnit=l=>l.cable?'cab:'+l.cable+':'+edgeKey(l):String(l.trench||l.id);
+// What one backhoe or one anchor takes out: waves in the same trench, or every wave on the same cable (a cable fails
+// as a whole, as in the main game's diversity checks).
+const pzUnit=l=>l.cable?'cab:'+l.cable:String(l.trench||l.id);
 // ---------- checks ----------
 function pzComp(ls,skip,from){const adj={};for(const l of ls){if(skip&&pzUnit(l)===skip)continue;(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}
   const seen=new Set([from]),q=[from];while(q.length){const u=q.pop();for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return seen;}
@@ -51,7 +52,7 @@ function pzEval(){const P=S.pz,ls=S.links,cs=P.cities,spend=pzSpend();
   if(P.minG)tw.push({k:'g',ok:ls.every(l=>LT[l.tier].g>=P.minG)});
   if(P.avoid.length)tw.push({k:'avoid',ok:P.avoid.every(c=>!S.pops[c])});
   const goal=conn&&tw.every(t=>t.ok),units=[...new Set(ls.map(pzUnit))];
-  // N-1: the goal cities stay joined whichever single trench or cable segment is cut.
+  // N-1: the goal cities stay joined whichever single trench or cable is cut.
   const weak=conn?units.filter(u=>{const g=pzComp(ls,u,cs[0]);return !cs.every(c=>g.has(c));}):[];
   const n1=conn&&units.length>0&&!weak.length,cheap=!P.budget||spend<=P.budget;
   return {marks,conn,tw,goal,spend,cheap,n1,weak,stars:goal?1+(cheap?1:0)+(n1?1:0):0};}
@@ -61,11 +62,14 @@ function pzPrevKey(key){const m=/^(\d{4})-W(\d{2})$/.exec(key);if(!m)return null
 function pzWeekly(dt){const key=pzWeekKey(dt||new Date());let r=hstr('puzzle|'+key)||1;const nx=()=>{r=(Math.imul(r,1103515245)+12345)>>>0;return r/4294967296;};
   const pool=PZ_WEEK_POOLS[Math.floor(nx()*PZ_WEEK_POOLS.length)].slice(),n=4+Math.floor(nx()*2),cities=[];
   while(cities.length<n&&pool.length)cities.push(pool.splice(Math.floor(nx()*pool.length),1)[0]);
-  // The budget is a ring through the cities, nearest first, on the cheapest 10G route of each hop, plus 10%:
-  // a ring survives any single cut, so three stars are always possible.
+  // The budget is a ring through the cities, nearest first, on the cheapest 10G route of each hop, plus 10%. A ring
+  // survives any single cut only if no two hops share a cable, so each hop takes the cheapest route on a cable the ring
+  // has not used yet (overland is always there: a pool is one landmass), and three stars are always possible.
   const ring=[cities[0]],left=cities.slice(1);while(left.length){const u=ring[ring.length-1];left.sort((a,b)=>kmBetween(u,a)-kmBetween(u,b));ring.push(left.shift());}
-  let cost=cities.reduce((a,c)=>a+pzPopCost(c),0);for(let i=0;i<ring.length;i++)cost+=Math.min(...pzRoutes(ring[i],ring[(i+1)%ring.length]).map(x=>pzLinkCost(x,0,false)));
-  return {id:'weekly',key,cities,via:[],budget:Math.ceil(cost*1.1/10000)*10000,ref:ring};}
+  let cost=cities.reduce((a,c)=>a+pzPopCost(c),0);const used=new Set(),via=[];
+  for(let i=0;i<ring.length;i++){const r=pzRoutes(ring[i],ring[(i+1)%ring.length]).filter(x=>!x.cab||!used.has(x.cab)).sort((x,y)=>pzLinkCost(x,0,false)-pzLinkCost(y,0,false))[0];
+    if(r.cab)used.add(r.cab);via.push(r.via);cost+=pzLinkCost(r,0,false);}
+  return {id:'weekly',key,cities,via:[],budget:Math.ceil(cost*1.1/10000)*10000,ref:ring,refVia:via};}
 function pzStreak(p,key){const st=p.streak;if(st.last===key)return;st.n=st.last&&st.last===pzPrevKey(key)?st.n+1:1;st.last=key;st.best=Math.max(st.best,st.n);}
 function pzShareText(e){const P=S.pz;return tr('puzzles.share_line',{what:P.id==='weekly'?P.key:pzName(pzDef(P.id)),stars:pzStarStr(e.stars),spend:fmt$(e.spend)});}
 // ---------- entering and leaving ----------

@@ -8,7 +8,8 @@ function pzTwistTxt(t){const P=S.pz;
   const [a,b,ms]=P.lat;return isFinite(t.ms)?tr('puzzles.a_to_b_under_ms_now',{a:CITY[a].name,b:CITY[b].name,ms,now:t.ms.toFixed(1)}):tr('puzzles.a_to_b_under_ms',{a:CITY[a].name,b:CITY[b].name,ms});}
 // The short version, for the puzzle list.
 function pzTwistTag(d){const t=[];if(d.noSub)t.push(tr('puzzles.no_subsea'));if(d.ring)t.push(tr('puzzles.ring'));if(d.lat)t.push(tr('puzzles.under_n_ms',{n:d.lat[2]}));if(d.minG)t.push(tr('puzzles.n_g_links',{n:d.minG}));if(d.avoid)t.push(tr('puzzles.avoid_list',{list:d.avoid.map(c=>CITY[c].name).join(', ')}));return t;}
-const pzUnitName=u=>{const l=S.links.find(x=>pzUnit(x)===u);return l?`${CITY[l.a].name} ⇄ ${CITY[l.b].name}${l.cable?' ('+esc(CAB[l.cable].name)+')':''}`:'';};
+// A cable carrying several of your waves is named on its own: cutting it takes them all.
+const pzUnitName=u=>{const ls=S.links.filter(x=>pzUnit(x)===u),l=ls[0];return !l?'':l.cable&&ls.length>1?esc(CAB[l.cable].name):`${CITY[l.a].name} ⇄ ${CITY[l.b].name}${l.cable?' ('+esc(CAB[l.cable].name)+')':''}`;};
 function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hidden=false;
   const e=pzEval(),P=S.pz,d=pzDef(P.id),pk=d&&PZ_PACKS.find(x=>x.id===d.pack);
   const star=(on,l)=>`<span class="${on?'on':''}">⭐<small>${l}</small></span>`;
