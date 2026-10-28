@@ -7,9 +7,10 @@ function fireFailure(){
   if(S.transit.some(t=>!(t.down>S.day)))opts.push(['transit',3]);
   if(Object.keys(S.ixp).length)opts.push(['ixloop',2]);
   if(S.transit.length&&S.day>60)opts.push(['leak',2]);
-  // Flood Season brings its own; Change Freeze (calm) has none. Spicy chaos or gaming customers put DDoS on its own,
-  // busier schedule (ddosTick) instead of this one, so it is never counted twice.
-  if(S.day>40&&!scnRule('ddos')&&!ddosOff()&&!ddosSpicy())opts.push(['ddos',2]);
+  // Flood Season brings its own; Change Freeze (calm) has none. Gaming customers put DDoS on its own, busier schedule
+  // (ddosTick) instead of this one, so it is never counted twice. Spicy failures already come 1.8x as often; a slightly
+  // heavier weight makes that twice On-call's DDoS, as BGP at 3 a.m. promises.
+  if(S.day>40&&!scnRule('ddos')&&!ddosOff()&&!gamingCount())opts.push(['ddos',rule('chaos')==='spicy'?2.25:2]);
   if(fabsUsed.length)opts.push(['fabric',1.5]);
   const lit=S.links.filter(l=>l.kind==='df'&&dfCap(l)>0&&!linkDown(l));if(lit.length)opts.push(['amp',1.5+lit.length*0.3],['optic',1.5+lit.length*0.3]);
   opts.push(['funny',4]);
@@ -134,12 +135,13 @@ function ddosSize(vec){const fl=scnRule('ddos'),r=Math.random(),roll=fl?1/3+r*2/
 // Calm (Change Freeze) and no chaos at all mean no attacks, gamers or not.
 const ddosOff=()=>{const c=rule('chaos');return c==='calm'||c==='none';};
 // More frequent attacks are opt-in: the spicy chaos setting, or hosting gamers (who attract them in real life).
+// Outside Flood Season, only gamers move attacks onto ddosTick's daily schedule; spicy alone doubles the usual one.
 const ddosSpicy=()=>!ddosOff()&&(rule('chaos')==='spicy'||gamingCount()>0);
 function ddosTick(){if(ddosOff()&&!scnRule('ddos'))return;if(scnRule('ddos')){let next=+S.scn.nextDdos||3,n=0;
     // Unless spicy, floods take turns as they always did: the next one waits until the last is over.
     if(!ddosSpicy()&&ddosAll().length)return;
     while(S.day>=next&&n++<2){ddosAttack(false);next+=floodGap();}S.scn.nextDdos=next<S.day?S.day+floodGap():next;}
-  else if(ddosSpicy()&&(S.day>40||gamingCount()))for(let i=0;i<2;i++)if(Math.random()<ddosRate()/14)ddosAttack(false);}
+  else if(!ddosOff()&&gamingCount())for(let i=0;i<2;i++)if(Math.random()<ddosRate()/14)ddosAttack(false);}
 // Size, duration and starts are randomized independently; overlapping floods never replace each other.
 function ddosAttack(recompute=true){const type='ddos',fl=scnRule('ddos');ddosExpire();
     S.ddosStarts=(S.ddosStarts||[]).filter(d=>d>S.day-7&&d<=S.day);if(S.ddosStarts.length>=14||!Object.keys(S.pops).length)return;S.ddosStarts.push(S.day);

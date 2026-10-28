@@ -106,3 +106,20 @@ test('spicy chaos stretches exactly the attack (or outage) an incident is about,
   assert.equal(ev("S.links.find(l=>l.id==='M').cut-S.day"), 4);
   assert.deepEqual(errors, []);
 });
+
+test('BGP at 3 a.m. brings about twice On-call\'s DDoS; gaming customers bring their own, busier schedule', () => {
+  const picks = {};
+  for (const preset of ['oncall', 'bgp']) {
+    const { ev, errors } = load({ seed: 7 });
+    ev(`beginGame('R','fra',{mode:'normal',preset:'${preset}'});if(UI.pendGame)ACT.pitchSkip();S.cash=1e12;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});S.day=100;compute()`);
+    // No daily attacks without gamers, spicy or not.
+    ev("window.__n=0;const real=ddosAttack;ddosAttack=()=>{window.__n++;};for(let i=0;i<300;i++)ddosTick();window.__tick=window.__n;window.__n=0;for(let i=0;i<4000;i++)fireFailure();ddosAttack=real");
+    assert.equal(ev('window.__tick'), 0, `${preset}: no daily DDoS schedule without gaming customers`);
+    picks[preset] = ev('window.__n') * ev('chaosMul()');
+    ev("S.biz.push({id:'g',type:'game',name:'G',city:'fra',bw:1,rate:1,mood:80,since:0});window.__n=0;const real=ddosAttack;ddosAttack=()=>{window.__n++;};for(let i=0;i<300;i++)ddosTick();ddosAttack=real");
+    assert.ok(ev('window.__n') > 5, `${preset}: gamers attract attacks on their own schedule`);
+    assert.deepEqual(errors, []);
+  }
+  const ratio = picks.bgp / picks.oncall;
+  assert.ok(ratio > 1.7 && ratio < 2.3, `about twice the DDoS (${ratio.toFixed(2)}x)`);
+});
