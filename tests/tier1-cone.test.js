@@ -182,3 +182,16 @@ test('a traceroute down a two-level cone shows every network on the way', () => 
   assert.equal(ev("R.cone.ddo"), 'ntt');
   assert.deepEqual(errors, []);
 });
+
+test('#114 Only Spätzle-IX still takes more than the exchange and two Tier 1 PNIs, now that cones count', () => {
+  const { ev, errors } = load();
+  ev("UI.pitched=true;beginGame('T','stg',{scn:SCN.find(x=>x.id==='stg')});S.cash=1e9;S.lvl=10;S.pops.stg.bb={d:400};S.ixp.stg=0;for(const id of ixMembers('stg'))S.peers[id+'@stg']=1;compute()");
+  const reach = (ts) => ev(`S.pni=[];for(const t of ${JSON.stringify(ts)})S.pni.push({id:'p'+t,net:t,city:'stg',tier:2});compute();R.reach`);
+  const T = ['lvl', 'ntt', 'tly', 'cog', 'tat'];
+  const goal = ev("SCN.find(x=>x.id==='stg').ok.toString()");
+  assert.match(goal, /R\.reach>=0\.5/);
+  for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++)
+    assert.ok(reach([T[i], T[j]]) < 0.5, `${T[i]}+${T[j]} is not enough`);
+  assert.ok(reach(['lvl', 'ntt', 'tly']) >= 0.5, 'three Tier 1 PNIs and the exchange can be');
+  assert.deepEqual(errors, []);
+});

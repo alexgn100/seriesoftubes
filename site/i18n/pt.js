@@ -3203,7 +3203,7 @@
 "scenarios.ponta_delgada_in_the_azores_halfway":"Ponta Delgada, nos Açores, no meio do Atlântico. Da Flórida à Espanha e de Lisboa a Lagos é um pouco longo demais para uma onda de 1.6T: em linha direta, cada uma leva 1.2T. Pouse nas ilhas no meio, recomece a luz, e cada trecho roda a 1.6T ou mais. Você começa com equipamento de 1.6T desbloqueado.",
 "scenarios.pops_in_bogota_lima_santiago_and":"POPs em Bogotá, Lima, Santiago e São Paulo, e 150 Gbps servidos",
 "scenarios.ports_on_15_ix_brrr_exchanges":"Portas em 15 exchanges IX.brrr, uma delas em Manaus, e 200 Gbps servidos",
-"scenarios.reach_45_of_the_internet_and":"Alcance 45% da internet e atenda 300 Gbps",
+"scenarios.reach_50_of_the_internet_and":"Alcance 50% da internet e atenda 300 Gbps",
 "scenarios.red_sea_crisis":"Crise no Mar Vermelho",
 "scenarios.rio_from_scratch_carnaval_starts_in":"Rio do zero. O Carnaval começa em 90 dias e quer 400 Gbps por cinco dias seguidos. O mundo inteiro está assistindo.",
 "scenarios.sandbox_mode_a_billion_dollars_chaos":"<b>Modo sandbox</b><br>Um bilhão de dólares e tudo desbloqueado. Caos: {chaos}. Construa a internet que você sempre quis, e deixe uma retroescavadeira reserva à mão.",
