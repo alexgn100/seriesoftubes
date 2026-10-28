@@ -66,9 +66,9 @@ function sanitize(s){
   // Keep the legacy primary attack so old saves and imports remain compatible; additional floods overlap it.
   const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
     a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+Math.ceil(7*SPICY_LONG));
-    if(Array.isArray(a.entries)){a.entries=a.entries.slice(0,3000).filter(en=>en&&isCity(en.city)&&Number.isFinite(+en.share)&&+en.share>0&&(en.k==='rest'||['t','ix','p'].includes(en.k)&&typeof en.id==='string')).map(en=>en.k==='rest'?{k:'rest',city:en.city,share:+en.share}:{k:en.k,id:en.id.slice(0,40),city:en.city,lab:String(en.lab||'').slice(0,60),share:+en.share});const sum=a.entries.reduce((n,en)=>n+en.share,0);if(Number.isFinite(sum)&&sum>0){for(const en of a.entries)en.share/=sum;a.entries=ddosFold(a.entries,a.city);}else delete a.entries;}else delete a.entries;
+    delete a.entries; // 2.0 betas spread attacks over every ingress port; they arrive on one again
     a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
-    if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
+    if(!a.entry||typeof a.entry!=='object'||!['t','ix','p','edge'].includes(a.entry.k))a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
   const attacks=[s.ev.ddos,...(Array.isArray(s.ev.ddosMore)?s.ev.ddosMore:[])].map(repairAttack).filter(Boolean).slice(0,14);
   if(attacks.length)s.ev.ddos=attacks[0];else delete s.ev.ddos;s.ev.ddosMore=attacks.slice(1);
   s.ddosStarts=(Array.isArray(s.ddosStarts)?s.ddosStarts:attacks.map(a=>a.start)).filter(d=>typeof d==='number'||typeof d==='string').map(Number).filter(d=>Number.isFinite(d)&&d>s.day-7&&d<=s.day).sort((a,b)=>a-b).slice(-14);

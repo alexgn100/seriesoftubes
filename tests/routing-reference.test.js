@@ -38,7 +38,7 @@ test('indexed routing matches the simple allocation loop across network changes'
       "S.te.script='prefer transit Cogentle\\nprepend transit Cogentle 2\\nprotect customers'",
       "S.ev.rpki={nets:['ggl','nfx'],until:S.day+3};S.ev.depeer=S.day+3",
       "S.ev.ddos={city:'fra',until:S.day+3,gbps:300,vec:'syn',entry:{k:'edge'}}",
-      "S.ev.ddos.entries=[{k:'t',id:'transit0',city:'fra',share:.4},{k:'t',id:'transit4',city:'nyc',share:.6}]",
+      "S.ev.ddosMore=[{id:'x2',city:'nyc',until:S.day+3,gbps:200,vec:'http',entry:{k:'t',id:'transit4'}}]",
       "S.links[0].eqDown=S.day+2;S.links[1].cut=S.day+2;S.links[2].loss={until:S.day+2,f:0.5}",
       "S.links[4].chFail={until:S.day+2,o:'tp16'};S.links[6].ch.push('zr4');S.links[8].regen=2",
       "S.day+=4;S.pni.splice(0,20);S.caches.splice(0,10);S.transit[0].pref='high'",
