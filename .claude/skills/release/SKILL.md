@@ -12,6 +12,15 @@ that version's CHANGELOG section as notes, and dispatches `release.yml`, which b
 to GitHub Pages (https://seriesoftub.es). GitHub Pages is the only host, ever: see the
 `github-pages` skill.
 
+## Weekly puzzles are not releases
+
+`weekly-puzzle.yml` publishes a new puzzle every Sunday morning without a release: it commits the JSON under
+`site/puzzles/weekly/` to `main` and redeploys the live tag through `release.yml` (`weekly=true`). Never bump the
+version for a weekly puzzle. To publish or fix one by hand: `node scripts/weekly-puzzle.js --key 2026-W45 --force`,
+`node scripts/weekly-puzzle.js --check`, commit to `main`, then run the "Weekly puzzle" workflow (or
+`gh workflow run release.yml --ref <live tag> -f tag=<live tag> -f weekly=true`). A release includes every weekly
+file on `main` when it builds.
+
 ## Only release when Frederic says so
 
 Never bump the version on your own. Finished work is committed and pushed with its
