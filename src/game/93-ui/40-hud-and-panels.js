@@ -6,6 +6,7 @@ function renderHUD(){
   {const ck=!S||rule('clock');for(const v of [0,0.5,1,2,4,8]){const b=$('sp'+v);if(b){b.classList.toggle('on',UI.speed===v);b.hidden=!ck;}}}
   $('muteBtn').style.opacity=UI.muted?.4:1;
   if(!S)return;
+  if(pzOn()){$('hName').textContent=pzName(pzDef(S.pz.id)||S.pz);$('hAsn').textContent=tr('puzzles.puzzle');renderTabbar();return;}
   {const rt=ruleTag(),ha=$('hAsn');ha.title=rt?tr('rules.rules_are_locked_for_this_network',{rules:rt}):'';}
   $('hName').textContent=S.name;$('hAsn').textContent='AS'+S.asn+(S.mode==='sandbox'||ruleTag()&&!S.scn?' · '+ruleTag():S.scn?' · '+(scnName())+(S.scn.done||S.scn.failed?'':` · ${tr('ui.n_d_left',{n:Math.max(0,S.scn.days-S.day)})}`):'');
   $('hCash').textContent=fmt$(S.cash);$('hCash').style.color=S.cash<0?'var(--bad)':'';
@@ -28,7 +29,7 @@ function renderLeft(){checkLayer();
   // while a city or link is open and comes back with the toggle button.
   const tab=isTablet(),L=$('left');L.classList.toggle('closed',tab?(!!UI.sel&&!UI.leftOpen):!UI.leftOpen);const tg=$('leftToggle');if(tg&&innerWidth>760)tg.hidden=!(tab&&L.classList.contains('closed'));
   renderTabbar();
-  if(!S){L.hidden=true;return;}L.hidden=false;
+  if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
   const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
   const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red">${S.inc.length}</span>`:''}`],['nets',`${tr('common.networks')}${ibxOpen()?`<span class="cnt${ibxUrgent()?' red':''}">${ibxOpen()}</span>`:''}`]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
@@ -88,6 +89,6 @@ function renderPanel(){checkLayer();
   if(!S||!UI.sel){P.hidden=true;return;}
   P.hidden=false;
   const scrollEl=$('panelBody').querySelector('.scroll');const st=scrollEl?scrollEl.scrollTop:0;
-  const html=UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
+  const html=pzOn()?pzPanel(UI.sel):UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(!html){P.hidden=true;return;}if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
   const ns=$('panelBody').querySelector('.scroll');if(ns)ns.scrollTop=st;
 }

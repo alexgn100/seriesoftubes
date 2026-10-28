@@ -4,6 +4,8 @@ const num=(v,d=0)=>{v=+v;return Number.isFinite(v)?v:d;},int=(v,lo,hi,d)=>{v=Mat
 /* Saves come from localStorage or from imported files, so treat them as untrusted: fill in anything
    missing, drop references to cities, networks or types that do not exist, and force numbers to be numbers. */
 function sanitize(s){
+  // A puzzle is never saved; a save that says otherwise is played as a normal game.
+  if(s.mode==='puzzle')s.mode='normal';delete s.pz;
   const arr=k=>{if(!Array.isArray(s[k]))s[k]=[];},obj=k=>{if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};};
   ['links','nni','transit','pni','caches','biz','offers','inc','usedNames','loans','loanOffers','hist','log'].forEach(arr);
   ['pops','ixp','rs','peers','myIx','done','ev','stats','ixn','ixPref','ixSite','confReg','ach','pairMet'].forEach(obj);

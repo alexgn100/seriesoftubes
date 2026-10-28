@@ -60,8 +60,6 @@ test('the title screen: four doors, three Normal presets, a chaos picker for San
   assert.equal(doc.getElementById('doorSandbox').hidden, false);
   assert.equal(doc.getElementById('doorNormal').hidden, true);
   doc.querySelector('.chs[data-chaos=spicy]').click();
-  doc.querySelector('.door[data-door=puzzle]').click();
-  assert.match(doc.getElementById('toasts').textContent, /coming soon/, 'puzzles are not here yet');
   doc.querySelector('.door[data-door=normal]').click();
   ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip()");
   assert.equal(ev('rulePreset()'), 'freeze');

@@ -2,7 +2,8 @@
 /* A network too big for the browser's storage fails to save every time, and turning it into text takes a
    moment on huge saves, every 5 seconds and after every click. After a failure the autosave waits before trying
    again (1 minute, then 2, 4, at most 5); leaving the page, exporting or another game (a new S) still try at once. */
-function save(force){if(!S||S.lost)return;S.uiSpeed=UI.speed;S.cam={x:cam.x,y:cam.y,z:cam.z};const f=UI.saveFail;
+// A puzzle is never saved: only its stars are, under their own key (sot-puzzles).
+function save(force){if(!S||S.lost||S.mode==='puzzle')return;S.uiSpeed=UI.speed;S.cam={x:cam.x,y:cam.y,z:cam.z};const f=UI.saveFail;
   if(!force&&f&&f.s===S&&performance.now()-f.at<f.wait){UI.lastSave=performance.now();return;}
   const txt=JSON.stringify(packSave(S));
   const seq=UI.saveSeq=(UI.saveSeq||0)+1;
@@ -25,7 +26,7 @@ const unb64=t=>{const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.lengt
 const gzip=async txt=>GZ+b64(await gzPipe(new TextEncoder().encode(txt),new CompressionStream('gzip')));
 const gunzip=async raw=>new TextDecoder().decode(await gzPipe(unb64(raw.slice(GZ.length)),new DecompressionStream('gzip')));
 function gzSave(s,txt,seq){if(UI.gzBusy){UI.gzNext={s,txt,seq};return;}UI.gzBusy=true;
-  gzip(txt).then(v=>{if(s!==S||seq!==UI.saveSeq)return;try{localStorage.setItem('sot-save-v1',v);UI.saveFail=null;}catch(e){saveErr(e,s);}})
+  gzip(txt).then(v=>{if((s!==S&&s!==UI.pzKeep)||seq!==UI.saveSeq)return;try{localStorage.setItem('sot-save-v1',v);UI.saveFail=null;}catch(e){saveErr(e,s);}})
     .catch(e=>{console.error('[tubes] compressing the save failed',e);})
     .finally(()=>{UI.gzBusy=false;const n=UI.gzNext;UI.gzNext=null;if(n&&n.s===S)gzSave(n.s,n.txt,n.seq);});}
 // A compressed save is unpacked before the game boots, so loadSave() stays synchronous for everything else.
@@ -52,7 +53,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 /* Export / import: move a network to another device or keep a backup. The file is the same
    object the autosave writes, wrapped with a little metadata. */
 function saveFileName(){const d=new Date().toISOString().slice(0,10),n=(S&&S.name||'network').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'network';return `series-of-tubes-${n}-${d}.json`;}
-function exportSave(){if(!S)return;save(true);const blob=new Blob([JSON.stringify({app:'series-of-tubes',version:APP_VERSION,exported:new Date().toISOString(),S:packSave(S)},null,1)],{type:'application/json'});
+function exportSave(){if(!S||S.mode==='puzzle')return;save(true);const blob=new Blob([JSON.stringify({app:'series-of-tubes',version:APP_VERSION,exported:new Date().toISOString(),S:packSave(S)},null,1)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=saveFileName();document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   toast(tr('save.save_exported_file_is_in_your',{file:esc(saveFileName())}),'good');}
 function parseSave(txt){if(typeof txt!=='string')return {err:tr('save.that_file_is_not_valid_json')};let j;try{j=JSON.parse(txt);}catch(e){return {err:tr('save.that_file_is_not_valid_json')};}
