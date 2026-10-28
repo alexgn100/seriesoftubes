@@ -418,3 +418,16 @@ test('no recompute on a shift that only declined offers or stopped at a budget',
   assert.equal(ev("window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n"), 1, 'a real job still recomputes once');
   assert.deepEqual(errors, []);
 });
+
+test('per-POP exceptions go with the POP: on decommission, and in a save that lost it', t => {
+  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});ACT.buildPop({city:'lon'});compute()");
+  hire(ev);
+  ev("ACT.opsPop({k:'transit',city:'ams'});ACT.opsPop({k:'caches',city:'lon'});closeModal()");
+  ev("decommission(['ams'])");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}');
+  ev("ACT.buildPop({city:'ams'});closeModal()");
+  assert.equal(ev("opsHere('transit','ams')"), true, 'a rebuilt POP starts with every order on');
+  ev("S.ops.skip.par=['transit'];S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}', 'no POP in Paris: its exception is dropped on load');
+  assert.deepEqual(errors, []);
+});

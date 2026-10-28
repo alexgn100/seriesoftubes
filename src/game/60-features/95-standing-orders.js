@@ -36,7 +36,8 @@ function opsP(k,p){const P=OPSK[k].p[p],v=S.ops.p[k]&&S.ops.p[k][p];return v!==u
 function opsCap(k){const c=S.ops.cap[k];return OPS_CAPS.includes(c)?c:OPSK[k].cap||0;}
 const opsHere=(k,c)=>!(S.ops.skip[c]||[]).includes(k);
 const opsPops=k=>Object.keys(S.pops).filter(c=>opsHere(k,c));
-// Saves are untrusted: rebuild ops from known orders, params, cities and log shapes. Old saves get no intern,
+// Saves are untrusted: rebuild ops from known orders, params, cities and log shapes. Runs after the POPs are repaired,
+// so exceptions only survive for POPs that still exist. Old saves get no intern,
 // and the two #185 toggles (auto-accept, auto-pay repairs) become the sales and repair orders.
 function opsSanitize(s){const o=s.ops&&typeof s.ops==='object'&&!Array.isArray(s.ops)?s.ops:{},n=opsNew(),ob=x=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
   n.intern=typeof o.intern==='string'&&own(INTERNS,o.intern)?o.intern:null;n.hired=int(o.hired,0,1e7,0);n.mon=int(o.mon,0,1e6,0);
@@ -46,7 +47,7 @@ function opsSanitize(s){const o=s.ops&&typeof s.ops==='object'&&!Array.isArray(s
     for(const pk of Object.keys(d.p)){const P=d.p[pk];if(own(q,pk)&&(P.ok?P.ok(q[pk]):P.v.includes(q[pk])))r[pk]=q[pk];}n.p[k]=r;
     if(d.cap&&OPS_CAPS.includes(cap[k]))n.cap[k]=cap[k];if(d.cap)n.spent[k]=Math.max(0,num(sp[k],0));}
   {const t=ob(o.tpl);for(const k of OPS_TPL)if(typeof t[k]==='boolean')n.tpl[k]=t[k];}
-  {const sk=ob(o.skip);for(const c of Object.keys(sk))if(isCity(c)&&Array.isArray(sk[c])){const ks=[...new Set(sk[c].filter(k=>OPS_POP.includes(k)))];if(ks.length)n.skip[c]=ks;}}
+  {const sk=ob(o.skip);for(const c of Object.keys(sk))if(isCity(c)&&own(s.pops,c)&&Array.isArray(sk[c])){const ks=[...new Set(sk[c].filter(k=>OPS_POP.includes(k)))];if(ks.length)n.skip[c]=ks;}}
   if(Array.isArray(o.log))n.log=o.log.map(opsLogOk).filter(Boolean).slice(0,OPS_LOG);
   if(s.autoSales===true)n.on.sales=true;if(s.autoRepair===true)n.on.repair=true;delete s.autoSales;delete s.autoRepair;
   s.ops=n;}
