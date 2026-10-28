@@ -406,3 +406,15 @@ test('decommission sees the traffic of a customer signed earlier in the same shi
   assert.deepEqual(JSON.parse(ev('JSON.stringify(bizWhy(S.biz[0]))')), []);
   assert.deepEqual(errors, []);
 });
+
+test('no recompute on a shift that only declined offers or stopped at a budget', t => {
+  const { ev, errors } = game(t);
+  hire(ev); on(ev, 'sales', { acc: false, min: 50000 }); on(ev, 'transit', { x: 3 }, 10000);
+  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30}]");
+  const n = ev("window.__c=compute;window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n");
+  assert.equal(n, 0, 'nothing in the network changed');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /declined a tiny offer, stopped at the budget/);
+  ev("S.ops.spent.transit=0");
+  assert.equal(ev("window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n"), 1, 'a real job still recomputes once');
+  assert.deepEqual(errors, []);
+});
