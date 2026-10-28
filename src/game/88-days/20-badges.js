@@ -74,10 +74,10 @@ const BADGES=[
    fiery one; Sandbox and the puzzles earn none (puzzles have stars). Earning a badge again under a harder preset
    upgrades its look, here and in the hall of fame. S.ach[id] stays the day it was earned; S.achP[id] is its variant. */
 const BVAR={freeze:{k:'freeze',lv:1,i:'🧊',n:N_('badges.variant_freeze_dried'),col:'#5BC0EB'},oncall:{k:'oncall',lv:2,i:'⭐',n:N_('badges.variant_on_call'),col:'#FFD23F'},bgp:{k:'bgp',lv:3,i:'🔥',n:N_('badges.variant_forged_at_3_a_m'),col:'#FF5A1F'}};
-const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>BVAR[k]||BVAR.oncall;
+const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>own(BVAR,k)?BVAR[k]:BVAR.oncall;
 // The preset this save plays under ('oncall' for every save from before rulesets), and the variant it earns (null: none).
 const rulePre=()=>(typeof rulePreset==='function'?rulePreset():(S&&S.rules&&S.rules.preset))||'oncall';
-function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:BVAR[p]?p:'oncall';}
+function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:own(BVAR,p)?p:'oncall';}
 // The hall of fame is this device's localStorage, so it is checked like a save: unknown variants count as standard.
 function hof(){let h;try{h=JSON.parse(localStorage.getItem('sot-badges')||'{}');}catch(e){h=null;}if(!h||typeof h!=='object'||Array.isArray(h))return {};
   for(const k of Object.keys(h)){const x=h[k];if(!x||typeof x!=='object'){delete h[k];continue;}const vs=x.vs&&typeof x.vs==='object'&&!Array.isArray(x.vs)?x.vs:{};
@@ -87,8 +87,9 @@ function hof(){let h;try{h=JSON.parse(localStorage.getItem('sot-badges')||'{}');
 function checkBadges(){S.ach=S.ach||{};S.achP=S.achP||{};const v=badgeVar();if(!v)return;let h=null;const V=BVAR[v];
   for(const b of BADGES){const had=S.ach[b.id]!==undefined;if(had&&bvar(S.achP[b.id]).lv>=V.lv)continue;let ok=false;try{ok=b.ok();}catch(e){}
     if(!ok)continue;if(!had)S.ach[b.id]=S.day;S.achP[b.id]=v;const R0=RARITY[b.r];
-    if(!h)h=hof();const today=new Date().toISOString().slice(0,10),x=h[b.id]||(h[b.id]={d:today,n:S.name,vs:{}});if(x.vs[v]===undefined)x.vs[v]=today;if(bvar(x.v).lv<V.lv||!x.v)x.v=v;
-    toast(`<b>${b.i} ${had?tr('badges.badge_upgraded_name',{name:esc(b.t)}):tr('badges.badge_unlocked_name',{name:esc(b.t)})}</b><br><span style="color:${R0.col};font-weight:900">${R0.n}</span>${v==='oncall'?'':` · <span class="bvt v-${v}">${V.i} ${tr(V.n)}</span>`} · ${esc(b.d)}`,'goal',[],{a:'tab',v:'goals'});sfx('coin');track('badge_'+b.id+(v==='oncall'?'':'_'+v));}
+    // "Upgraded" is about this device's collection: the hall of fame already held the badge, only in a lower variant.
+    if(!h)h=hof();const today=new Date().toISOString().slice(0,10),up=!!h[b.id]&&bvar(h[b.id].v).lv<V.lv,x=h[b.id]||(h[b.id]={d:today,n:S.name,vs:{}});if(x.vs[v]===undefined)x.vs[v]=today;if(bvar(x.v).lv<V.lv||!x.v)x.v=v;
+    toast(`<b>${b.i} ${up?tr('badges.badge_upgraded_name',{name:esc(b.t)}):tr('badges.badge_unlocked_name',{name:esc(b.t)})}</b><br><span style="color:${R0.col};font-weight:900">${R0.n}</span>${v==='oncall'?'':` · <span class="bvt v-${v}">${V.i} ${tr(V.n)}</span>`} · ${esc(b.d)}`,'goal',[],{a:'tab',v:'goals'});sfx('coin');track('badge_'+b.id+(v==='oncall'?'':'_'+v));}
   if(h)try{localStorage.setItem('sot-badges',JSON.stringify(h));}catch(e){}}
 // How many badges this device has ever earned in each variant: the collection.
 function badgeShelf(h){const o={freeze:0,oncall:0,bgp:0};for(const b of BADGES){const x=h[b.id];if(x)for(const v of BVAR_IDS)if(x.vs[v]!==undefined)o[v]++;}return o;}

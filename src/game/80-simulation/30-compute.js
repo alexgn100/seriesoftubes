@@ -1,5 +1,7 @@
 // tr() with one placeholder, remembered: compute() labels every port, PNI and cache on every run.
 const LABS=new Map();function labOf(s,k,v){const key=s+'|'+v;let o=LABS.get(key);if(o===undefined)LABS.set(key,o=tr(s,{[k]:v}));return o;}
+// Who carries a network reached only through a cone (kept out of compute(), whose size the JIT is sensitive to).
+function coneBy(L,id){let by=null;for(const e of L){if(e.k==='p')return e.net;if(!by&&e.k==='ix'&&e.dir)by=ANC[id].find(u=>e.dir.has(u))||null;}return by||1;}
 function compute(){
   const day=S.day, R2=emptyR(), pops=Object.keys(S.pops).filter(popUp), NC=CITIES.length;
   // The graph works on city indices: adj[i] lists [neighbour, edge] in S.links order.
@@ -43,8 +45,9 @@ function compute(){
   // dup: shares its key with another exit (a hand-edited save), so R.egDesc shows whichever pushed last.
   for(const e of E){e.desc={lab:e.lab,city:e.city,k:e.k};e.dup=ekN[e.ek]>1;e.told=false;e.hp=e.pref==='high'?0:1;e.ci=CIDX[e.city];e.cn=cnCity(e.city);e.vis=0;for(const n of e.nets||NET_IDS){const L=okBy[n];if(L&&L[L.length-1]!==e&&e.ok(n))L.push(e);}}
   for(const n of NETS){R2.reachable[n.id]=okBy[n.id].some(e=>e.rank>0);if(R2.reachable[n.id])R2.reach+=NSH[n.id];if(okBy[n.id].some(e=>e.rank>0&&e.k!=='t')){R2.nt[n.id]=1;R2.reachNT+=NSH[n.id];
-    // Reached without transit only through the customers of networks you peer with (#85).
-    if(!okBy[n.id].some(e=>(e.k==='p'||e.k==='ix')&&!coneOf(e,n.id)))R2.cone[n.id]=1;}}
+    // Reached without transit only through the customers of networks you peer with (#85). R.cone[id]: the peer that
+    // carries it, the first PNI's network or else the nearest upstream that is a member of an exchange you are on.
+    if(!okBy[n.id].some(e=>(e.k==='p'||e.k==='ix')&&!coneOf(e,n.id)))R2.cone[n.id]=coneBy(okBy[n.id],n.id);}}
   const cacheNets=new Set(S.caches.filter(c=>popUp(c.city)).map(c=>c.net));
   const viral=(ev.viral>day?1.25:1)*(ev.php&&ev.php>day?0.7:1);
   // Every flow has the same shape and carries what routing asks about it again and again (nj: its network's index).

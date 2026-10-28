@@ -23,8 +23,12 @@ test('cones are built once at load and hold customers of customers', () => {
   assert.equal(ev("NETS.filter(n=>n.tail).every(n=>ANC[n.id].some(u=>NET[u].type==='t1'))"), true, 'from a Tier 1, directly or through a carrier');
   assert.equal(ev("NET.tail45.up.join()"), 'mag', 'Auckland has no Tier 1: Hobbit Hole buys from a carrier that is there');
   assert.equal(ev("NETS.filter(n=>n.tail).map(n=>n.up.join('+')).join()"), ev("NETS.filter(n=>n.tail).map(n=>tailUp(n.name,n.pops).join('+')).join()"), 'stable: picked by name');
-  // Australians buy only from Australian carriers, so a Tier 1 PNI is still no back door into Australia.
-  assert.equal(ev("['opt','tpr','abb','npt','lpt','lnt','pnt','stb','blg'].some(id=>t1Need().some(t=>CONE_S[t.id].has(id)))"), false);
+  // Australia's big ISPs buy only from Australian carriers, so a Tier 1 PNI is no back door to them.
+  assert.equal(ev("['opt','tpr','abb','npt','lpt','lnt','pnt','stb','blg','inp'].some(id=>t1Need().some(t=>CONE_S[t.id].has(id)))"), false);
+  // The smaller ones that buy from a Tier 1 or a carrier of one do come along, and these are exactly the ones.
+  const au = "NETS.filter(n=>n.type==='eye'&&n.pops.length&&n.pops.every(c=>CITY[c].au)&&t1Need().some(t=>CONE_S[t.id].has(n.id))).map(n=>n.id).sort().join()";
+  assert.equal(ev(au), 'ddo,ext,spn,tail44', 'Doodoo, Lintel, Spin2wintel, Kangaroo Courier');
+  assert.equal(ev("[NET.tail44.name,NET.tail44.up.join(),NET.ddo.up.join(),NET.spn.up.join(),NET.ext.up.join(),NET.voc.up.join(),NET.spl.up.join()].join('|')"), 'Kangaroo Courier|cog|voc|voc|spl|ntt,tly|tly');
   assert.deepEqual(errors, []);
 });
 
@@ -144,5 +148,50 @@ test('routing with cones costs about what it did: exits are asked once, cones ar
   const plain = ev(`(()=>{const keep={};for(const id of NET_IDS){keep[id]=[CONE_S[id],DOWN[id]];CONE_S[id]=new Set([id]);DOWN[id]=[];}
     for(let i=0;i<3;i++)compute();const a=performance.now();for(let i=0;i<10;i++)compute();const r=(performance.now()-a)/10;for(const id of NET_IDS){CONE_S[id]=keep[id][0];DOWN[id]=keep[id][1];}return r;})()`);
   assert.ok(t < plain * 2 + 20, `compute() with cones ${t.toFixed(1)} ms vs without ${plain.toFixed(1)} ms`);
+  assert.deepEqual(errors, []);
+});
+
+test('the panel names the peer that really carries a network, not the first Tier 1 it buys from', () => {
+  const { ev, dom, errors } = load();
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=6;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=50");
+  // a long-tail network that buys from Cogentle first and Level Tree second; peer only with Level Tree
+  const t = ev("NETS.find(n=>n.tail&&n.up.length===2&&n.up[0]==='cog'&&n.up[1]==='lvl').id");
+  ev("S.transit=[];S.ixp={};S.peers={};S.grace=null;S.pni=[{id:'pl',net:'lvl',city:'fra',tier:2}];compute()");
+  assert.equal(ev(`R.cone.${t}`), 'lvl');
+  ev(`UI.left='goals';UI.leftOpen=true;ACT.netFocus({id:'${t}'})`);
+  const txt = dom.window.document.getElementById('leftBody').textContent;
+  assert.match(txt, /Reached through the customer cone of Level Tree/);
+  assert.doesNotMatch(txt, /customer cone of Cogentle/);
+  // over an exchange: the member you have a session with
+  ev("S.pni=[];compute()");
+  assert.equal(ev(`!!R.cone.${t}`), false);
+  assert.match(ev(`(ACT.netFocus({id:'${t}'}),document.getElementById('leftBody').textContent)`), /Buys transit from Cogentle/);
+  assert.deepEqual(errors, []);
+});
+
+test('a traceroute down a two-level cone shows every network on the way', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=6;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=50");
+  // Doodoo buys from Hocus Pocus, which buys from Not That Telecom; a PNI with Not That Telecom only
+  ev("S.transit=[];S.ixp={};S.peers={};S.grace=null;S.pni=[{id:'pn',net:'ntt',city:'fra',tier:2}];compute()");
+  const tr = JSON.parse(ev("JSON.stringify(traceroute('fra',{net:'ddo'}))"));
+  assert.deepEqual(tr.asPath, [ev('S.asn'), ev('NET.ntt.asn'), ev('NET.voc.asn'), ev('NET.ddo.asn')]);
+  assert.match(tr.text, /Not That Telecom hands it to its customer Hocus Pocus/);
+  assert.match(tr.text, /Hocus Pocus hands it to its customer Doodoo/);
+  assert.equal(ev("coneChain('ntt','ddo').join()"), 'ntt,voc,ddo');
+  assert.equal(ev("R.cone.ddo"), 'ntt');
+  assert.deepEqual(errors, []);
+});
+
+test('#114 Only Spätzle-IX still takes more than the exchange and two Tier 1 PNIs, now that cones count', () => {
+  const { ev, errors } = load();
+  ev("UI.pitched=true;beginGame('T','stg',{scn:SCN.find(x=>x.id==='stg')});S.cash=1e9;S.lvl=10;S.pops.stg.bb={d:400};S.ixp.stg=0;for(const id of ixMembers('stg'))S.peers[id+'@stg']=1;compute()");
+  const reach = (ts) => ev(`S.pni=[];for(const t of ${JSON.stringify(ts)})S.pni.push({id:'p'+t,net:t,city:'stg',tier:2});compute();R.reach`);
+  const T = ['lvl', 'ntt', 'tly', 'cog', 'tat'];
+  const goal = ev("SCN.find(x=>x.id==='stg').ok.toString()");
+  assert.match(goal, /R\.reach>=0\.5/);
+  for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++)
+    assert.ok(reach([T[i], T[j]]) < 0.5, `${T[i]}+${T[j]} is not enough`);
+  assert.ok(reach(['lvl', 'ntt', 'tly']) >= 0.5, 'three Tier 1 PNIs and the exchange can be');
   assert.deepEqual(errors, []);
 });

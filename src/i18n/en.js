@@ -3204,7 +3204,7 @@
 "scenarios.ponta_delgada_in_the_azores_halfway":"Ponta Delgada, in the Azores, halfway across the Atlantic. Florida to Spain and Lisbon to Lagos are just too long for a 1.6T wave: straight across, each carries 1.2T. Land on the islands in between, start the light fresh, and every hop runs at 1.6T or better. You start with 1.6T gear unlocked.",
 "scenarios.pops_in_bogota_lima_santiago_and":"POPs in Bogotá, Lima, Santiago and São Paulo, and 150 Gbps served",
 "scenarios.ports_on_15_ix_brrr_exchanges":"Ports on 15 IX.brrr exchanges, one of them in Manaus, and 200 Gbps served",
-"scenarios.reach_45_of_the_internet_and":"Reach 45% of the internet and serve 300 Gbps",
+"scenarios.reach_50_of_the_internet_and":"Reach 50% of the internet and serve 300 Gbps",
 "scenarios.red_sea_crisis":"Red Sea Crisis",
 "scenarios.rio_from_scratch_carnaval_starts_in":"Rio from scratch. Carnaval starts in 90 days and wants 400 Gbps for five days straight. The whole world is watching.",
 "scenarios.sandbox_mode_a_billion_dollars_chaos":"<b>Sandbox mode</b><br>A billion dollars and every unlock. Chaos: {chaos}. Build the internet you always wanted, and keep a spare backhoe handy.",
