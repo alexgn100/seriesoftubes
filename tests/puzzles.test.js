@@ -411,3 +411,37 @@ test('phone sheet: 40 px touch targets, pinned actions, and goal chips with a cl
   assert.ok(ev("[...document.querySelectorAll('#pzBox button')].every(b=>b.classList.contains('b'))"), 'every sheet button is a .b the rule sizes');
   assert.deepEqual(errors, []);
 });
+
+test('results pull you on: Next is the big tap after three stars, stars left in the pack, and a nudge when 3 stars are one link away', () => {
+  const { ev, errors } = load();
+  ev("localStorage.removeItem('sot-puzzles');pzBegin(pzDef('braces'))");
+  build(ev, REF.braces.one);
+  let card = ev("document.getElementById('modalCard').textContent");
+  assert.equal(evalP(ev).stars, 2);
+  assert.match(card, /So close: one more link and a backhoe can't touch you\./, 'Dublin to New York would do it, within budget');
+  assert.match(ev("document.getElementById('pzBox').textContent"), /So close/);
+  assert.match(card, /10 ⭐ left in this pack/, '4 puzzles × 3 stars, 2 won');
+  assert.ok(ev("!!document.querySelector('#modalCard [data-act=pzRetry]')"));
+  assert.ok(!ev("document.querySelector('#modalCard .btns.cta').classList.contains('pzdone')"));
+  build(ev, [['dub', 'nyc', 'havf']]);
+  card = ev("document.getElementById('modalCard').textContent");
+  assert.match(card, /9 ⭐ left in this pack/);
+  assert.ok(ev("document.querySelector('#modalCard .btns.cta').classList.contains('pzdone')"), 'three stars: the big Next layout');
+  assert.ok(ev("document.activeElement===document.querySelector('#modalCard .pznext')"), 'the big button has the focus');
+  assert.equal(ev("document.querySelector('#modalCard [data-act=pzRetry]')"), null, 'no retry after three stars');
+  assert.match(ev("document.querySelector('#modalCard .pznext').textContent"), /More puzzles/, 'the last pack points back to the list');
+  ev("pzBegin(pzDef('eurotrip'))");build(ev, REF.eurotrip.three);
+  assert.match(ev("document.querySelector('#modalCard .pznext').textContent"), /Next puzzle →/);
+  assert.equal(ev("document.activeElement.dataset.act"), 'pzStart');
+  // No nudge when no single link fits the budget: an over-budget gold plate is not "close".
+  ev("pzBegin(pzDef('braces'));S.pz.budget=245000");
+  build(ev, REF.braces.one);
+  assert.equal(evalP(ev).stars, 2);
+  assert.doesNotMatch(ev("document.getElementById('modalCard').textContent"), /So close/);
+  assert.match(ev("document.getElementById('modalCard').textContent"), /One backhoe away/);
+  // A finished pack says so.
+  ev("localStorage.setItem('sot-puzzles',JSON.stringify({s:{sharks:{st:3},braces:{st:3},nofra:{st:3},fatpipes:{st:2}}}));pzBegin(pzDef('fatpipes'))");
+  build(ev, REF.fatpipes.three);
+  assert.match(ev("document.getElementById('modalCard').textContent"), /Every star in this pack is yours/);
+  assert.deepEqual(errors, []);
+});

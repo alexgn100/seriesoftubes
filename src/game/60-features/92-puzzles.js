@@ -56,6 +56,14 @@ function pzEval(){const P=S.pz,ls=S.links,cs=P.cities,spend=pzSpend();
   const weak=conn?units.filter(u=>{const g=pzComp(ls,u,cs[0]);return !cs.every(c=>g.has(c));}):[];
   const n1=conn&&units.length>0&&!weak.length,cheap=!P.budget||spend<=P.budget;
   return {marks,conn,tw,goal,spend,cheap,n1,weak,stars:goal?1+(cheap?1:0)+(n1?1:0):0};}
+// Two stars, and one more link within budget would survive any cut? Then the third star is close. Tries every route
+// between the puzzle's cities at the smallest allowed size, so the nudge is true, not a guess.
+function pzOneMore(e){const P=S.pz;if(e.stars!==2||!e.cheap||e.n1)return false;const cs=[...P.cities,...P.via],tier=P.minG?1:0,cs0=P.cities[0];
+  for(const a of cs)for(const b of cs){if(a>=b)continue;for(const r of pzRoutes(a,b)){if((P.noSub&&r.sub)||subWaveWhy(tier,r.km,r.sub))continue;
+    const div=!r.sub&&S.links.some(l=>edgeKey(l)===edgeKey({a,b})&&!l.cable),cost=pzLinkCost(r,tier,div)+(S.pops[a]?0:pzPopCost(a))+(S.pops[b]?0:pzPopCost(b));
+    if(e.spend+cost>P.budget)continue;const ls=[...S.links,{id:'pz?',a,b,cable:r.cab,trench:r.cab?'cab:'+r.cab:'pz?'}];if(P.ring&&!pzRingOk(ls))continue;
+    if([...new Set(ls.map(pzUnit))].every(u=>{const g=pzComp(ls,u,cs0);return P.cities.every(c=>g.has(c));}))return true;}}
+  return false;}
 // ---------- the weekly puzzle: the same for everyone, seeded by the ISO week like the weekly challenge ----------
 function pzWeekKey(dt){const {y,w}=isoWeek(dt);return `${y}-W${String(w).padStart(2,'0')}`;}
 function pzPrevKey(key){const m=/^(\d{4})-W(\d{2})$/.exec(key);if(!m)return null;return pzWeekKey(new Date(+m[1],0,4+(+m[2]-2)*7));}
