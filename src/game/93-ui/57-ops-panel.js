@@ -14,7 +14,7 @@ function opsOrderHtml(d){const k=d.k,on=S.ops.on[k],cap=d.cap?opsCap(k):0,sp=S.o
     ${sp||am?`<div class="meta">${tr('ops.spent_and_mo',{price:fmt$(sp),mo:opsMo$(am)})}</div>`:''}
     ${k==='ix'&&ppol()!=='open'?`<p class="why">${tr('link_panels.off_while_your_peering_policy_is',{pol:tr(PPOL_N[ppol()])})}</p>`:''}`:''}</div>`;}
 function opsModal(){if(!S)return;const hired=opsHired();let h=`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('ops.ops')}</div><h2 style="font-size:26px">${tr('ops.standing_orders')}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>`;
-  if(!hired){h+=`<p class="tagline">${tr('ops.hire_pitch')}</p>`;
+  if(!hired){h+=`<p class="tagline">${tr('ops.hire_pitch_weekly')}</p>`;
     if(!rule('clock'))h+=`<p class="why">${tr('ops.no_clock')}</p>`;else if(!opsCanHire())h+=`<p class="why">${tr('ops.locked',{lv:2})}</p>`;
     else h+=Object.entries(INTERNS).map(([id,I])=>`<div class="ops-o"><div class="ops-h"><span class="ops-i" aria-hidden="true">${I.i}</span><div class="grow"><div class="nm">${tr(I.n)}</div><div class="meta">${tr(I.d)}</div></div>
       ${btn(tr('ops.hire_mo',{price:fmt$(INTERN_MO)}),'opsHire',{id},'pink sm',S.cash<INTERN_MO)}</div></div>`).join('');
