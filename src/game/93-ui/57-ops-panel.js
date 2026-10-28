@@ -6,12 +6,12 @@ function opsCard(){if(!S)return '';const last=opsHired()&&S.ops.log[0];
     <div class="btns">${btn(opsHired()?tr('ops.standing_orders'):tr('ops.hire_an_intern'),'opsOpen',{},opsHired()?'sm':'pink sm',!opsHired()&&!opsCanHire())}</div></div>`;}
 const opsEntry=e=>(e.f!==undefined?opsFFLine(e)+' ':'')+(e.r.length||e.f===undefined?opsLine(e):'');
 function opsVal(k,p){const P=OPSK[k].p[p],v=opsP(k,p);return p==='prov'?(v==='cheap'?tr('ops.cheapest'):NET[v].name):P.f(v);}
-function opsOrderHtml(d){const k=d.k,on=S.ops.on[k],cap=d.cap?opsCap(k):0;
-  return `<div class="ops-o${on?' on':''}"><div class="ops-h"><span class="ops-i" aria-hidden="true">${d.i}</span><div class="grow"><div class="nm">${tr(d.t)}</div><div class="meta">${tr(d.d)}</div></div>
+function opsOrderHtml(d){const k=d.k,on=S.ops.on[k],cap=d.cap?opsCap(k):0,sp=S.ops.spent[k]||0,am=Math.round(S.ops.addMo[k]||0);
+  return `<div class="ops-o${on?' on':''}"><div class="ops-h"><span class="ops-i" aria-hidden="true">${d.i}</span><div class="grow"><div class="nm">${tr(d.t)}</div><div class="meta">${tr(d.d)}${k==='caches'?' '+tr('ops.caches_rent',{price:fmt$(CACHE_MO)}):''}</div></div>
     <button class="b sm ${on?'green':'ghost'}" data-act="opsToggle" data-args='{"k":"${k}"}' aria-pressed="${on}" aria-label="${esc(tr(d.t))}">${on?tr('common.on'):tr('ops.paused')}</button></div>
     ${on?`<div class="ops-p">${Object.keys(d.p).map(p=>btn(`${tr(d.p[p].l)}: <b>${esc(opsVal(k,p))}</b>`,'opsParam',{k,p},'ghost sm')).join('')}
-    ${d.cap?btn(`${tr('ops.budget')}: <b>${cap?tr('common.price_mo',{price:fmt$(cap)}):tr('ops.no_cap')}</b>`,'opsCap',{k},'ghost sm'):''}</div>
-    ${d.cap&&S.ops.spent[k]?`<div class="meta">${tr('ops.spent_this_month',{price:fmt$(S.ops.spent[k])})}</div>`:''}
+    ${d.cap?btn(`${d.mo?tr('ops.budget_running'):tr('ops.budget')}: <b>${cap?tr('common.price_mo',{price:(d.mo?'+':'')+fmt$(cap)}):tr('ops.no_cap')}</b>`,'opsCap',{k},'ghost sm'):''}</div>
+    ${sp||am?`<div class="meta">${tr('ops.spent_and_mo',{price:fmt$(sp),mo:opsMo$(am)})}</div>`:''}
     ${k==='ix'&&ppol()!=='open'?`<p class="why">${tr('link_panels.off_while_your_peering_policy_is',{pol:tr(PPOL_N[ppol()])})}</p>`:''}`:''}</div>`;}
 function opsModal(){if(!S)return;const hired=opsHired();let h=`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('ops.ops')}</div><h2 style="font-size:26px">${tr('ops.standing_orders')}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>`;
   if(!hired){h+=`<p class="tagline">${tr('ops.hire_pitch')}</p>`;

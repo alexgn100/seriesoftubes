@@ -2,17 +2,18 @@
    A NOC intern runs the player's standing orders once per game day. Every job goes through the same action a click
    would (ACT.*, pniPlace, the #185/#192 planners), so it costs exactly what the click costs, with toasts and redraws
    muted and one recompute at the end. Without an intern nothing here runs and no random numbers are drawn. */
-const INTERN_MO=6000,OPS_LOG=12,OPS_CAPS=[10000,50000,250000,1e6,5e6,0],OPS_FLOORS=[0,50000,250000,1e6,5e6];
+const INTERN_MO=6000,OPS_LOG=12,OPS_CAPS=[10000,50000,250000,1e6,5e6,0],OPS_CAPS_MO=[1000,2500,5000,10000,25000,0],OPS_FLOORS=[0,50000,250000,1e6,5e6];
 const INTERNS={
  annie:{i:'📡',n:N_('ops.anycast_annie'),s:N_('ops.annie'),d:N_('ops.annie_d')},
  kevin:{i:'🌙',n:N_('ops.kevin_from_the_night_shift'),s:N_('ops.kevin'),d:N_('ops.kevin_d')},
  tracy:{i:'🧭',n:N_('ops.tracy_route'),s:N_('ops.tracy'),d:N_('ops.tracy_d')},
 };
-// The orders, in the order the panel shows them. pop: can be switched off per POP. cap: default monthly budget.
+// The orders, in the order the panel shows them. pop: can be switched off per POP. cap: default monthly budget, of setup
+// fees, or (mo) of the running costs the order adds, for caches, which are free to rack but cost rent every month.
 const OPS=[
  {k:'transit',i:'📈',pop:1,cap:50000,t:N_('ops.o_transit'),d:N_('ops.o_transit_d'),p:{x:{d:1.5,v:[1.25,1.5,2,3],l:N_('ops.p_x'),f:v=>v+'×'},prov:{d:'cheap',ok:v=>v==='cheap'||(isNet(v)&&!!NET[v].price),l:N_('ops.p_prov')}}},
  {k:'routers',i:'🧠',pop:1,cap:250000,t:N_('ops.o_routers'),d:N_('ops.o_routers_d'),p:{at:{d:80,v:[60,70,80,90],l:N_('ops.p_at'),f:v=>v+'%'},how:{d:'auto',v:['auto','add','swap'],l:N_('ops.p_how'),f:v=>tr({auto:N_('ops.how_auto'),add:N_('ops.how_add'),swap:N_('ops.how_swap')}[v])}}},
- {k:'caches',i:'📦',pop:1,t:N_('ops.o_caches'),d:N_('ops.o_caches_d'),p:{g:{d:5,v:[1,5,10,25,50],l:N_('ops.p_g'),f:v=>fmtG(v)}}},
+ {k:'caches',i:'📦',pop:1,cap:5000,mo:1,t:N_('ops.o_caches'),d:N_('ops.o_caches_d'),p:{g:{d:5,v:[1,5,10,25,50],l:N_('ops.p_g'),f:v=>fmtG(v)}}},
  {k:'ix',i:'🔀',t:N_('ops.o_ix'),d:N_('ops.o_ix_d'),p:{}},
  {k:'pni',i:'🤝',pop:1,cap:50000,t:N_('ops.o_pni'),d:N_('ops.o_pni_d'),p:{g:{d:25,v:[5,10,25,50,100],l:N_('ops.p_g'),f:v=>fmtG(v)},tier:{d:0,v:[0,1,2],l:N_('ops.p_tier'),f:v=>tr('ops.at_least_port',{port:PORT[v].n})},paid:{d:false,v:[false,true],l:N_('ops.p_paid'),f:v=>tr(v?'common.on':'common.off')}}},
  {k:'sales',i:'💼',t:N_('ops.o_sales'),d:N_('ops.o_sales_d'),p:{acc:{d:true,v:[true,false],l:N_('ops.p_acc'),f:v=>tr(v?'common.on':'common.off')},min:{d:0,v:[0,2000,5000,10000,25000,50000],l:N_('ops.p_min'),f:v=>v?tr('common.price_mo',{price:fmt$(v)}):tr('ops.never')}}},
@@ -27,13 +28,14 @@ const OPS_SAY={transit:N_('ops.l_transit'),routers:N_('ops.l_routers'),caches:N_
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
 const OPS_TRIALS=1,OPS_FF_RATE={oncall:1/150,bgp:1/60};
-function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
+function opsNew(){return {intern:null,hired:0,on:Object.fromEntries(OPS.map(o=>[o.k,false])),p:{},cap:{},spent:Object.fromEntries(OPS.filter(o=>o.cap).map(o=>[o.k,0])),addMo:{},mon:0,skip:{},log:[],floor:50000,tpl:{bb:true,transit:true,ix:true,kit:true}};}
 const opsO=()=>S.ops||(S.ops=opsNew());
 const opsHired=()=>!!(S&&S.ops&&S.ops.intern&&own(INTERNS,S.ops.intern));
 const opsCanHire=()=>lvl()>=2;
 const opsName=(long)=>{const I=INTERNS[S.ops.intern];return I?tr(long?I.n:I.s):'';};
 function opsP(k,p){const P=OPSK[k].p[p],v=S.ops.p[k]&&S.ops.p[k][p];return v!==undefined&&(P.ok?P.ok(v):P.v.includes(v))?v:P.d;}
-function opsCap(k){const c=S.ops.cap[k];return OPS_CAPS.includes(c)?c:OPSK[k].cap||0;}
+const opsCaps=k=>OPSK[k].mo?OPS_CAPS_MO:OPS_CAPS;
+function opsCap(k){const c=S.ops.cap[k];return opsCaps(k).includes(c)?c:OPSK[k].cap||0;}
 const opsHere=(k,c)=>!(S.ops.skip[c]||[]).includes(k);
 const opsPops=k=>Object.keys(S.pops).filter(c=>opsHere(k,c));
 // Saves are untrusted: rebuild ops from known orders, params, cities and log shapes. Runs after the POPs are repaired,
@@ -45,31 +47,47 @@ function opsSanitize(s){const o=s.ops&&typeof s.ops==='object'&&!Array.isArray(s
   const on=ob(o.on),p=ob(o.p),cap=ob(o.cap),sp=ob(o.spent);
   for(const d of OPS){const k=d.k;n.on[k]=on[k]===true;const q=ob(p[k]),r={};
     for(const pk of Object.keys(d.p)){const P=d.p[pk];if(own(q,pk)&&(P.ok?P.ok(q[pk]):P.v.includes(q[pk])))r[pk]=q[pk];}n.p[k]=r;
-    if(d.cap&&OPS_CAPS.includes(cap[k]))n.cap[k]=cap[k];if(d.cap)n.spent[k]=Math.max(0,num(sp[k],0));}
+    if(d.cap&&opsCaps(k).includes(cap[k]))n.cap[k]=cap[k];if(d.cap)n.spent[k]=Math.max(0,num(sp[k],0));
+    {const v=num(ob(o.addMo)[k],0);if(v)n.addMo[k]=Math.max(-1e9,Math.min(1e9,v));}}
   {const t=ob(o.tpl);for(const k of OPS_TPL)if(typeof t[k]==='boolean')n.tpl[k]=t[k];}
   {const sk=ob(o.skip);for(const c of Object.keys(sk))if(isCity(c)&&own(s.pops,c)&&Array.isArray(sk[c])){const ks=[...new Set(sk[c].filter(k=>OPS_POP.includes(k)))];if(ks.length)n.skip[c]=ks;}}
   if(Array.isArray(o.log))n.log=o.log.map(opsLogOk).filter(Boolean).slice(0,OPS_LOG);
   if(s.autoSales===true)n.on.sales=true;if(s.autoRepair===true)n.on.repair=true;delete s.autoSales;delete s.autoRepair;
   s.ops=n;}
-// A log entry: {d, i: intern, r: [[kind, n, [where…]]], f: fat-finger index, c: its city}.
+// A log entry: {d, i: intern, r: [[kind, n, [where…]]], f: fat-finger index, c: its city, up: paid up front, mo: running costs added}.
 const opsWhereOk=w=>typeof w==='string'&&w.length<=48&&/^[a-z0-9~|]+( [+\w.×→⇧]+)?$/i.test(w)&&w.split(' ')[0].split('|').every(x=>isIx(x)||own(OPSK,x)||isNet(x));
 function opsLogOk(e){if(!e||typeof e!=='object'||!own(INTERNS,e.i))return null;const r=Array.isArray(e.r)?e.r.filter(x=>Array.isArray(x)&&own(OPS_SAY,x[0])&&Array.isArray(x[2])).map(x=>[x[0],int(x[1],1,1e6,1),x[2].filter(opsWhereOk).slice(0,3)]).slice(0,16):[];
-  const f=Number.isInteger(e.f)&&OPS_FF[e.f]?e.f:undefined;return {d:int(e.d,0,1e7,0),i:e.i,r,...(f!==undefined&&isCity(e.c)?{f,c:e.c}:{})};}
+  const f=Number.isInteger(e.f)&&OPS_FF[e.f]?e.f:undefined,up=int(e.up,0,1e12,0),mo=int(e.mo,-1e9,1e9,0);
+  return {d:int(e.d,0,1e7,0),i:e.i,r,...(f!==undefined&&isCity(e.c)?{f,c:e.c}:{}),...(up?{up}:{}),...(mo?{mo}:{})};}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
 function opsWhere(w){const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
 function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(opsWhere).join(', ')}));
-  return parts.length?tr('ops.l_line',{name,list:parts.join(', ')}):tr('ops.l_quiet',{name});}
+  return (parts.length?tr('ops.l_line',{name,list:parts.join(', ')}):tr('ops.l_quiet',{name}))+opsPaid(e);}
+const opsMo$=v=>(v>0?'+':'')+fmt$(v);
+const opsPaid=e=>e.up||e.mo?' '+tr('ops.l_paid',{cost:fmt$(e.up||0),mo:opsMo$(e.mo||0)}):'';
+// What the network costs every month before traffic: what a job adds to the bill (ports, routers, rent, links, cache boxes).
+// PNIs count from the day they are ordered, at the size they are going to be.
+function opsMoNow(){let m=S.caches.length*CACHE_MO;
+  for(const c in S.pops){const p=S.pops[c],rt=p.routers||1;m+=(rt-1)*ROUTER_MO+cageMo(rt)+rt*RG[p.rgen||0].mo;}
+  for(const l of S.links)m+=(l.mo||0)+(l.kind==='df'?(l.spares?Math.round(150+(l.ch||[]).length*80):0)+(l.regen|0)*REGEN_MO:0);
+  for(const t of S.transit)m+=transitMo(t,0);
+  for(const p of S.pni){const q=p.up||p,N=NET[p.net];m+=(q.g1?Math.round(PORT[0].pni/2):PORT[q.tier].pni)*(q.n||1)+(N.pol==='paid'&&!paidFree(N)?N.paidFee:0);}
+  return m;}
 const opsFFLine=e=>tr('ops.ff_line',{name:tr(INTERNS[e.i].s),what:tr(OPS_FF[e.f],{city:CITY[e.c].name})});
 // Mute what a click would show (toasts, sounds, floaters, the full redraw) and keep the player's selection.
 function opsQuiet(fn){const a=after,t=toast,s=sfx,f=floater,sel=UI.sel,cf=UI.confirm,tab=UI.tab;after=()=>{};toast=()=>{};sfx=()=>{};floater=()=>{};
   try{return fn();}finally{after=a;toast=t;sfx=s;floater=f;UI.confirm=cf;UI.tab=tab;UI.sel=sel&&(sel.type!=='link'||S.links.some(l=>l.id===sel.id))&&(sel.type!=='city'||isCity(sel.id))?sel:null;}}
 // One shift's bookkeeping: what got done, and whether a job had to wait for next month's budget.
 // dirty: a job changed the network, so R (loads, routing) is out of date until the next compute().
+// up/mo/rev: what this shift paid up front, added to the monthly bill, and signed in monthly revenue.
 function opsShift(){const r=new Map(),broke=new Set();
-  return {r,broke,dirty:false,did(k,w){if(k!=='decline')this.dirty=true;const x=r.get(k)||{n:0,w:[]};x.n++;if(w&&x.w.length<3&&!x.w.includes(w))x.w.push(w);r.set(k,x);},
-    can(k,cost){const O=S.ops,cap=opsCap(k);if(cost<=0)return true;if(S.cash-cost<O.floor||(cap&&(O.spent[k]||0)+cost>cap)){broke.add(k);return false;}return true;},
+  return {r,broke,dirty:false,up:0,mo:0,rev:0,did(k,w){if(k!=='decline')this.dirty=true;const x=r.get(k)||{n:0,w:[]};x.n++;if(w&&x.w.length<3&&!x.w.includes(w))x.w.push(w);r.set(k,x);},
+    // A job that costs nothing up front still has to pass the cash floor if it adds to the monthly bill.
+    can(k,cost,mo=0){const O=S.ops,cap=opsCap(k);if(cost<=0&&!(mo>0))return true;
+      if(S.cash-Math.max(0,cost)<O.floor||(cap&&(OPSK[k].mo?(O.addMo[k]||0)+mo:(O.spent[k]||0)+cost)>cap)){broke.add(k);return false;}return true;},
+    book(k,d,dm){const O=S.ops;if(d>0){this.up+=d;if(OPSK[k].cap)O.spent[k]=(O.spent[k]||0)+d;}if(dm){this.mo+=dm;O.addMo[k]=(O.addMo[k]||0)+dm;}},
     // Run a click and book what it really cost; false when the action refused (no ports, no cash, a quote changed).
-    pay(k,fn){const c0=S.cash,x=fn();const d=c0-S.cash;if(d>0&&OPSK[k].cap)S.ops.spent[k]=(S.ops.spent[k]||0)+d;return x===undefined?d>0:x;}};}
+    pay(k,fn){const c0=S.cash,m0=opsMoNow(),x=fn();this.book(k,c0-S.cash,opsMoNow()-m0);return x===undefined?c0-S.cash>0:x;}};}
 // Never buy from a provider that breaks a promise: a customer's "no Cogentle" or "two upstreams", a bank's covenant,
 // or Cogentle while it is not speaking to Goggle (the Spat scenario, a de-peering). Only met → failed counts.
 const OPS_TREQ=['nocog','twoup'];
@@ -87,7 +105,7 @@ const OPS_RUN={
      if(min&&v<min){S.offers=S.offers.filter(x=>x!==o);X.did('decline');continue;}
      // Each trial is a full routing pass: at most one a shift, and an offer that did not fit waits a week.
      if(acc&&o.exp>S.day&&bCities(o).every(popUp)&&reqOk(o)&&tries<OPS_TRIALS&&!(UI.opsTried&&UI.opsTried.s===S&&UI.opsTried.m.get(o.id)>S.day-7)){tries++;ACT.accept({id:o.id,auto:true});
-       if(!S.offers.includes(o))X.did('sales');else{if(!UI.opsTried||UI.opsTried.s!==S)UI.opsTried={s:S,m:new Map()};UI.opsTried.m.set(o.id,S.day);}}}},
+       if(!S.offers.includes(o)){X.did('sales');X.rev+=bizMo(o);}else{if(!UI.opsTried||UI.opsTried.s!==S)UI.opsTried={s:S,m:new Map()};UI.opsTried.m.set(o.id,S.day);}}}},
  routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how');
    for(const c of opsPops('routers')){const p=S.pops[c];if(p.rupDay===S.day)continue;
      const ld=Math.max((R.nodeLoad[c]||0)/(R.nodeCap[c]||nodeCap(c)||1),portsUsed(c)/Math.max(1,portsMax(c)));if(ld<at)continue;
@@ -126,7 +144,7 @@ const OPS_RUN={
  caches(X){const g=opsP('caches','g');
    for(const c of opsPops('caches')){const q=utilityCaches(c);if(!q||!q.add.length)continue;
      const want=q.add.filter(x=>(R.cityDem[c]||0)*(NSH[x.net]||0)>=g),free=Math.floor(portsMax(c)-portsUsed(c)+1e-9);
-     for(const x of want.slice(0,Math.max(0,free))){S.caches.push({id:uid(),city:c,net:x.net,site:x.site});X.did('caches',c);}}},
+     for(const x of want.slice(0,Math.max(0,free))){if(!X.can('caches',0,CACHE_MO))return;S.caches.push({id:uid(),city:c,net:x.net,site:x.site});X.book('caches',0,CACHE_MO);X.did('caches',c);}}},
  // Weekly, like a person going through PeeringDB on a Monday: route servers, then every willing member (#192).
  ix(X){if(S.day%7)return;for(const ix of utilityRouteServers()){S.rs[ix]=true;X.did('rs');}
    for(const row of utilityPeers())for(const id of row.requests){S.peers[id+'@'+row.ix]=true;X.did('peer',row.ix);}},
@@ -144,7 +162,7 @@ const OPS_RUN={
      const small=live.filter(l=>l!==big&&l.kind==='wave'&&!l.standby&&!l.premium&&capOf(l)<capOf(big)&&!S.biz.some(b=>b.link===l.id)).sort((a,b)=>capOf(b)-capOf(a));
      // The spare is there for when the big link's trench is cut, so it has to live in another trench.
      if(keep&&small.length){const tr=l=>l.trench||l.id,i=small.findIndex(l=>tr(l)!==tr(big));small.splice(Math.max(0,i),1);}
-     for(const l of small.reverse()){if(cap-capOf(l)<load*1.25)break;if(!opsDecomSafe(l))continue;cap-=capOf(l);UI.confirm=l.id;ACT.rmLink({id:l.id});if(!S.links.includes(l))X.did('decom',l.a+'|'+l.b);}}},
+     for(const l of small.reverse()){if(cap-capOf(l)<load*1.25)break;if(!opsDecomSafe(l))continue;cap-=capOf(l);UI.confirm=l.id;X.pay('decom',()=>ACT.rmLink({id:l.id}));if(!S.links.includes(l))X.did('decom',l.a+'|'+l.b);}}},
 };
 // A wave can carry a promise: diverse paths, no subsea, a latency budget. Try the network without it first.
 function opsDecomSafe(l){const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>k==='diverse'||k==='sharks'||k==='lat')&&b.city2);if(!bz.length)return true;
@@ -152,7 +170,7 @@ function opsDecomSafe(l){const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>k==='dive
   const was=bz.filter(chk),all=S.links;S.links=all.filter(x=>x!==l);try{return was.every(chk);}finally{S.links=all;}}
 const OPS_ORDER=['repair','sales','routers','transit','optics','caches','ix','pni','decom'];
 // The shift: once per game day from dayTick, after outages and events have had their turn.
-function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;}
+function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;O.addMo={};}
   const X=opsShift(),cash=S.cash;
   // One order that trips over something (an odd save, a bug) is paused and noted; payday, goals and the save still happen.
   opsQuiet(()=>{for(const k of OPS_ORDER)if(O.on[k])try{OPS_RUN[k](X);}catch(err){O.on[k]=false;X.dirty=true;X.did('snag',k);console.error('[tubes] standing order failed',k,err);}});
@@ -161,10 +179,11 @@ function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!=
   const ff=OPS_FF_RATE[rulePreset()];if(ff&&Object.keys(S.pops).length&&Math.random()<ff){const c=pick(Object.keys(S.pops));let f=Math.floor(Math.random()*OPS_FF.length);
     if(f===3){const t=O.on.transit&&opsHere('transit',c)&&!scnRule('noTransit')&&S.transit.find(t=>t.city===c&&(t.n||1)<LAG_MAX&&portOk(c,t.tier)&&PORT[t.tier].setup<=Math.min(20000,S.cash*0.05));if(!t||!opsQuiet(()=>X.pay('transit',()=>ACT.lagT({id:t.id,d:1}))))f=0;else X.dirty=true;}
     e.f=f;e.c=c;toast(esc(opsFFLine(e)),'',[{l:tr('ops.ops'),act:'opsOpen',args:{}}]);}
+  if(X.up)e.up=Math.round(X.up);if(Math.round(X.mo))e.mo=Math.round(X.mo);
   // Declining an offer or stopping at a budget changes nothing a route depends on: no recompute for those.
   if(X.dirty)compute();
   if(e.r.length||e.f!==undefined){O.log.unshift(e);O.log.length=Math.min(O.log.length,OPS_LOG);}
-  if(e.r.length)logNote(`<b>${esc(tr('ops.shift',{name:opsName()}))}</b> ${esc(opsLine(e))}`,cash>S.cash?'':'good',[],{a:'tab',v:'noc'});}
+  if(e.r.length||e.up||e.mo)logNote(`<b>${esc(tr('ops.shift',{name:opsName()}))}</b> ${esc(opsLine(e))}`,cash>S.cash?'':'good',[],{a:'tab',v:'noc'});}
 // New POP from the template: price the whole bundle first, then click through it in one go.
 function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))return null;const T=S.ops.tpl,parts=[];let cost=popCost(c),net=null,ix=null,kit=null;
   if(T.bb){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}

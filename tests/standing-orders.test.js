@@ -465,3 +465,44 @@ test('the fat-fingered LAG member respects a paused transit order and per-POP ex
   ev('Math.random=__r');
   assert.deepEqual(errors, []);
 });
+
+test('caches: the cash floor and a running-cost budget hold; the panel and the log show what a month costs', t => {
+  const { ev, errors } = game(t);
+  hire(ev); on(ev, 'caches', { g: 1 });
+  const add = () => ev("utilityCaches('fra').add.filter(x=>(R.cityDem.fra||0)*NSH[x.net]>=1).length");
+  assert.ok(add() >= 2, 'several boxes on offer');
+  ev('S.ops.floor=50000;S.cash=1000');
+  shift(ev);
+  assert.equal(ev('S.caches.length'), 0, 'below the floor: no new rent either');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /stopped at the budget for Accept free caches/);
+  ev('S.cash=1e8;S.ops.cap.caches=1000');
+  const m0 = ev('opsMoNow()');
+  shift(ev);
+  assert.equal(ev('S.caches.length'), 2, 'a $1k/mo budget fits two $400/mo boxes');
+  assert.equal(ev('S.ops.addMo.caches'), 800);
+  assert.equal(ev('opsMoNow()') - m0, 800);
+  assert.equal(ev('S.ops.log[0].mo'), 800);
+  assert.match(ev('opsEntry(S.ops.log[0])'), /racked 2 free caches \(Frankfurt\).*Cost: \$0 up front, \+\$800\/mo\./);
+  ev('opsModal()');
+  const txt = ev("document.getElementById('modalCard').textContent");
+  assert.match(txt, /each box costs \$400\/mo/);
+  assert.match(txt, /Adds at most: \+\$1\.0k\/mo/);
+  assert.match(txt, /This month: \$0 up front, \+\$800\/mo on the bill/);
+  ev('S.day+=30;S.ops.cap.caches=0'); shift(ev);
+  assert.equal(ev('S.ops.addMo.caches'), (ev('S.caches.length') - 2) * 400, 'a new month counts from zero');
+  assert.deepEqual(errors, []);
+});
+
+test('transit: the log line and budget line show the monthly cost a top-up adds', t => {
+  const { ev, errors } = game(t, "S.transit[0].hist=[60,80,70]");
+  hire(ev); on(ev, 'transit', { x: 1.5 });
+  const m0 = ev('opsMoNow()'), c0 = cash(ev);
+  shift(ev);
+  const mo = ev('opsMoNow()') - m0;
+  assert.ok(mo > 0);
+  assert.equal(ev('S.ops.log[0].up'), c0 - cash(ev));
+  assert.equal(ev('S.ops.log[0].mo'), Math.round(mo));
+  assert.equal(ev('Math.round(S.ops.addMo.transit)'), Math.round(mo));
+  assert.match(ev('S.log[0].t'), /Cost: \$[\d.]+k up front, \+\$[\d.]+k?\/mo\./);
+  assert.deepEqual(errors, []);
+});
