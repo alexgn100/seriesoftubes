@@ -484,8 +484,8 @@ test('Flood Season keeps attacking and escalating after both success and timeout
     const before = ev('S.day');
     ev('S.scn.nextDdos=S.day+1;S.day+=8;dayTick()');
     assert.ok(ev('ddosAll().at(-1).start') > before, 'subsequent attacks keep coming');
-    // Escalating frequency belongs to spicy chaos (stood in for here); calmer games keep the old 3 to 7 days.
-    ev("window.rule=k=>k==='chaos'?'spicy':undefined");
+    // Escalating frequency belongs to spicy chaos; calmer games keep the old 3 to 7 days.
+    ev("S.rules.chaos='spicy'");
     const gaps = JSON.parse(ev('const old=Math.random;Math.random=()=>0.5;S.day=0;const early=floodGap();S.day=1000;const late=floodGap();Math.random=old;JSON.stringify([early,late])'));
     assert.ok(gaps[1] < gaps[0], 'frequency keeps increasing with scenario age');
     const sizes = JSON.parse(ev('const old=Math.random;Math.random=()=>0.9;S.day=0;ddosAttack();const early=ddosAll().at(-1).gbps;S.day=1000;ddosAttack();const late=ddosAll().at(-1).gbps;Math.random=old;JSON.stringify([early,late])'));

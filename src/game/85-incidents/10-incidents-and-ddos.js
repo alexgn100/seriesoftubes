@@ -1,6 +1,6 @@
 /* ---------- failures & events ---------- */
 // A few badges read the incident text: callers whose message mentions a shark, anchor, crocodile or llama pass its English as en.
-function addInc(o,en=o.msg||''){if(S.loans&&S.loans.some(l=>(l.covs||[]).includes('pizza'))){S.cash-=COVS.pizza.each;S.stats.pizza=(S.stats.pizza||0)+1;}o.id=uid();o.start=S.day;S.inc.push(o);S.stats.incidents++;S.stats.by=S.stats.by||{};S.stats.by[o.type]=(S.stats.by[o.type]||0)+1;if(/shark/i.test(en))S.stats.sharks=(S.stats.sharks||0)+1;const f=S.stats.f=S.stats.f||{};if(/anchor/i.test(en))f.anchor=1;if(/crocodile/i.test(en))f.croc=1;if(/beaver/i.test(en))f.beaver=1;if(/llama/i.test(en))f.llama=1;}
+function addInc(o,en=o.msg||''){if(S.loans&&S.loans.some(l=>(l.covs||[]).includes('pizza'))){S.cash-=COVS.pizza.each;S.stats.pizza=(S.stats.pizza||0)+1;}o.id=uid();o.start=S.day;S.inc.push(o);S.stats.incidents++;S.stats.by=S.stats.by||{};S.stats.by[o.type]=(S.stats.by[o.type]||0)+1;if(/shark/i.test(en))S.stats.sharks=(S.stats.sharks||0)+1;const f=S.stats.f=S.stats.f||{};if(/anchor/i.test(en))f.anchor=1;if(/crocodile/i.test(en))f.croc=1;if(/beaver/i.test(en))f.beaver=1;if(/llama/i.test(en))f.llama=1;if(S.rules&&S.rules.chaos==='spicy')stretchInc(o);}
 const HARMLESS=[
  [tr('common.certificate_expired'),tr('incidents_and_ddos.the_tls_certificate_on_your_noc')],
  [tr('incidents_and_ddos.it_was_dns'),tr('incidents_and_ddos.someone_deleted_the_dns_record_for')],

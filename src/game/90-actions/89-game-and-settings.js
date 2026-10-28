@@ -1,7 +1,13 @@
 Object.assign(ACT,{
  randomName:()=>{const input=$('nmIn');if(input)input.value=UI.nm=randomNetworkName(input.value);},
- start:()=>{const nm=(($('nmIn')&&$('nmIn').value)||randomNetworkName()).slice(0,24);beginGame(nm,homeOk(UI.startCity)?UI.startCity:'fra',{mode:UI.mode==='sandbox'?'sandbox':'normal'});},
- modeSet:({m})=>{UI.mode=m;document.querySelectorAll('.modeb').forEach(b=>b.classList.toggle('pink',b.dataset.m===m));document.querySelectorAll('.modeb').forEach(b=>b.classList.toggle('ghost',b.dataset.m!==m));},
+ start:()=>{const nm=(($('nmIn')&&$('nmIn').value)||randomNetworkName()).slice(0,24),sb=UI.mode==='sandbox';
+   beginGame(nm,homeOk(UI.startCity)?UI.startCity:'fra',sb?{mode:'sandbox',rules:{chaos:own(CHAOS,UI.sbChaos)?UI.sbChaos:'none'}}:{mode:'normal',preset:NORMAL_PRESETS.includes(UI.preset)?UI.preset:'oncall'});},
+ // Title-screen doors and their options toggle in place, so the name being typed and the city stay as they are.
+ modeSet:({m})=>{if(m!=='sandbox'&&m!=='normal')return;UI.mode=m;document.querySelectorAll('.door').forEach(b=>b.classList.toggle('on',b.dataset.door===m));const n=$('doorNormal'),x=$('doorSandbox');if(n)n.hidden=m!=='normal';if(x)x.hidden=m!=='sandbox';},
+ presetSet:({p})=>{if(!NORMAL_PRESETS.includes(p))return;UI.preset=p;ACT.modeSet({m:'normal'});document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',b.dataset.preset===p));},
+ chaosSet:({c})=>{if(!own(CHAOS,c))return;UI.sbChaos=c;ACT.modeSet({m:'sandbox'});document.querySelectorAll('.chs').forEach(b=>b.classList.toggle('on',b.dataset.chaos===c));},
+ // Puzzles live in their own module; until it ships, the door says so.
+ puzzleDoor:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||randomNetworkName()).slice(0,24);if(typeof ACT.puzzleMenu==='function')ACT.puzzleMenu();else toast(tr('title.puzzles_are_coming_soon'),'goal');},
  scenarios:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||(S&&S.name)||randomNetworkName()).slice(0,24);scenarioModal();},
  startScn:({id,sure})=>{const sc=SCN.find(x=>x.id===id);if(!sc)return;if(!sure&&S&&UI.started&&!S.lost&&!(S.scn&&(S.scn.done||S.scn.failed))){openModal(`<h2 style="font-size:26px">${tr('game_and_settings.start_name',{name:esc(sc.n)})}</h2><p class="tagline">${tr('game_and_settings.name_will_be_replaced_export_it',{name:esc(S.name)})}</p><div class="btns">${btn(tr('game_and_settings.start_the_scenario'),'startScn',{id,sure:1},'pink big')}${btn(tr('common.keep_playing'),'closeModal',{},'ghost big')}</div>`);return;}beginGame(UI.nm||(S&&S.name)||randomNetworkName(),sc.city,{scn:sc});},
  startWeekly:({sure}={})=>{if(!sure&&S&&UI.started&&!S.lost&&!(S.scn&&(S.scn.done||S.scn.failed))){openModal(`<h2 style="font-size:26px">${tr('game_and_settings.start_the_weekly_challenge')}</h2><p class="tagline">${tr('game_and_settings.name_will_be_replaced_export_it',{name:esc(S.name)})}</p><div class="btns">${btn(tr('game_and_settings.start_the_challenge'),'startWeekly',{sure:1},'pink big')}${btn(tr('common.keep_playing'),'closeModal',{},'ghost big')}</div>`);return;}const wk=weekly();beginGame(UI.nm||(S&&S.name)||randomNetworkName(),wk.city,{scn:wk,seed:wk.seed});},

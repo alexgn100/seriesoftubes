@@ -18,7 +18,7 @@ const OPT={
 };
 const dfLeaseMo=km=>Math.round(400+km*1.0);
 const dfBuildCost=km=>Math.round((25000+km*120)*hwMul('build'));
-const dfBuildDays=km=>Math.round(120+km*0.25);
+const dfBuildDays=km=>leadDays(Math.round(120+km*0.25)),IRU_DAYS=30;
 const ampCount=km=>Math.max(0,Math.floor(km/AMP_EVERY));
 const fmtCap=g=>g>=1000?(+(g/1000).toFixed(1))+'T':g+'G';
 const WAVECO=['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','Bolt Technology','youNetworks','G&T (Gin and Transit)'];

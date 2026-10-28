@@ -4,8 +4,8 @@ const SPEEDS=[0.5,1,2,4,8];
 function renderTabbar(){const tb=$('tabbar');if(!tb||(pressing&&UI.ticking))return;if(!isPhone()||!S||!UI.started){tb.hidden=true;document.body.classList.remove('sheet-open');return;}tb.hidden=false;
   const open=UI.leftOpen&&!UI.sel,cur=UI.left||'goals',ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
   const tab=(k,ic,l,cnt,red)=>`<button class="${open&&cur===k?'on':''}" data-act="phoneTab" data-args='{"t":"${k}"}' aria-label="${esc(l)}"><span class="ic" aria-hidden="true">${ic}</span>${esc(l)}${cnt?`<span class="cnt${red?' red':''}">${cnt}</span>`:''}</button>`;
-  const h=`<button class="play${UI.speed?'':' paused'}" data-act="phonePlay" aria-label="${UI.speed?tr('common.pause'):tr('common.play')}"><span class="ic" aria-hidden="true">${UI.speed?'❚❚':'▶'}</span>${UI.speed?tr('common.pause'):tr('common.play')}</button>`+
-    `<button data-act="phoneSpeed" aria-label="${tr('common.game_speed')}"><span class="ic" aria-hidden="true">${UI.speed===0.5?'½':(UI.lastSpeed||UI.speed||1)}×</span>${tr('common.speed')}</button>`+
+  const h=(rule('clock')?`<button class="play${UI.speed?'':' paused'}" data-act="phonePlay" aria-label="${UI.speed?tr('common.pause'):tr('common.play')}"><span class="ic" aria-hidden="true">${UI.speed?'❚❚':'▶'}</span>${UI.speed?tr('common.pause'):tr('common.play')}</button>`+
+    `<button data-act="phoneSpeed" aria-label="${tr('common.game_speed')}"><span class="ic" aria-hidden="true">${UI.speed===0.5?'½':(UI.lastSpeed||UI.speed||1)}×</span>${tr('common.speed')}</button>`:'')+
     (()=>{const P=scnProg();return tab('goals','🎯',tr('common.goals'),P&&!S.scn.done&&!S.scn.failed?`${Math.round(P.f*100)}%`:`${ndone}/${GOALS.length}`);})()+(()=>{const u=custStats().unhappy;return u?tab('deals','💼',tr('common.deals'),u,true):tab('deals','💼',tr('common.deals'),S.offers.length||'');})()+tab('noc','🚨','NOC',S.inc.length||(UI.left==='noc'&&UI.leftOpen?'':logUnread())||'',S.inc.length>0)+tab('nets','🌐',tr('common.networks'),ibxOpen()||'',ibxUrgent()>0);
   if(h!==UI._tb){UI._tb=h;tb.innerHTML=h;}
   document.body.classList.toggle('sheet-open',!!(UI.sel||UI.leftOpen));}

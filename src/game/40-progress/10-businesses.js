@@ -50,7 +50,8 @@ const LEVELS=[
 // What each level asks for (peak Gbps, POPs, continents). Continents carry over to the levels above.
 const LV_REQ=[null,{pk:200,pops:3},{pk:1000,pops:6},{pk:3000,pops:10,reg:3},{pk:6000,pops:15,reg:4},{pk:9000,pops:20},{pk:12000,pops:25,reg:5},{pk:16000,pops:32},{pk:21000,pops:40,reg:6},{pk:26000,pops:50},{pk:33000,pops:60},{pk:40000,pops:70},{pk:50000,pops:80}];
 const lvReg=i=>Math.max(0,...LV_REQ.slice(1,i+1).map(q=>q.reg||0));
-const lvl=()=>(S&&S.lvl)||1;
+// Open gates (sandbox, puzzles): every level's unlocks are there from the start.
+const lvl=()=>S&&S.rules&&S.rules.gates==='open'?LEVELS.length:(S&&S.lvl)||1;
 // Lower-case just the first word for mid-sentence use, so names like Tel-Mess or AGI keep their capitals.
 const lc1=t=>/^[A-Z][a-z]/.test(t)?t[0].toLowerCase()+t.slice(1):t;
 function custLevel(){const pops=Object.keys(S.pops).length,pk=S.stats.peak,rc=regionsCount();let lv=1;for(let i=1;i<LV_REQ.length;i++){const q=LV_REQ[i];if(pk>=q.pk&&pops>=q.pops&&rc>=lvReg(i))lv=i+1;else break;}return lv;}

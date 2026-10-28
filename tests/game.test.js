@@ -4,8 +4,8 @@ const { load, seed } = require('./harness');
 
 test('daily DDoS spawns share one routing calculation and score their first active day', () => {
   const { ev, errors } = load();
-  // The busier DDoS schedule needs spicy chaos (or gaming customers): stand in for the chaos rule here.
-  ev("window.rule=k=>k==='chaos'?'spicy':undefined;ACT.start({});S.cash=1e9;S.day=50;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=200;ACT.buyTransit({city:'fra',net:'cog',tier:1});compute();window.__compute=compute;window.__random=Math.random;window.__computes=0;compute=()=>{window.__computes++;window.__compute()};Math.random=()=>0;dayTick();compute=window.__compute;Math.random=window.__random");
+  // The busier DDoS schedule needs spicy chaos (BGP at 3 a.m.) or gaming customers.
+  ev("ACT.start({});S.rules=makeRules('bgp');S.cash=1e9;S.day=50;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=200;ACT.buyTransit({city:'fra',net:'cog',tier:1});compute();window.__compute=compute;window.__random=Math.random;window.__computes=0;compute=()=>{window.__computes++;window.__compute()};Math.random=()=>0;dayTick();compute=window.__compute;Math.random=window.__random");
   assert.equal(ev('ddosAll().length'), 2, 'both daily spawn opportunities were used');
   assert.equal(ev('window.__computes'), 1, 'daily spawns do not reroute the whole network individually');
   assert.ok(ev('ddosAll().every(a=>a.worst===ddosSf(a))'), 'first-day service is recorded after routing');
@@ -794,7 +794,7 @@ test('DDoS frequency rises with level and signed gaming customers, with a rollin
   ev("S.offers=Array.from({length:50},()=>({type:'game'}));S.biz=[];S.lvl=1");
   assert.equal(ev('ddosRate()'), base, 'unsigned offers do not attract attacks');
   // Force every random spawn opportunity (with spicy chaos on), then verify each rolling seven-day window.
-  ev("window.rule=k=>k==='chaos'?'spicy':undefined;");
+  ev("S.rules=makeRules('bgp');");
   ev('window.__starts=[];window.__oldRandom=Math.random;Math.random=()=>0');
   for (let day = 50; day < 66; day++) {
     ev(`S.day=${day};ddosTick();window.__starts.push(...ddosAll().filter(a=>a.start===S.day).map(a=>a.start))`);
@@ -1006,7 +1006,7 @@ test('RackNet and TeamSpooked require signed gaming customers, bypass Flowspec, 
 
 test('normal DDoS starts average half an attack per week without gaming and never exceed a seven-per-week expected rate', () => {
   const { ev, errors } = load();
-  ev("window.rule=k=>k==='chaos'?'spicy':undefined;ACT.start({});S.day=50");
+  ev("ACT.start({});S.rules=makeRules('bgp');S.day=50");
   const checks = JSON.parse(ev(`
     const oldAttack=ddosAttack,oldRandom=Math.random,out=[];
     try {
@@ -1121,18 +1121,23 @@ test('the busier DDoS schedule needs spicy chaos or gaming customers; otherwise 
   ev("ACT.start({});S.cash=1e9;S.day=50;S.lvl=13;S.biz=[];S.nextFail=1e9;S.nextEvent=1e9");
   const ticks = () => ev("(()=>{const old=Math.random,oa=ddosAttack;let n=0;ddosAttack=()=>{n++};Math.random=()=>0;try{for(let i=0;i<30;i++)ddosTick();}finally{Math.random=old;ddosAttack=oa;}return n;})()");
   assert.equal(ticks(), 0, 'no spicy chaos, no gamers: no extra schedule');
-  // DDoS stays one of the regular incidents instead: fireFailure can still roll one.
   // DDoS stays one of the regular incidents instead: some roll of fireFailure() still starts one.
   assert.ok(ev("(()=>{const old=Math.random;try{for(let i=0;i<200;i++){const r=i/200;Math.random=()=>r;S.ev.ddos=null;S.ev.ddosMore=[];S.ddosStarts=[];fireFailure();if(ddosAll().length)return true;}return false;}finally{Math.random=old;}})()"), 'fireFailure can start an attack');
   ev("S.ev.ddos=null;S.ev.ddosMore=[];S.ddosStarts=[];S.inc=[]");
   ev("S.biz=[{type:'game',city:'fra',bw:5,rate:1,reqs:[]}]");
   assert.ok(ticks() > 0, 'gaming customers bring their own attacks');
-  ev("S.biz=[];window.rule=k=>k==='chaos'?'spicy':'calm'");
+  ev("S.biz=[];S.rules=makeRules('bgp')");
   assert.ok(ticks() > 0, 'spicy chaos brings more attacks');
-  ev("window.rule=k=>k==='chaos'?'calm':undefined");
-  assert.equal(ticks(), 0, 'any other chaos setting keeps them as on main');
+  ev("S.rules=makeRules('freeze')");
+  assert.equal(ticks(), 0, 'Change Freeze has no attacks on either schedule');
+  ev("S.biz=[{type:'game',city:'fra',bw:5,rate:1,reqs:[]}]");
+  assert.equal(ticks(), 0, 'not even with gamers');
+  assert.ok(ev("(()=>{const old=Math.random;try{for(let i=0;i<200;i++){const r=i/200;Math.random=()=>r;S.ev.ddos=null;S.ev.ddosMore=[];S.ddosStarts=[];fireFailure();if(ddosAll().length)return false;}return true;}finally{Math.random=old;S.inc=[];}})()"), 'and fireFailure never rolls one');
+  ev("S.rules=makeRules('bgp');S.biz=[]");
+  assert.ok(ev("(()=>{const old=Math.random;try{for(let i=0;i<200;i++){const r=i/200;Math.random=()=>r;S.ev.ddos=null;S.ev.ddosMore=[];S.ddosStarts=[];fireFailure();if(ddosAll().length)return false;}return true;}finally{Math.random=old;S.inc=[];}})()"), 'spicy attacks come from their own schedule only, never twice');
+  ev("S.rules=makeRules('oncall')");
   // Flood Season, not spicy: one flood at a time, 3 to 7 days apart, however old the scenario is.
-  ev("delete window.rule;ACT.startScn({id:'flood',sure:1});S.biz=[]");
+  ev("ACT.startScn({id:'flood',sure:1});S.biz=[]");
   const gaps = JSON.parse(ev("(()=>{const o=[];for(const d of [0,1000])for(const r of [0,0.999]){S.day=d;const old=Math.random;Math.random=()=>r;o.push(floodGap());Math.random=old;}return JSON.stringify(o);})()"));
   assert.deepEqual(gaps, [3, 7, 3, 7]);
   ev("S.scn.nextDdos=S.day;ddosTick()");

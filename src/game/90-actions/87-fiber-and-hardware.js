@@ -1,7 +1,7 @@
 Object.assign(ACT,{
  dfMode:({m})=>{UI.lmode=m;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  seaPackage:({k})=>{if(!own(SUB_UPGRADES,k))return;UI['sea'+k]=!UI['sea'+k];if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
- subUpgrade:({id,k})=>{const l=S.links.find(l=>l.id===id);if(!l||l.kind!=='df'||!l.own||!l.sub||!own(SUB_UPGRADES,k)||lvl()<4||l['sub'+k]!==undefined)return;if(!spend(subUpgradeCost(l,k)))return;l.paid=(l.paid>0?l.paid:ownCabCost(l.km))+subUpgradeCost(l,k);l['sub'+k]=Math.max(S.day,l.ready||0)+SUB_UPGRADES[k].days;after();},
+ subUpgrade:({id,k})=>{const l=S.links.find(l=>l.id===id);if(!l||l.kind!=='df'||!l.own||!l.sub||!own(SUB_UPGRADES,k)||lvl()<4||l['sub'+k]!==undefined)return;if(!spend(subUpgradeCost(l,k)))return;l.paid=(l.paid>0?l.paid:ownCabCost(l.km))+subUpgradeCost(l,k);l['sub'+k]=Math.max(S.day,l.ready||0)+leadDays(SUB_UPGRADES[k].days);after();},
  seaDesign:({v})=>{if(!own(SEA_DESIGNS,v))return;UI.seaDesign=v;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  ownCab:()=>{UI.lmode='df';UI.dfSrc='cable';UI.seaDesign='standard';UI.seaterminal=UI.seaengineering=false;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  dfSrc:({v})=>{UI.dfSrc=v;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
@@ -18,7 +18,7 @@ Object.assign(ACT,{
    const up=(own?dfBuildCost(km):0)+DF_SYS[sys].cost+ampCount(km)*AMP_COST+(S.pops[b]?0:popCost(b));if(!spend(up))return;
    if(!S.pops[b])S.pops[b]={day:S.day,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0};
    const sib=pairLinks(a,b).filter(l=>l.kind!=='vxc'),id=uid();
-   const l={id,a,b,kind:'df',own,sys,ch:[],km,sub:!!sc,cable:sc?sc.cid:null,mo:own?Math.round(km*0.15):dfLeaseMo(km),trench:sc?'cab:'+sc.cid:id,cut:0,day:S.day,ready:S.day+(own?dfBuildDays(km):30),spares:false};
+   const l={id,a,b,kind:'df',own,sys,ch:[],km,sub:!!sc,cable:sc?sc.cid:null,mo:own?Math.round(km*0.15):dfLeaseMo(km),trench:sc?'cab:'+sc.cid:id,cut:0,day:S.day,ready:S.day+(own?dfBuildDays(km):leadDays(IRU_DAYS)),spares:false};
    S.links.push(l);closeModal();UI.sel={type:'link',id};
    toast(own?tr('fiber_and_hardware.groundbreaking_your_own_fiber_from_a',{a:CITY[a].name,b:CITY[b].name,n:dfBuildDays(km)}):tr('fiber_and_hardware.dark_fiber_iru_signed_a_b',{a:CITY[a].name,b:CITY[b].name}),'goal');after();},
  regen:({id,d})=>{d=+d;const l=S.links.find(x=>x.id===id);if(!l||l.kind!=='df'||l.sub||(d!==1&&d!==-1))return;const n=(l.regen|0)+d;if(n<0||n>REGEN_MAX)return;

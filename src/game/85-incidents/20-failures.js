@@ -7,8 +7,9 @@ function fireFailure(){
   if(S.transit.some(t=>!(t.down>S.day)))opts.push(['transit',3]);
   if(Object.keys(S.ixp).length)opts.push(['ixloop',2]);
   if(S.transit.length&&S.day>60)opts.push(['leak',2]);
-  // Spicy chaos or gaming customers put DDoS on its own, busier schedule (ddosTick); otherwise it stays one incident among many.
-  if(S.day>40&&!scnRule('ddos')&&!ddosSpicy())opts.push(['ddos',2]);
+  // Flood Season brings its own; Change Freeze (calm) has none. Spicy chaos or gaming customers put DDoS on its own,
+  // busier schedule (ddosTick) instead of this one, so it is never counted twice.
+  if(S.day>40&&!scnRule('ddos')&&!ddosOff()&&!ddosSpicy())opts.push(['ddos',2]);
   if(fabsUsed.length)opts.push(['fabric',1.5]);
   const lit=S.links.filter(l=>l.kind==='df'&&dfCap(l)>0&&!linkDown(l));if(lit.length)opts.push(['amp',1.5+lit.length*0.3],['optic',1.5+lit.length*0.3]);
   opts.push(['funny',4]);
@@ -130,9 +131,11 @@ const ddosSizeMax=()=>ddosSizeMean()*(scnRule('ddos')?1.5:12/1.278);
 function ddosSize(vec){const fl=scnRule('ddos'),r=Math.random(),roll=fl?1/3+r*2/3:(r<.98?.2+1.8*r/.98:8+4*(r-.98)/.02)/12;
   const raw=ddosSizeMax()*(DDOS_VEC[vec].gaming?1/3:1)*roll;
   return fl?Math.max(2,Math.floor(raw)):Math.max(0.001,Math.floor(raw*1000)/1000);}
+// Calm (Change Freeze) and no chaos at all mean no attacks, gamers or not.
+const ddosOff=()=>{const c=rule('chaos');return c==='calm'||c==='none';};
 // More frequent attacks are opt-in: the spicy chaos setting, or hosting gamers (who attract them in real life).
-const ddosSpicy=()=>(typeof rule==='function'&&rule('chaos')==='spicy')||gamingCount()>0;
-function ddosTick(){if(S.mode==='sandbox')return;if(scnRule('ddos')){let next=+S.scn.nextDdos||3,n=0;
+const ddosSpicy=()=>!ddosOff()&&(rule('chaos')==='spicy'||gamingCount()>0);
+function ddosTick(){if(ddosOff()&&!scnRule('ddos'))return;if(scnRule('ddos')){let next=+S.scn.nextDdos||3,n=0;
     // Unless spicy, floods take turns as they always did: the next one waits until the last is over.
     if(!ddosSpicy()&&ddosAll().length)return;
     while(S.day>=next&&n++<2){ddosAttack(false);next+=floodGap();}S.scn.nextDdos=next<S.day?S.day+floodGap():next;}
