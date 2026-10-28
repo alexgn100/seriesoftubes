@@ -28,11 +28,12 @@ function pzRoutes(a,b){const out=[],sub=isSub(a,b);
   return out;}
 const pzMo=(r,tier,div)=>Math.round(waveMo(r.km,r.sub,tier)*r.f*(div?DIVERSE:1));
 const pzLinkCost=(r,tier,div)=>pzMo(r,tier,div)*PZ_YEAR;// leased waves have no setup fee: a year of rent
-const pzPopCost=c=>popCost(c)+PZ_YEAR*POP_MO;
+const pzPopCost=c=>popCost(c)+PZ_YEAR*popMo(c);// thin markets cost more every month too (#94)
 const PZ_TIERS=[0,1,2];
 function pzSpend(){let s=0;for(const c in S.pops)s+=pzPopCost(c);for(const l of S.links)s+=l.mo*PZ_YEAR;return s;}
-// What one backhoe or one anchor takes out: waves in the same trench, or on the same cable between the same cities.
-const pzUnit=l=>l.cable?'cab:'+l.cable+':'+edgeKey(l):String(l.trench||l.id);
+// What one backhoe or one anchor takes out: waves in the same trench, or every wave on the same cable (a cable fails
+// as a whole, as in the main game's diversity checks).
+const pzUnit=l=>l.cable?'cab:'+l.cable:String(l.trench||l.id);
 // ---------- checks ----------
 function pzComp(ls,skip,from){const adj={};for(const l of ls){if(skip&&pzUnit(l)===skip)continue;(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}
   const seen=new Set([from]),q=[from];while(q.length){const u=q.pop();for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return seen;}
@@ -51,24 +52,37 @@ function pzEval(){const P=S.pz,ls=S.links,cs=P.cities,spend=pzSpend();
   if(P.minG)tw.push({k:'g',ok:ls.every(l=>LT[l.tier].g>=P.minG)});
   if(P.avoid.length)tw.push({k:'avoid',ok:P.avoid.every(c=>!S.pops[c])});
   const goal=conn&&tw.every(t=>t.ok),units=[...new Set(ls.map(pzUnit))];
-  // N-1: the goal cities stay joined whichever single trench or cable segment is cut.
+  // N-1: the goal cities stay joined whichever single trench or cable is cut.
   const weak=conn?units.filter(u=>{const g=pzComp(ls,u,cs[0]);return !cs.every(c=>g.has(c));}):[];
   const n1=conn&&units.length>0&&!weak.length,cheap=!P.budget||spend<=P.budget;
   return {marks,conn,tw,goal,spend,cheap,n1,weak,stars:goal?1+(cheap?1:0)+(n1?1:0):0};}
+// Two stars, and one more link within budget would survive any cut? Then the third star is close. Tries every route
+// between the puzzle's cities at the smallest allowed size, so the nudge is true, not a guess.
+function pzOneMore(e){const P=S.pz;if(e.stars!==2||!e.cheap||e.n1)return false;const cs=[...P.cities,...P.via],tier=P.minG?1:0,cs0=P.cities[0];
+  for(const a of cs)for(const b of cs){if(a>=b)continue;for(const r of pzRoutes(a,b)){if((P.noSub&&r.sub)||subWaveWhy(tier,r.km,r.sub))continue;
+    const div=!r.sub&&S.links.some(l=>edgeKey(l)===edgeKey({a,b})&&!l.cable),cost=pzLinkCost(r,tier,div)+(S.pops[a]?0:pzPopCost(a))+(S.pops[b]?0:pzPopCost(b));
+    if(e.spend+cost>P.budget)continue;const ls=[...S.links,{id:'pz?',a,b,cable:r.cab,trench:r.cab?'cab:'+r.cab:'pz?'}];if(P.ring&&!pzRingOk(ls))continue;
+    if([...new Set(ls.map(pzUnit))].every(u=>{const g=pzComp(ls,u,cs0);return P.cities.every(c=>g.has(c));}))return true;}}
+  return false;}
 // ---------- the weekly puzzle: the same for everyone, seeded by the ISO week like the weekly challenge ----------
 function pzWeekKey(dt){const {y,w}=isoWeek(dt);return `${y}-W${String(w).padStart(2,'0')}`;}
 function pzPrevKey(key){const m=/^(\d{4})-W(\d{2})$/.exec(key);if(!m)return null;return pzWeekKey(new Date(+m[1],0,4+(+m[2]-2)*7));}
 function pzWeekly(dt){const key=pzWeekKey(dt||new Date());let r=hstr('puzzle|'+key)||1;const nx=()=>{r=(Math.imul(r,1103515245)+12345)>>>0;return r/4294967296;};
   const pool=PZ_WEEK_POOLS[Math.floor(nx()*PZ_WEEK_POOLS.length)].slice(),n=4+Math.floor(nx()*2),cities=[];
   while(cities.length<n&&pool.length)cities.push(pool.splice(Math.floor(nx()*pool.length),1)[0]);
-  // The budget is a ring through the cities, nearest first, on the cheapest 10G route of each hop, plus 10%:
-  // a ring survives any single cut, so three stars are always possible.
+  // The budget is a ring through the cities, nearest first, on the cheapest 10G route of each hop, plus 10%. A ring
+  // survives any single cut only if no two hops share a cable, so each hop takes the cheapest route on a cable the ring
+  // has not used yet (overland is always there: a pool is one landmass), and three stars are always possible.
   const ring=[cities[0]],left=cities.slice(1);while(left.length){const u=ring[ring.length-1];left.sort((a,b)=>kmBetween(u,a)-kmBetween(u,b));ring.push(left.shift());}
-  let cost=cities.reduce((a,c)=>a+pzPopCost(c),0);for(let i=0;i<ring.length;i++)cost+=Math.min(...pzRoutes(ring[i],ring[(i+1)%ring.length]).map(x=>pzLinkCost(x,0,false)));
-  return {id:'weekly',key,cities,via:[],budget:Math.ceil(cost*1.1/10000)*10000,ref:ring};}
+  let cost=cities.reduce((a,c)=>a+pzPopCost(c),0);const used=new Set(),via=[];
+  for(let i=0;i<ring.length;i++){const r=pzRoutes(ring[i],ring[(i+1)%ring.length]).filter(x=>!x.cab||!used.has(x.cab)).sort((x,y)=>pzLinkCost(x,0,false)-pzLinkCost(y,0,false))[0];
+    if(r.cab)used.add(r.cab);via.push(r.via);cost+=pzLinkCost(r,0,false);}
+  return {id:'weekly',key,cities,via:[],budget:Math.ceil(cost*1.1/10000)*10000,ref:ring,refVia:via};}
 function pzStreak(p,key){const st=p.streak;if(st.last===key)return;st.n=st.last&&st.last===pzPrevKey(key)?st.n+1:1;st.last=key;st.best=Math.max(st.best,st.n);}
 function pzShareText(e){const P=S.pz;return tr('puzzles.share_line',{what:P.id==='weekly'?P.key:pzName(pzDef(P.id)),stars:pzStarStr(e.stars),spend:fmt$(e.spend)});}
 // ---------- entering and leaving ----------
+// Toasts from one world never carry over into the other (their buttons act on the S they came from).
+const pzToastsClear=()=>{$('toasts').textContent='';};
 // The running game gets its usual save first, so leaving the puzzle can load it back exactly as booting does. A huge
 // save is compressed in the background and may not have landed yet, so the game object is kept in memory too.
 function pzFlush(){save(true);UI.pzKeep=UI.gzBusy||saveFailing()?S:null;}
@@ -76,13 +90,13 @@ function pzBegin(def){if(!def)return;
   const go=()=>{newGame(pzName(def),def.cities[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
     S.pz={id:def.id,key:def.key||null,cities:def.cities.slice(),via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,minG:def.minG||0,lat:def.lat?def.lat.slice():null};
     UI.pzHist=[];UI.pzTop=0;UI.speed=0;UI.resumeSpeed=null;UI.started=true;UI.sel=null;UI.leftOpen=false;UI.confirm=null;UI._pzh=null;
-    $('dash').hidden=true;$('bankBox').hidden=true;closeModal();document.body.classList.add('pz');
+    $('dash').hidden=true;$('bankBox').hidden=true;closeModal();pzToastsClear();document.body.classList.add('pz');
     compute();pzCam();renderAll();track('puzzle_'+def.id);
     toast(`<b>${esc(pzName(def))}</b><br>${tr('puzzles.connect_list',{list:def.cities.map(c=>CITY[c].name).join(', ')})}`,'goal');};
   if(pzOn()){go();return;}
   const live=!!(S&&UI.started&&!S.lost);UI.pzFrom=live?'game':'title';
   if(live)pzFlush();go();}
-function pzLeave(){const from=UI.pzFrom;document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
+function pzLeave(){const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
     if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){S=null;UI.started=false;}}}
   renderAll();showTitle();}
@@ -97,8 +111,11 @@ const pzNewPop=()=>({day:0,bb:null,boost:0,down:0,routers:1,gen:false});
 function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI.sel.id))||(UI.sel.type==='city'&&!pzKind(UI.sel.id))))UI.sel=null;
   compute();renderAll();pzCheck();}
 // Stars count the moment they are earned: a better result than this attempt has had opens the results card.
-function pzCheck(){const e=pzEval();if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzRecord(e);pzResults(e,prev);return e;}
+// Every solved state is recorded, so a cheaper build at the same stars counts too.
+function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzResults(e,prev);return e;}
+// The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
 function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=bag[k]||{st:0,sp:null};
-  r.st=Math.max(r.st,e.stars);r.sp=r.sp==null?e.spend:Math.min(r.sp,e.spend);bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
+  if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;
+  r.sp=e.spend;r.st=e.stars;bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
 // The next puzzle in the list whose pack is open.
 function pzNextDef(){const p=pzLoad(),i=PZ.findIndex(x=>x.id===S.pz.id);for(let j=i+1;j<PZ.length;j++)if(pzPackOpen(PZ[j].pack,p))return PZ[j];return null;}

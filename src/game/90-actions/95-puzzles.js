@@ -24,3 +24,8 @@ Object.assign(ACT,{
    const copied=()=>toast(tr('puzzles.copied_paste_it_anywhere',{t:esc(t)}),'good'),copy=()=>{try{navigator.clipboard.writeText(t).then(copied,()=>toast(esc(t),''));}catch(e){toast(esc(t),'');}};
    if(navigator.share&&isPhone()){navigator.share({text:t}).catch(()=>{});return;}copy();track('puzzle_share');},
 });
+// A puzzle is its own S: a leftover main-game button (an old toast, a stale panel, a shortcut) must not build, buy or
+// open anything in it. Everything but these and the pz* actions does nothing while a puzzle is on. This file is the
+// last of the actions, so every one is here to wrap.
+const PZ_ACTS=new Set(['animSet','closeModal','closePanel','help','helpClose','install','keepPlaying','langSet','menu','mute','prefSet','puzzleDoor','puzzleMenu','selLink','settings','settingsClose','soundSet','speed','updateLater','updateNow','vpSet','whatsNewShow']);
+for(const k of Object.keys(ACT))if(!PZ_ACTS.has(k)&&!/^pz[A-Z]/.test(k)){const f=ACT[k];ACT[k]=a=>pzOn()?undefined:f(a);}

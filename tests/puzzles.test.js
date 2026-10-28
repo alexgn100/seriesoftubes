@@ -7,23 +7,24 @@ const { load } = require('./harness');
 // `one` earns the goal star, `three` earns all three. A second land link on the same pair is a diverse route.
 const REF = {
   hello: { one: [['lon', 'nyc', 'grace']], three: [['lon', 'nyc', 'grace'], ['lon', 'nyc', 'amitie']] },
-  eurotrip: { one: [['lon', 'ams', 'uly'], ['ams', 'fra', 'land']], three: [['lon', 'ams', 'uly'], ['lon', 'ams', 'concerto'], ['ams', 'fra', 'land'], ['ams', 'fra', 'land']] },
-  shining: { one: [['nyc', 'chi', 'land'], ['chi', 'dal', 'land'], ['dal', 'sjc', 'land']], three: [['nyc', 'chi', 'land'], ['chi', 'sjc', 'land'], ['sjc', 'dal', 'land'], ['dal', 'nyc', 'land']] },
-  smorgas: { one: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['osl', 'cph', 'land']], three: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['hel', 'cph', 'land'], ['cph', 'osl', 'land']] },
-  downunder: { one: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['syd', 'bne', 'land']], three: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['adl', 'bne', 'land'], ['bne', 'syd', 'land']] },
-  aloha: { one: [['sjc', 'hnl', 'scx'], ['hnl', 'syd', 'hwk']], three: [['sjc', 'hnl', 'scx'], ['sjc', 'hnl', 'aag'], ['hnl', 'syd', 'hwk'], ['hnl', 'syd', 'aloha']] },
-  rimshot: { one: [['sea', 'tok', 'fast'], ['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2']], three: [['sea', 'tok', 'fast'], ['sea', 'tok', 'ncp'], ['tok', 'hkg', 'adc'], ['tok', 'hkg', 'apg'], ['hkg', 'sin', 'sjc2'], ['hkg', 'sin', 'land']] },
-  fire: { one: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']], three: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']] },
-  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'sea', 'hwk'], ['sea', 'hnl', 'hwk'], ['hnl', 'akl', 'hwk'], ['akl', 'syd', 'tasman'], ['akl', 'syd', 'scx']] },
-  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['tok', 'mnl', 'jup'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam'], ['syd', 'tok', 'guam']] },
-  flash: { one: [['nyc', 'lon', 'hibx']], three: [['nyc', 'lon', 'hibx'], ['nyc', 'lon', 'grace']] },
+  eurotrip: { one: [['lon', 'ams', 'uly'], ['ams', 'fra', 'land']], three: [['ams', 'lon', 'concerto'], ['ams', 'lon', 'nshuttle'], ['ams', 'fra', 'land'], ['ams', 'fra', 'land']] },
+  shining: { one: [['nyc', 'chi', 'land'], ['chi', 'dal', 'land'], ['dal', 'sjc', 'land']], three: [['chi', 'nyc', 'land'], ['chi', 'sjc', 'land'], ['dal', 'nyc', 'land'], ['dal', 'sjc', 'land']] },
+  smorgas: { one: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['osl', 'cph', 'land']], three: [['osl', 'sto', 'land'], ['cph', 'osl', 'land'], ['cph', 'hel', 'land'], ['hel', 'sto', 'land']] },
+  downunder: { one: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['syd', 'bne', 'land']], three: [['mel', 'syd', 'land'], ['bne', 'syd', 'land'], ['adl', 'mel', 'land'], ['adl', 'bne', 'land']] },
+  aloha: { one: [['sjc', 'hnl', 'scx'], ['hnl', 'syd', 'hwk']], three: [['hnl', 'sjc', 'scx'], ['hnl', 'sjc', 'aag'], ['hnl', 'syd', 'hwk'], ['hnl', 'syd', 'aloha']] },
+  rimshot: { one: [['sea', 'tok', 'fast'], ['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2']], three: [['sea', 'tok', 'fast'], ['sea', 'tok', 'ncp'], ['hkg', 'tok', 'apg'], ['hkg', 'tok', 'adc'], ['hkg', 'sin', 'land'], ['hkg', 'sin', 'land']] },
+  fire: { one: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']], three: [['hkg', 'tok', 'adc'], ['hkg', 'sin', 'land'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']] },
+  // Hawaiki is Seattle's only cable south, so the second way out runs overland to LA and on via Suva.
+  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'syd', 'tasman'], ['akl', 'sea', 'hwk'], ['suv', 'syd', 'scxn'], ['lax', 'sea', 'land'], ['lax', 'suv', 'scxn']] },
+  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['mnl', 'tok', 'jup'], ['syd', 'tok', 'sushi'], ['gum', 'mnl', 'bifrost'], ['gum', 'syd', 'guam']] },
+  flash: { one: [['nyc', 'lon', 'hibx']], three: [['lon', 'nyc', 'grace'], ['lon', 'nyc', 'hibx']] },
   pingpong: { one: [['lax', 'tok', 'jup']], three: [['lax', 'tok', 'jup'], ['lax', 'sea', 'land'], ['sea', 'tok', 'fast']] },
-  suez: { one: [['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace']], three: [['fra', 'mrs', 'land'], ['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace'], ['mrs', 'bom', 'twoaf'], ['bom', 'sin', 'land']] },
-  samba: { one: [['sao', 'mia', 'monet']], three: [['sao', 'mia', 'monet'], ['sao', 'for', 'land'], ['for', 'mia', 'monet']] },
-  sharks: { one: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land']], three: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land'], ['mil', 'lis', 'land']] },
-  braces: { one: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix']], three: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix'], ['dub', 'nyc', 'havf']] },
-  nofra: { one: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']], three: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land'], ['zrh', 'ams', 'land']] },
-  fatpipes: { one: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1]], three: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1], ['zrh', 'par', 'land', 1]] },
+  suez: { one: [['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace']], three: [['fra', 'mrs', 'land'], ['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace'], ['bom', 'sin', 'land'], ['bom', 'mrs', 'twoaf']] },
+  samba: { one: [['sao', 'mia', 'monet']], three: [['for', 'sao', 'land'], ['for', 'sao', 'land'], ['for', 'mia', 'monet'], ['for', 'mia', 'sam1']] },
+  sharks: { one: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land']], three: [['lis', 'mad', 'land'], ['lis', 'mil', 'land'], ['mad', 'par', 'land'], ['mil', 'par', 'land']] },
+  braces: { one: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix']], three: [['lon', 'nyc', 'grace'], ['dub', 'nyc', 'havf'], ['dub', 'lon', 'celtix']] },
+  nofra: { one: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']], three: [['ams', 'ber', 'land'], ['ams', 'zrh', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']] },
+  fatpipes: { one: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1]], three: [['par', 'zrh', 'land', 1], ['mrs', 'par', 'land', 1], ['mil', 'mrs', 'land', 1], ['mil', 'zrh', 'land', 1]] },
 };
 
 // Builds links the way a player does: POP at the first city, then the link picker for each hop.
@@ -61,6 +62,45 @@ test('puzzle data: every puzzle is valid, solvable, and its 3-star reference ear
   assert.deepEqual(errors, []);
 });
 
+// Brute force over every route between the puzzle's cities (one size: 10G, or 100G under minG): is any 3-star build
+// cheaper than `limit`? Each cable is one failure unit; each overland link its own trench (a second one is diverse).
+function cheaper3(ev, id, limit) {
+  const D = JSON.parse(ev(`(()=>{pzBegin(pzDef('${id}'));const P=S.pz,cs=[...P.cities,...P.via],tier=P.minG?1:0,o=[];
+    for(const a of cs)for(const b of cs)if(a<b)for(const r of pzRoutes(a,b)){if((P.noSub&&r.sub)||subWaveWhy(tier,r.km,r.sub))continue;
+      o.push({a,b,cab:r.cab,cost:pzLinkCost(r,tier,false),ms:r.ms});if(!r.cab)o.push({a,b,cab:null,cost:pzLinkCost(r,tier,true),ms:r.ms,div:1});}
+    const pop={};for(const c of cs)pop[c]=pzPopCost(c);return JSON.stringify({P,o,pop});})()`));
+  const { P, o, pop } = D, unit = (i) => o[i].cab ? 'c' + o[i].cab : 't' + i;
+  const reach = (ls, skip) => { const adj = {}; for (const i of ls) { if (unit(i) === skip) continue; const { a, b } = o[i]; (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); }
+    const seen = new Set([P.cities[0]]), q = [P.cities[0]]; while (q.length) for (const v of adj[q.pop()] || []) if (!seen.has(v)) { seen.add(v); q.push(v); } return P.cities.every((c) => seen.has(c)); };
+  const lat = (ls) => { const d = { [P.lat[0]]: 0 }, done = new Set(); for (;;) { let u = null; for (const k in d) if (!done.has(k) && (u === null || d[k] < d[u])) u = k; if (u === null) return Infinity; if (u === P.lat[1]) return d[u]; done.add(u);
+    for (const i of ls) { const l = o[i]; if (l.a !== u && l.b !== u) continue; const v = l.a === u ? l.b : l.a, nd = d[u] + l.ms + 0.05; if (!(nd >= d[v])) d[v] = nd; } } };
+  const ring = (ls) => { const nb = {}; for (const i of ls) { const { a, b } = o[i]; (nb[a] = nb[a] || new Set()).add(b); (nb[b] = nb[b] || new Set()).add(a); } const ns = Object.keys(nb);
+    if (ns.length < 3 || !ns.every((c) => nb[c].size === 2)) return false; let prev = null, cur = ns[0], n = 0; do { const nx = [...nb[cur]].find((x) => x !== prev); prev = cur; cur = nx; n++; } while (cur !== ns[0] && n <= ns.length); return n === ns.length; };
+  const ok = (ls) => { if (!reach(ls, null) || (P.ring && !ring(ls)) || (P.lat && lat(ls) > P.lat[2])) return false; return [...new Set(ls.map(unit))].every((u) => reach(ls, u)); };
+  let found = null;
+  const rec = (start, ls, cost) => { if (found) return; if (ls.length && cost < limit - 1) { const pops = new Set(P.cities); for (const i of ls) { pops.add(o[i].a); pops.add(o[i].b); } const tot = cost + [...pops].reduce((x, c) => x + pop[c], 0); if (tot < limit - 1 && ok(ls)) { found = tot; return; } }
+    if (ls.length >= 7) return; for (let i = start; i < o.length; i++) { if (o[i].div && !ls.some((j) => !o[j].div && !o[j].cab && o[j].a === o[i].a && o[j].b === o[i].b)) continue; if (cost + o[i].cost < limit - 1) rec(i + 1, [...ls, i], cost + o[i].cost); } };
+  rec(0, [], 0);
+  return found;
+}
+
+test('budgets follow the difficulty curve: roomy first pack, ~10% in the middle, tight N-1 Club', () => {
+  const { ev, errors } = load();
+  const SLACK = { hello: [0.15, 0.2], fire: [0.09, 0.11], speed: [0.09, 0.11], n1: [0.05, 0.08] };
+  const rows = JSON.parse(ev('JSON.stringify(PZ.filter(p=>p.budget).map(p=>({id:p.id,pack:p.pack,budget:p.budget})))'));
+  for (const { id, pack, budget } of rows) {
+    ev(`pzBegin(pzDef('${id}'))`);
+    build(ev, REF[id].three);
+    const e = evalP(ev);
+    assert.equal(e.stars, 3, id);
+    assert.equal(cheaper3(ev, id, e.spend), null, `${id}: the reference is the cheapest 3-star build`);
+    const slack = budget / e.spend - 1, [lo, hi] = SLACK[pack];
+    assert.ok(slack >= lo && slack <= hi, `${id}: ${(slack * 100).toFixed(1)}% slack, want ${lo * 100}-${hi * 100}%`);
+  }
+  assert.match(ev("PZ_PACKS[0].d"), /Roomy budgets/, 'the first pack does not promise "no budget"');
+  assert.deepEqual(errors, []);
+});
+
 test('stars: goal, budget, N-1 and twists each count', () => {
   const { ev, errors } = load();
   ev("pzBegin(pzDef('braces'))");
@@ -77,6 +117,15 @@ test('stars: goal, budget, N-1 and twists each count', () => {
   build(ev, REF.shining.one);
   ev("ACT.pzLinkTo({a:'nyc',b:'chi'});ACT.pzVia({v:'land'});ACT.pzDiv({v:0});ACT.pzLink({tier:0})");
   assert.equal(ev("new Set(S.links.filter(l=>edgeKey(l)==='chi|nyc').map(pzUnit)).size"), 1, 'same trench shares the cut');
+  // A cable fails as a whole: two waves on one cable, even between different cities, are one cut.
+  ev("pzBegin(pzDef('guam'))");
+  build(ev, [['tok', 'mnl', 'jup'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam'], ['syd', 'tok', 'guam']]);
+  e = evalP(ev);
+  assert.ok(e.goal && !e.n1, 'both of Sydney\'s links ride the Guam cable: one anchor splits Sydney off');
+  assert.equal(ev("new Set(S.links.filter(l=>l.cable==='guam').map(pzUnit)).size"), 1, 'one cable, one failure unit');
+  assert.ok(ev("document.getElementById('pzBox').textContent").includes('One cut splits it: ' + ev('CAB.guam.name')), 'the weak spot names the cable');
+  ev("ACT.pzRmLink({id:S.links[3].id})");build(ev, [['tok', 'syd', 'sushi']]);
+  assert.equal(evalP(ev).stars, 3, 'a second cable into Sydney fixes it');
   // Twists: no subsea, ring, latency, minimum size, cities to avoid.
   ev("pzBegin(pzDef('sharks'))");build(ev, REF.sharks.one);
   assert.ok(evalP(ev).goal);
@@ -180,16 +229,16 @@ test('weekly puzzle: stable seed per ISO week, solvable, share string and streak
   assert.equal(w.key, '2026-W44');
   assert.ok(w.cities.length >= 4 && w.cities.length <= 5 && w.budget > 0);
   // Every week of a few years can be solved with three stars by its own reference ring.
-  for (let i = 0; i < 160; i += 7) {
+  for (let i = 0; i < 400; i += 7) {
     ev(`pzBegin(pzWeekly(new Date(2026,0,1+${i})))`);
-    const ring = JSON.parse(ev('JSON.stringify(pzWeekly(new Date(2026,0,1+' + i + ')).ref)'));
-    const links = ring.map((x, j) => { const y = ring[(j + 1) % ring.length]; return [x, y, ev(`pzRoutes('${x}','${y}').sort((p,q)=>pzLinkCost(p,0)-pzLinkCost(q,0))[0].via`)]; });
-    build(ev, links);
+    const w = JSON.parse(ev('JSON.stringify(pzWeekly(new Date(2026,0,1+' + i + ')))'));
+    const cabs = w.refVia.filter((v) => v !== 'land');
+    assert.equal(new Set(cabs).size, cabs.length, `week +${i}: no two hops of the reference ring share a cable`);
+    build(ev, w.ref.map((x, j) => [x, w.ref[(j + 1) % w.ref.length], w.refVia[j]]));
     assert.equal(evalP(ev).stars, 3, `week +${i}`);
   }
   ev("localStorage.removeItem('sot-puzzles');pzBegin(pzWeekly(new Date(2026,9,28)))");
-  const ring = w.ref;
-  build(ev, ring.map((x, j) => { const y = ring[(j + 1) % ring.length]; return [x, y, ev(`pzRoutes('${x}','${y}').sort((p,q)=>pzLinkCost(p,0)-pzLinkCost(q,0))[0].via`)]; }));
+  build(ev, w.ref.map((x, j) => [x, w.ref[(j + 1) % w.ref.length], w.refVia[j]]));
   assert.match(ev('pzShareText(pzEval())'), /^Series of Tubes puzzle 2026-W44 ⭐⭐⭐ \$\d+k · seriesoftub\.es$/);
   assert.equal(ev("JSON.parse(localStorage.getItem('sot-puzzles')).streak.n"), 1);
   // A streak counts weeks in a row; a gap starts again.
@@ -252,4 +301,147 @@ test('puzzles in every language', () => {
     assert.match(seen, /⭐/);
     assert.deepEqual(errors, [], lang);
   }
+});
+
+test('a POP in a thin market costs its higher monthly rent too, and the panel says so', () => {
+  const { ev, errors } = load();
+  ev("pzBegin(pzDef('kiwi'))");
+  assert.ok(ev('colo("suv")') > 1, 'Suva is a thin market');
+  assert.equal(ev("pzPopCost('suv')"), ev("popCost('suv')+12*popMo('suv')"));
+  assert.ok(ev("pzPopCost('suv')") > ev("popCost('suv')+12*POP_MO"));
+  ev("selectCity('suv')");
+  assert.ok(ev("document.getElementById('panelBody').textContent").includes(ev("fmt$(popMo('suv'))") + '/mo'));
+  assert.deepEqual(errors, []);
+});
+
+test('best spend: kept for the best star count, and a cheaper build at the same stars counts', () => {
+  const { ev, errors } = load();
+  ev("localStorage.removeItem('sot-puzzles');pzBegin(pzDef('braces'))");
+  const rec = () => JSON.parse(ev("JSON.stringify(pzLoad().s.braces||null)"));
+  build(ev, REF.braces.one);
+  const two = evalP(ev).spend;
+  assert.deepEqual(rec(), { st: 2, sp: two });
+  // A gold-plated third link: N-1 but over budget is still two stars, and dearer, so the best stays.
+  ev("ACT.pzLinkTo({a:'dub',b:'nyc'});ACT.pzVia({v:'havf'});ACT.pzLink({tier:2});closeModal()");
+  assert.equal(evalP(ev).stars, 2);
+  assert.deepEqual(rec(), { st: 2, sp: two });
+  // Shrinking it to 10G earns the third star: the best spend starts again at the 3-star build.
+  ev('ACT.pzTier({id:S.links[2].id,tier:0})');
+  const three = evalP(ev);
+  assert.equal(three.stars, 3);
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // With a looser budget, a dearer 3-star build does not replace it; going back to the cheaper one keeps it.
+  ev('S.pz.budget=1e7;ACT.pzTier({id:S.links[0].id,tier:1})');
+  assert.equal(evalP(ev).stars, 3);
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // A cheaper 3-star build after a dearer first one is recorded (the old code only recorded star rises).
+  ev("localStorage.removeItem('sot-puzzles')");
+  ev('ACT.pzTier({id:S.links[1].id,tier:1})');
+  const dear = evalP(ev).spend;
+  assert.deepEqual(rec(), { st: 3, sp: dear });
+  ev('ACT.pzTier({id:S.links[1].id,tier:0});ACT.pzTier({id:S.links[0].id,tier:0})');
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // Fewer stars never overwrite more.
+  ev('ACT.pzRmLink({id:S.links[2].id})');
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  ev('ACT.puzzleMenu({})');
+  assert.ok(ev("document.getElementById('modalCard').textContent").includes('best ' + ev(`fmt$(${three.spend})`)));
+  assert.deepEqual(errors, []);
+});
+
+test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true)");
+  ev("toast('main game news','bad',[{l:'Fix',act:'opsOpen',args:{}}]);save(true)");
+  assert.ok(ev("document.querySelectorAll('#toasts .toast').length") > 0);
+  const before = ev("localStorage.getItem('sot-save-v1')");
+  ev("ACT.pzStart({id:'hello'})");
+  assert.equal(ev("[...document.querySelectorAll('#toasts .toast')].filter(t=>/main game news/.test(t.textContent)).length"), 0, 'main-game toasts are cleared');
+  ev("ACT.pzPop({city:'lon'})");
+  const st = () => ev("JSON.stringify({p:S.pops,l:S.links.length,c:S.cash,m:S.mode,te:!!S.te,ops:S.ops,sc:S.scrubs.length,dash:$('dash').hidden,bank:$('bankBox').hidden,left:$('left').hidden,modal:$('modal').hidden,cam:[cam.x,cam.y]})");
+  const s0 = st();
+  for (const a of ["opsOpen({})", "inbox({})", "leftTab({t:'noc'})", "focusCity({city:'par'})", "fixInc({id:'x'})", "custGo({id:'x'})", "bank({})", "dash({})",
+    "exportSave({})", "launchBB({city:'lon'})", "ad({city:'lon'})", "addRouter({city:'lon'})", "upRouter({city:'lon'})", "addSite({city:'lon'})", "buyTE({})",
+    "buildScrub({city:'lon',tier:0})", "buildPop({city:'par'})", "buyTransit({city:'lon',net:'cog',tier:1})", "scenarios({})", "share({})", "importGo({})", "cont({})", "start({})", "newgame({})"]) {
+    ev('ACT.' + a);
+    assert.equal(st(), s0, `${a} does nothing in a puzzle`);
+  }
+  assert.equal(ev('S.mode'), 'puzzle');
+  // A leftover toast button is a no-op too, through the real click path.
+  ev("toast('stray','',[{l:'Go',act:'opsOpen',args:{}}]);document.querySelector('#toasts [data-act=opsOpen]').click()");
+  assert.equal(st(), s0);
+  ev("toast('puzzle news','good')");
+  ev('ACT.pzLeave({})');
+  assert.equal(ev("document.querySelectorAll('#toasts .toast').length"), 0, 'puzzle toasts do not follow you home');
+  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before);
+  // Back in the main game, the same actions work again.
+  ev("ACT.addRouter({city:'ams'})");
+  assert.equal(ev('S.pops.ams.routers'), 2);
+  assert.deepEqual(errors, []);
+});
+
+test('a city to avoid reads as a rule, not a goal that can fail', () => {
+  const { ev, errors } = load();
+  ev("pzBegin(pzDef('nofra'))");
+  const tw = () => ev("[...document.querySelectorAll('#pzBox .pztw')].map(x=>x.className+'|'+x.textContent).join('\\n')");
+  assert.match(tw(), /pztw rule\|🚫 Rule: not via Frankfurt/);
+  assert.doesNotMatch(tw(), /[✓✗].*Frankfurt/);
+  build(ev, REF.nofra.three);
+  assert.match(tw(), /pztw rule\|🚫 Rule: not via Frankfurt/, 'still a rule once solved');
+  assert.equal(evalP(ev).stars, 3);
+  assert.deepEqual(errors, []);
+});
+
+test('phone sheet: 40 px touch targets, pinned actions, and goal chips with a clear mark', () => {
+  const { ev, errors } = load();
+  // jsdom has no layout: read the phone media rules from the page's stylesheet (Chromium at 360 px measures 40 px).
+  const rules = JSON.parse(ev(`JSON.stringify([...document.styleSheets].flatMap(s=>[...s.cssRules]).filter(r=>r.media&&/max-width: ?760px/.test(r.media.mediaText))
+    .flatMap(m=>[...m.cssRules]).filter(r=>/#pzBox/.test(r.selectorText||'')).map(r=>({sel:r.selectorText,mh:r.style.getPropertyValue('min-height'),mw:r.style.getPropertyValue('min-width'),pos:r.style.getPropertyValue('position'),bottom:r.style.getPropertyValue('bottom')})))`));
+  const tap = rules.find((r) => /#pzBox \.btns \.b/.test(r.sel) && /#pzBox \.pzh \.b/.test(r.sel));
+  assert.ok(tap && parseFloat(tap.mh) >= 40 && parseFloat(tap.mw) >= 40, `Undo/Reset/Back/☰ are at least 40 px (${JSON.stringify(tap)})`);
+  const pin = rules.find((r) => /^#pzBox ?> ?\.btns$/.test(r.sel));
+  assert.ok(pin && pin.pos === 'sticky' && parseFloat(pin.bottom) === 0, `the action row stays at the foot of a scrolling sheet (${JSON.stringify(pin)})`);
+  ev("innerWidth=360;innerHeight=740;dispatchEvent(new Event('resize'));pzBegin(pzDef('braces'))");
+  const chips = () => ev("[...document.querySelectorAll('#pzBox .pzc')].map(x=>x.textContent).join('|')");
+  assert.equal(chips(), '○ New York|○ London|○ Dublin', 'not reached yet: a hollow mark, nothing that looks cut off');
+  assert.doesNotMatch(chips(), /…/);
+  build(ev, [['nyc', 'lon', 'grace']]);
+  ev("ACT.pzPop({city:'dub'})");
+  assert.equal(chips(), '✓ New York|✓ London|◐ Dublin');
+  assert.ok(ev("[...document.querySelectorAll('#pzBox button')].every(b=>b.classList.contains('b'))"), 'every sheet button is a .b the rule sizes');
+  assert.deepEqual(errors, []);
+});
+
+test('results pull you on: Next is the big tap after three stars, stars left in the pack, and a nudge when 3 stars are one link away', () => {
+  const { ev, errors } = load();
+  ev("localStorage.removeItem('sot-puzzles');pzBegin(pzDef('braces'))");
+  build(ev, REF.braces.one);
+  let card = ev("document.getElementById('modalCard').textContent");
+  assert.equal(evalP(ev).stars, 2);
+  assert.match(card, /So close: one more link and a backhoe can't touch you\./, 'Dublin to New York would do it, within budget');
+  assert.match(ev("document.getElementById('pzBox').textContent"), /So close/);
+  assert.match(card, /10 ⭐ left in this pack/, '4 puzzles × 3 stars, 2 won');
+  assert.ok(ev("!!document.querySelector('#modalCard [data-act=pzRetry]')"));
+  assert.ok(!ev("document.querySelector('#modalCard .btns.cta').classList.contains('pzdone')"));
+  build(ev, [['dub', 'nyc', 'havf']]);
+  card = ev("document.getElementById('modalCard').textContent");
+  assert.match(card, /9 ⭐ left in this pack/);
+  assert.ok(ev("document.querySelector('#modalCard .btns.cta').classList.contains('pzdone')"), 'three stars: the big Next layout');
+  assert.ok(ev("document.activeElement===document.querySelector('#modalCard .pznext')"), 'the big button has the focus');
+  assert.equal(ev("document.querySelector('#modalCard [data-act=pzRetry]')"), null, 'no retry after three stars');
+  assert.match(ev("document.querySelector('#modalCard .pznext').textContent"), /More puzzles/, 'the last pack points back to the list');
+  ev("pzBegin(pzDef('eurotrip'))");build(ev, REF.eurotrip.three);
+  assert.match(ev("document.querySelector('#modalCard .pznext').textContent"), /Next puzzle →/);
+  assert.equal(ev("document.activeElement.dataset.act"), 'pzStart');
+  // No nudge when no single link fits the budget: an over-budget gold plate is not "close".
+  ev("pzBegin(pzDef('braces'));S.pz.budget=245000");
+  build(ev, REF.braces.one);
+  assert.equal(evalP(ev).stars, 2);
+  assert.doesNotMatch(ev("document.getElementById('modalCard').textContent"), /So close/);
+  assert.match(ev("document.getElementById('modalCard').textContent"), /One backhoe away/);
+  // A finished pack says so.
+  ev("localStorage.setItem('sot-puzzles',JSON.stringify({s:{sharks:{st:3},braces:{st:3},nofra:{st:3},fatpipes:{st:2}}}));pzBegin(pzDef('fatpipes'))");
+  build(ev, REF.fatpipes.three);
+  assert.match(ev("document.getElementById('modalCard').textContent"), /Every star in this pack is yours/);
+  assert.deepEqual(errors, []);
 });
