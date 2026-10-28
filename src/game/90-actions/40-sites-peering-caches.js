@@ -12,13 +12,13 @@ Object.assign(ACT,{
  unpeer:({city,net})=>{delete S.peers[net+'@'+city];after();},
  peerAll:({city})=>{if(!isIx(city)||S.ixp[city]===undefined)return;const set=ixSessions(city);let n=0;for(const id of ixMembers(city))if(!set.has(id)&&peerOk(id,'ix',city).ok){S.peers[id+'@'+city]=true;n++;}if(!n)return;toast(trn('sites_peering_caches.n_new_session_at_ix_small',n,{ix:esc(ixName(city))}),'good',[],{a:'city',v:ixCity(city)});sfx('build');after();},
  tailTog:()=>{UI.tailOpen=!UI.tailOpen;renderLeft();},
- pni:({city,net,tier})=>{tier=+tier;const g1=tier===-1;if(g1){if(!pniG1(net))return;tier=0;}if(!S.pops[city]||!NET[net]||!NET[net].pops.includes(city)||!PORT[tier])return;if(!portOk(city,tier)){toast(tr('actions.your_router_can_t_take_a',{port:PORT[tier].n}),'bad');sfx('err');return;}const r=peerOk(net,'pni',city);if(!r.ok){toast(tr('sites_peering_caches.net_declined_the_pni_why',{net:esc(NET[net].name),why:esc(r.why)}),'bad');sfx('err');after();return;}
-   if(!g1&&tier<pniMin(net)){toast(tr('sites_peering_caches.net_does_not_do_port_pnis',{net:esc(NET[net].name),port:PORT[tier].n}),'bad');sfx('err');return;}
-   const ex=S.pni.find(p=>p.city===city&&p.net===net);if(ex&&(g1||!pniOn(ex)||ex.up))return;if(ex&&!(ex.g1&&tier===0)&&tier<=ex.tier)return;
-   const cost=g1?PNI_G1_COST:(1500+PORT[tier].setup/2)*(ex&&ex.n||1);if(!portGate(city,ex?(PORT_SLOT(tier)-PORT_SLOT(ex.tier))*(ex.n||1):PORT_SLOT(tier)))return;if(!spend(cost))return;if(S.conf&&S.conf.until>S.day)S.stats.beerPni=1;
-   // Nothing is instant: a cross-connect takes weeks, and the big networks quote months for a new PNI or an augment.
-   const lead=pniLead(net);if(ex)ex.up={tier,n:ex.n||1,ready:S.day+lead,g1:false};else S.pni.push({id:uid(),city,net,tier,g1:g1||undefined,ready:S.day+lead});
+ pni:({city,net,tier})=>{const q=pniQuote(city,net,tier);if(!q)return;if(q.why){toast(q.why,'bad');sfx('err');after();return;}if(!spend(q.cost))return;const lead=pniPlace(q);
    toast(tr('sites_peering_caches.pni_with_net_ordered_eta_a',{net:esc(NET[net].name),eta:pniWhen(lead),dc:esc(siteName(city,'a'))}),'good');after();},
+ pniAllOpen:({net})=>{pniAllModal(net);},
+ pniAllSize:({v})=>{if(!UI.pniAll)return;pniAllModal(UI.pniAll.net,+v);$('modalCard').querySelector('[data-chg="pniAllSize"]')?.focus();},
+ pniAll:({net,tier})=>{const b=pniBatch(net,tier);if(!b||!b.orders.length)return;if(!spend(b.cost))return;
+   for(const q of b.orders)pniPlace(q);UI.pniAll=null;closeModal();
+   toast(trn('pni_all.n_orders_with_net',b.orders.length,{net:esc(net===null?tr('common.all_networks'):NET[net].name),kept:b.kept,blocked:b.blocked.length}),'good');after();},
  pniChase:({id})=>{const p=S.pni.find(x=>x.id===id);if(!p||(pniOn(p)&&!p.up))return;const r=Math.random();
    if(r<0.15){if(p.up)p.up.ready=Math.max(S.day+1,p.up.ready-30);else p.ready=Math.max(S.day+1,p.ready-30);toast(tr('sites_peering_caches.your_account_manager_found_the_order'),'good');}
    else toast(pick([tr('sites_peering_caches.it_is_with_the_provisioning_team'),tr('sites_peering_caches.we_are_waiting_on_the_colo'),tr('sites_peering_caches.your_ticket_was_merged_into_another'),tr('sites_peering_caches.could_you_resend_the_loa_you'),tr('sites_peering_caches.your_account_manager_is_on_paternity')]));after();},

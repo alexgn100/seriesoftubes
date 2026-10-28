@@ -1,5 +1,11 @@
 function cnOk(){return S.cnLic&&S.cnLic.state==='ok';}
-function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.au)return AU_TRANSIT;if(C.tape)return 1.5;return C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;}
+// Few networks in the building means few transit sellers to haggle with: up to 1.8× where almost nobody is present.
+// Hand-set markets (Korea, Australia, Belgian red tape) keep their own price.
+const txComp=c=>{const q=CITY_PDB[c];return q?clamp((1000/Math.max(q[1],10))**0.15,1,1.8):1;};
+// No neutral data center means building your own room: POPs cost more to build and to run.
+const colo=c=>{const q=CITY_PDB[c];return !q?1:q[0]===0?1.5:q[0]<=2?1.25:1;};
+const popMo=c=>Math.round(POP_MO*colo(c));
+function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.au)return AU_TRANSIT;if(C.tape)return 1.5;const base=C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;return Math.round(base*txComp(c)*10)/10;}
 // A network's own markup on top of that, where it is far from home (Glowball Sakura Lager in Asia and New Zealand).
 const netMult=(n,c)=>regionMult(c)*((n&&n.far&&CITY[c]&&n.far[CITY[c].reg])||1);
 const uaePair=(a,b)=>!!CITY[a].uae&&!!CITY[b].uae;

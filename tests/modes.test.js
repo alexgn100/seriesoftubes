@@ -358,7 +358,7 @@ test('Flood Season: attacks keep coming, grow, and only count when service held'
   assert.ok(ev('S.lvl') >= 3, 'starts with bigger gear unlocked');
   // a few weeks in: several attacks start on their own schedule
   let n = 0;
-  for (let i = 0; i < 40; i++) { ev('dayTick()'); if (ev('!!(S.ev.ddos&&S.ev.ddos.start===S.day)')) n++; }
+  for (let i = 0; i < 40; i++) { ev('dayTick()'); if (ev('ddosAll().some(a=>a.start===S.day)')) n++; }
   assert.ok(n >= 4, `attacks keep coming (${n} in 40 days)`);
   assert.ok(ev('(S.stats.ddosOk||0)+(S.stats.ddosLost||0)') >= 3, 'finished attacks are scored');
   // scoring: held only if service stayed at 97%+
@@ -467,4 +467,30 @@ test('RouteScript: help, ready-made scripts and the AI button', () => {
   ev('ACT.teEdit();ACT.teSlop();ACT.teHelp();ACT.teBack()');
   ev("UI.dtab='overview';renderAll()");
   assert.deepEqual(errors, []);
+});
+
+
+test('Flood Season keeps attacking and escalating after both success and timeout', () => {
+  for (const outcome of ['done', 'failed']) {
+    const { ev, errors, dom } = load();
+    ev("ACT.startScn({id:'flood',sure:1});S.cash=1e9;S.nextFail=1e9;S.nextEvent=1e9");
+    if (outcome === 'done') ev('S.stats.ddosOk=20;S.stats.ddosOkBig=5;S.day=100');
+    else ev('S.day=365');
+    ev('scnTick(S.day)');
+    assert.ok(ev(`!!S.scn.${outcome}`));
+    assert.ok([...dom.window.document.querySelectorAll('#modal [data-act="closeModal"]')].some(b=>b.textContent==='Keep playing'));
+    ev('ACT.closeModal();S.scn.nextDdos=S.day+1;dayTick()');
+    assert.equal(ev('S.ev.ddos.start'), ev('S.day'), 'Keep playing still spawns attacks');
+    const before = ev('S.day');
+    ev('S.scn.nextDdos=S.day+1;S.day+=8;dayTick()');
+    assert.ok(ev('ddosAll().at(-1).start') > before, 'subsequent attacks keep coming');
+    // Escalating frequency belongs to spicy chaos; calmer games keep the old 3 to 7 days.
+    ev("S.rules.chaos='spicy'");
+    const gaps = JSON.parse(ev('const old=Math.random;Math.random=()=>0.5;S.day=0;const early=floodGap();S.day=1000;const late=floodGap();Math.random=old;JSON.stringify([early,late])'));
+    assert.ok(gaps[1] < gaps[0], 'frequency keeps increasing with scenario age');
+    const sizes = JSON.parse(ev('const old=Math.random;Math.random=()=>0.9;S.day=0;ddosAttack();const early=ddosAll().at(-1).gbps;S.day=1000;ddosAttack();const late=ddosAll().at(-1).gbps;Math.random=old;JSON.stringify([early,late])'));
+    assert.ok(sizes[1] > sizes[0], 'intensity keeps increasing with scenario age');
+    assert.deepEqual(errors, []);
+    dom.window.close();
+  }
 });

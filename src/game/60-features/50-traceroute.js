@@ -2,7 +2,7 @@
 const slug=t=>String(t).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
 function trPaths(src){const live=S.links.filter(l=>!linkDown(l)),rem=remoteCities(),ok=c=>popUp(c)||rem.includes(c),adj={};
   // Every link between two cities costs what the pair costs, as in compute(); the trace shows an active link over one on standby.
-  const pw={};for(const l of live){const k=edgeKey(l);pw[k]=Math.min(pw[k]??Infinity,(l.km+60)*MET[pairMet(k)].f);}
+  const pw={};for(const l of live){const k=edgeKey(l);pw[k]=Math.min(pw[k]??Infinity,pairW(k,l.km));}
   for(const l of live){if(!ok(l.a)||!ok(l.b))continue;const w=pw[edgeKey(l)]+(l.standby?1e-6:0);(adj[l.a]=adj[l.a]||[]).push([l.b,l,w]);(adj[l.b]=adj[l.b]||[]).push([l.a,l,w]);}
   const dist={[src]:0},prev={},done=new Set();for(;;){let u=null,ud=Infinity;for(const k in dist)if(!done.has(k)&&dist[k]<ud){u=k;ud=dist[k];}if(u===null)break;done.add(u);for(const [v,l,w] of adj[u]||[]){const nd=ud+w;if(nd<(dist[v]??Infinity)){dist[v]=nd;prev[v]=l;}}}
   const path=dst=>{if(dist[dst]===undefined)return null;const out=[];let v=dst;while(v!==src){const l=prev[v];out.unshift({l,from:l.a===v?l.b:l.a,to:v});v=l.a===v?l.b:l.a;}return out;};return {dist,path};}

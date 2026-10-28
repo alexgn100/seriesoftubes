@@ -15,6 +15,24 @@ All notable changes to this project are documented here. The project follows
 - China Telecomet now sells its CN-Too premium crossing in Moscow too, at the same price as in Hong Kong (#195). Haul your European traffic to Moscow and it reaches China with about 3% loss; nothing else of theirs is on offer there.
 - Series of Tubes now speaks German. The game follows your browser's language the first time, and you can switch to German under Settings or on the title screen. Networking terms like Peering and Transit stay in English, the way network engineers say them.
 - Glowball Sakura Lager joins the map: a Tier 2 carrier in the big hubs of the US, Europe and Asia-Pacific that sells transit, takes PNIs and peers openly wherever it is. It is not a Tier 1, so it buys its own transit from three of them, while 13 smaller networks in its regions buy theirs from it, and one PNI with it reaches about 3% of all traffic. Far from home, in Asia and New Zealand, it charges more than the locals, and it sells no transit in Australia.
+- Check a selected link’s redundancy against current demand: see disconnected endpoints, additional service loss and full fallback links without changing the live network.
+- Links can now use a custom routing metric, set either as a multiplier or as an exact cost. Pick Custom under Routing metric to fine-tune where your traffic goes; it explains how a link's cost is worked out and what each preset comes to on that link.
+- Prices now follow how connected each city really is, based on PeeringDB and Hurricane Electric data. Transit costs up to 1.8× more in cities where few networks are present, a POP costs 1.25× to 1.5× where there is little or no carrier-neutral data center, and countries with thousands of networks, like Brazil and the US, bring more ISP customers. Big hubs such as Frankfurt, Amsterdam, New York and São Paulo keep their prices.
+- Attacks are more varied: sizes, lengths and ingress ports change from one attack to the next, and several can hit at once. Hosting game servers or cloud gaming makes attacks more frequent, as it does in real life.
+- The link traffic breakdown now shows the correct source city for scrubbing traffic. Cities using the same center no longer overwrite each other's labels.
+- Live attacks now show one scrubbing detour from the attacked city to its nearest active scrubbing center, using the links' one-way latency.
+- Game server and cloud gaming customers now carry a “Gaming attracts attacks” note on their offers and customer lists, so you can see the DDoS risk before signing them.
+- Live attacks now show how much traffic Flowspec actually drops at the ingress routers. Routers without TCAM no longer claim to filter attacks, mixed router capabilities are called out, and Flowspec drops are counted separately from other edge filters.
+- Hosting game servers or cloud gaming brings RackNet and TeamSpooked attacks. Both bypass Flowspec and require dedicated mitigation.
+- Flood Season keeps sending ever larger attacks when you keep playing after winning or running out of time. Finishing the challenge no longer switches the floods off.
+- Each live attack in the NOC now shows incoming bandwidth, upstream scrubbing, edge filtering, scrubbing-center use and any traffic still leaking through.
+- DDoS bandwidth now adds up: upstream scrubbing, edge filters and scrubbing centers work in sequence. The NOC uses the same figures as traffic routing, including floods that cannot reach a remote center.
+- Attacks can now use Memcached amplification or an ACK flood. Flowspec catches the former; the latter need mitigation.
+- Set the number of each optic model directly on land and subsea fiber links. Apply a whole change at once, with its total price shown before buying; removed optics return to the spares shelf.
+- Order PNIs with one network or every network at all shared POPs from the NOC Traffic tab: choose a port size, review the total cost, and add missing connections or upgrade smaller ones in one go. Each network keeps its own smallest PNI size and delivery time.
+- Toggle auto-accept in Deals to check ready sales every five real seconds, including their requirements and available service capacity, with a countdown beside eligible Accept buttons.
+- Toggle auto-pay repairs in the NOC to pay for affordable rush repairs automatically while the game runs.
+- Utilities join route servers and request eligible peers across every joined IX, install missing PoP redundancy hardware and balance caches between sites, and request a cache from each eligible provider at each site.
 
 ## [1.36.0] — 2026-10-28
 
