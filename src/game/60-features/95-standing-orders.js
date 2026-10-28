@@ -63,8 +63,9 @@ const opsFFLine=e=>tr('ops.ff_line',{name:tr(INTERNS[e.i].s),what:tr(OPS_FF[e.f]
 function opsQuiet(fn){const a=after,t=toast,s=sfx,f=floater,sel=UI.sel,cf=UI.confirm,tab=UI.tab;after=()=>{};toast=()=>{};sfx=()=>{};floater=()=>{};
   try{return fn();}finally{after=a;toast=t;sfx=s;floater=f;UI.confirm=cf;UI.tab=tab;UI.sel=sel&&(sel.type!=='link'||S.links.some(l=>l.id===sel.id))&&(sel.type!=='city'||isCity(sel.id))?sel:null;}}
 // One shift's bookkeeping: what got done, and whether a job had to wait for next month's budget.
+// dirty: a job changed the network, so R (loads, routing) is out of date until the next compute().
 function opsShift(){const r=new Map(),broke=new Set();
-  return {r,broke,did(k,w){const x=r.get(k)||{n:0,w:[]};x.n++;if(w&&x.w.length<3&&!x.w.includes(w))x.w.push(w);r.set(k,x);},
+  return {r,broke,dirty:false,did(k,w){if(k!=='decline')this.dirty=true;const x=r.get(k)||{n:0,w:[]};x.n++;if(w&&x.w.length<3&&!x.w.includes(w))x.w.push(w);r.set(k,x);},
     can(k,cost){const O=S.ops,cap=opsCap(k);if(cost<=0)return true;if(S.cash-cost<O.floor||(cap&&(O.spent[k]||0)+cost>cap)){broke.add(k);return false;}return true;},
     // Run a click and book what it really cost; false when the action refused (no ports, no cash, a quote changed).
     pay(k,fn){const c0=S.cash,x=fn();const d=c0-S.cash;if(d>0&&OPSK[k].cap)S.ops.spent[k]=(S.ops.spent[k]||0)+d;return x===undefined?d>0:x;}};}
@@ -135,6 +136,8 @@ const OPS_RUN={
      if(!X.can('pni',q.cost))break;if(X.pay('pni',()=>{if(!spend(q.cost))return false;pniPlace(q);return true;}))X.did('pni',q.city+' '+q.net);}},
  // Hand back smaller waves once a bigger link between the same cities carries the pair with a quarter to spare (#102).
  decom(X){const keep=opsP('decom','keep'),by=new Map();for(const l of S.links)if(l.kind!=='vxc'){const k=edgeKey(l);(by.get(k)||by.set(k,[]).get(k)).push(l);}
+   // Loads must include what this shift already did (a customer just signed, a repair): recompute first, if anything could go.
+   if(X.dirty&&[...by.values()].some(ls=>ls.length>1&&ls.some(l=>l.kind==='wave'))){compute();X.dirty=false;}
    for(const ls of by.values()){if(ls.length<2)continue;const live=ls.filter(l=>!linkDown(l)),big=live.reduce((a,l)=>!a||capOf(l)>capOf(a)?l:a,null);if(!big)continue;
      let cap=live.reduce((a,l)=>a+capOf(l),0);const load=ls.reduce((a,l)=>a+((R.load&&R.load[l.id])||0),0);
      const small=live.filter(l=>l!==big&&l.kind==='wave'&&!l.standby&&!l.premium&&capOf(l)<capOf(big)&&!S.biz.some(b=>b.link===l.id)).sort((a,b)=>capOf(b)-capOf(a));
