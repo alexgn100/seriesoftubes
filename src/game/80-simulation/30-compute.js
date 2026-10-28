@@ -6,9 +6,9 @@ function compute(){
   const remote=remoteCities(),adj=new Array(NC); pops.concat(remote).forEach(p=>adj[CIDX[p]]=[]);
   const edges={},TRX=teRules(),live=[];let NE=0;R2.bizDem={};R2.bizSrv={};
   for(const l of S.links){const ai=CIDX[l.a],bi=CIDX[l.b];if(linkDown(l)||!adj[ai]||!adj[bi])continue;live.push(l);const key=l.a<l.b?l.a+'|'+l.b:l.b+'|'+l.a;let e=edges[key];
-    // The metric belongs to the city pair; links on standby add capacity that fills only after the others (#122).
-    if(!e){const f=MET[pairMet(key)].f;e=edges[key]={id:key,a:l.a,b:l.b,ai,bi,i:NE++,km:l.km,cap:0,scap:0,w:Infinity,lat:Infinity,slat:Infinity,links:[],res:0,ld:0,tr:null,pl:0,f:f*(TRX&&TRX.avoid.has(key)?60:1)};adj[ai].push([bi,e]);adj[bi].push([ai,e]);}
-    const c=capOf(l),lt=linkLat(l);e.cap+=c;e.links.push(l);e.w=Math.min(e.w,(l.km+60)*e.f);if(l.standby){e.scap+=c;e.slat=Math.min(e.slat,lt);}else e.lat=Math.min(e.lat,lt);}
+    // The metric belongs to the city pair (a preset or a custom one); links on standby add capacity that fills only after the others (#122).
+    if(!e){e=edges[key]={id:key,a:l.a,b:l.b,ai,bi,i:NE++,km:l.km,cap:0,scap:0,w:Infinity,lat:Infinity,slat:Infinity,links:[],res:0,ld:0,tr:null,pl:0,f:TRX&&TRX.avoid.has(key)?60:1};adj[ai].push([bi,e]);adj[bi].push([ai,e]);}
+    const c=capOf(l),lt=linkLat(l);e.cap+=c;e.links.push(l);e.w=Math.min(e.w,pairW(key,l.km)*e.f);if(l.standby){e.scap+=c;e.slat=Math.min(e.slat,lt);}else e.lat=Math.min(e.lat,lt);}
   for(const k in edges){const e=edges[k];if(e.lat===Infinity)e.lat=e.slat;}
   // Shortest paths from every POP: SPD[pop] the distance to each city index (Infinity: no path), SPP[pop] the edge it arrives by.
   // ALONE[i]: no other city lies within 1e-6 of POP i (so only its own exits can be at distance 0 from it).

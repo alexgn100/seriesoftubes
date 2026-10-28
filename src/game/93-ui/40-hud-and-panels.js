@@ -85,6 +85,8 @@ function renderPanel(){checkLayer();
   const P=$('panel');
   if(!S||!UI.sel){P.hidden=true;return;}
   P.hidden=false;
+  // Don't wipe a half-typed custom metric on the daily re-render.
+  const fe=document.activeElement;if(fe&&fe.id==='metIn'&&UI.sel.type!=='city'&&fe.dataset.id===UI.sel.id)return;
   const scrollEl=$('panelBody').querySelector('.scroll');const st=scrollEl?scrollEl.scrollTop:0;
   const html=UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
   const ns=$('panelBody').querySelector('.scroll');if(ns)ns.scrollTop=st;

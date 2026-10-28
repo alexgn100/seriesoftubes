@@ -35,7 +35,14 @@ const NNI=[{n:'10G',g:10,mo:500},{n:'100G',g:100,mo:1200}];
 const VXC=[{n:'10G',g:10,m:1},{n:'50G',g:50,m:2.4},{n:'100G',g:100,m:3.6}];
 const vxcMo=(km,sub,t)=>Math.round((150+km*0.12)*VXC[t].m*(sub?2:1));
 const MET={prefer:{l:tr('common.prefer'),f:0.5},normal:{l:tr('common.normal'),f:1},avoid:{l:tr('common.avoid'),f:4},backup:{l:tr('common.backup_only'),f:60}};
+// Custom metrics: a multiplier on the distance cost (f) or an absolute IGP cost (w), capped like an OSPF metric.
+const MET_LIM={f:[0.1,100],w:[1,65535]};
+const clampM=(k,v)=>{const [lo,hi]=MET_LIM[k];v=Math.min(hi,Math.max(lo,v));return k==='w'?Math.round(v):Math.round(v*100)/100;};
 const PREF={high:tr('common.prefer'),normal:tr('common.normal'),low:tr('common.backup_only')};
 const edgeKey=l=>l.a<l.b?l.a+'|'+l.b:l.b+'|'+l.a;
 // The routing metric of a city pair (edgeKey), set for every link between the two cities.
-function pairMet(k){return (S.pairMet&&S.pairMet[k])||'normal';}
+// A custom metric is stored as {k:'f'|'w',v}: a multiplier, or an exact cost whatever the distance.
+function pairMet(k){const m=S.pairMet&&S.pairMet[k];return m?(typeof m==='object'?'custom':m):'normal';}
+function pairCm(k){const m=S.pairMet&&S.pairMet[k];return m&&typeof m==='object'?m:null;}
+// The cost of one link of km on the pair k, as Dijkstra sees it.
+function pairW(k,km){const m=S.pairMet&&S.pairMet[k];return m&&typeof m==='object'?(m.k==='w'?m.v:(km+60)*m.v):(km+60)*MET[m||'normal'].f;}

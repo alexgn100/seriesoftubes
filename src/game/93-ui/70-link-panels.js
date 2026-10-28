@@ -67,8 +67,15 @@ function trafficSection(l){
   if(u>=0.8&&egs.length){const d=R.egDesc[egs[0][0]];h+=`<p class="why">${tr('link_panels.biggest_feeder_egress_in_city_set',{egress:esc(d.lab),city:CITY[d.city].name})}</p>`;}
   return h+`</section>`;
 }
-function metricSection(l){const cur=pairMet(edgeKey(l)),pl=pairLinks(l.a,l.b),sb=!!l.standby;
-  let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},cur===k?'pink sm':'ghost sm')).join('')}</div>`;
+function metricSection(l){const key=edgeKey(l),cur=pairMet(key),pl=pairLinks(l.a,l.b),sb=!!l.standby,base=l.km+60,sel=k=>cur===k?'pink sm':'ghost sm';
+  let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost_0160')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},sel(k))).join('')}${btn(tr('common.custom'),'setMetric',{id:l.id,v:'custom'},sel('custom'))}</div>`;
+  const cm=pairCm(key);
+  if(cm){const k=cm.k,[lo,hi]=MET_LIM[k],md=m=>k===m?'pink sm':'ghost sm';
+    const pre=Object.keys(MET).map(m=>`${MET[m].l} ×${MET[m].f} = ${Math.round(base*MET[m].f)}`).join(', ');
+    h+=`<p class="meta">${tr('link_panels.a_link_s_cost_is_its')} ${tr('link_panels.presets_on_this_link_list',{list:pre})}</p>
+    <div class="btns">${btn(tr('common.multiplier'),'metricMode',{id:l.id,k:'f'},md('f'))}${btn(tr('common.cost'),'metricMode',{id:l.id,k:'w'},md('w'))}</div>
+    <div class="metric-in"><input class="t" id="metIn" type="number" inputmode="decimal" min="${lo}" max="${hi}" step="${k==='w'?1:0.1}" value="${cm.v}" data-id="${esc(l.id)}" aria-label="${esc(k==='w'?tr('common.cost'):tr('common.multiplier'))}">${btn(tr('common.set'),'metricSet',{id:l.id},'pink sm')}</div>
+    <p class="meta">${k==='w'?tr('link_panels.cost_the_exact_number_whatever_the'):tr('link_panels.multiplier_scales_the_distance_cost')} ${tr('link_panels.cost_on_this_link_w_allowed',{w:Math.round(pairW(key,l.km)),lo:k==='w'?lo:'×'+lo,hi:k==='w'?hi:'×'+hi})}</p>`;}
   // Standby only means something next to another link; a link left on standby alone can still be taken off it.
   if(pl.length>1||sb){const busy=(R.load[l.id]||0)>1e-3,alone=!pl.some(x=>x!==l&&!x.standby&&!linkDown(x));
     const st=!sb?tr('link_panels.a_link_on_standby_carries_traffic'):!busy?tr('link_panels.on_standby_idle_while_the_other'):alone?tr('link_panels.on_standby_but_carrying_the_traffic'):tr('link_panels.on_standby_taking_the_overflow');

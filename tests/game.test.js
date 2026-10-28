@@ -478,3 +478,118 @@ test('the broadband panel shows what homes in that city really pay, not the base
   assert.ok(ev("cityPanel('del')").includes(rev + '/mo'), `revenue line matches what the month pays (${rev})`);
   assert.deepEqual(errors, []);
 });
+
+// Custom routing metrics: a fra–ams–par triangle where the direct fra–par link is normally shortest.
+const triangle = (ev) => {
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
+  ev("for(const c of ['ams','par'])ACT.buildPop({city:c});const L=(a,b)=>{UI.via=null;openLinkModal(a,b);ACT.buildLink({tier:1});closeModal();};L('fra','ams');L('ams','par');L('fra','par');compute()");
+  ev("window.FP=S.links.find(l=>(l.a==='fra'&&l.b==='par')||(l.a==='par'&&l.b==='fra')).id;window.FK=edgeKey(S.links.find(l=>l.id===FP));window.pmOf=()=>S.pairMet[FK];window.hops=()=>JSON.stringify(trPaths('fra').path('par').map(h=>h.l.id))");
+};
+
+test('a custom multiplier routes exactly like the matching preset', () => {
+  const { ev, errors } = load();
+  triangle(ev);
+  assert.equal(ev("hops()"), JSON.stringify([ev("FP")]), 'direct link wins by default');
+  ev("ACT.setMetric({id:FP,v:'avoid'})");
+  const avoid = ev("JSON.stringify({h:hops(),load:R.load,served:R.served})");
+  ev("ACT.setMetric({id:FP,v:'custom'})");
+  assert.equal(ev("pairMet(FK)"), 'custom');
+  const m = ev("pmOf()");
+  assert.equal(m.k, 'f');
+  assert.equal(m.v, 4, 'custom starts from the preset it replaces');
+  assert.equal(ev("JSON.stringify({h:hops(),load:R.load,served:R.served})"), avoid);
+  ev("ACT.setMetric({id:FP,v:'normal'})");
+  assert.equal(ev("FK in S.pairMet"), false, 'presets drop the custom metric');
+  assert.deepEqual(errors, []);
+});
+
+test('an absolute custom cost steers the path, and switching modes keeps the cost', () => {
+  const { ev, errors } = load();
+  triangle(ev);
+  ev("ACT.setMetric({id:FP,v:'custom'});ACT.metricMode({id:FP,k:'w'})");
+  const l = ev("S.links.find(l=>l.id===FP)");
+  assert.equal(ev("pmOf().k"), 'w');
+  assert.equal(ev("pmOf().v"), Math.round(l.km + 60), 'switching to cost keeps the effective metric');
+  ev("ACT.selLink({id:FP});renderAll();$('metIn').value='65535';ACT.metricSet({id:FP})");
+  assert.equal(ev("pmOf().v"), 65535);
+  assert.ok(!JSON.parse(ev("hops()")).includes(ev("FP")), 'a huge cost sends traffic round via Amsterdam');
+  ev("renderAll();$('metIn').value='1';ACT.metricSet({id:FP})");
+  assert.equal(ev("hops()"), JSON.stringify([ev("FP")]));
+  ev("ACT.metricMode({id:FP,k:'f'})");
+  assert.equal(ev("pmOf().v"), 0.1, 'converted back to a multiplier, clamped to the minimum');
+  assert.deepEqual(errors, []);
+});
+
+test('custom metric input is validated and clamped', () => {
+  const { ev, errors } = load();
+  triangle(ev);
+  ev("ACT.setMetric({id:FP,v:'custom'});ACT.selLink({id:FP});renderAll()");
+  ev("$('metIn').value='';ACT.metricSet({id:FP})");
+  assert.equal(ev("pmOf().v"), 1, 'empty input changes nothing');
+  ev("renderAll();$('metIn').value='9999';ACT.metricSet({id:FP})");
+  assert.equal(ev("pmOf().v"), 100);
+  ev("renderAll();$('metIn').value='0';ACT.metricSet({id:FP})");
+  assert.equal(ev("pmOf().v"), 0.1);
+  ev("ACT.metricMode({id:FP,k:'x'});ACT.setMetric({id:FP,v:'bogus'})");
+  assert.equal(ev("pairMet(FK)"), 'custom');
+  assert.deepEqual(errors, []);
+});
+
+test('custom metrics survive a save, and broken ones are repaired', () => {
+  const { ev, errors } = load();
+  triangle(ev);
+  ev("ACT.setMetric({id:FP,v:'custom'});ACT.metricMode({id:FP,k:'w'});pmOf().v=777;S=migrate(JSON.parse(JSON.stringify(S)));compute()");
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(pmOf())")), { k: 'w', v: 777 });
+  ev("S.pairMet[FK]={k:'zz',v:'lots'};S=migrate(JSON.parse(JSON.stringify(S)));compute()");
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(pmOf())")), { k: 'f', v: 1 });
+  ev("S.pairMet[FK]={k:'w',v:1e9};S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev("pmOf().v"), 65535);
+  // An old save: a preset metric on the link itself, from before metrics moved to the city pair.
+  ev("delete S.pairMet[FK];S.links.find(l=>l.id===FP).metric='avoid';S=migrate(JSON.parse(JSON.stringify(S)));compute()");
+  assert.equal(ev("pmOf()"), 'avoid');
+  assert.equal(ev("'metric' in S.links.find(l=>l.id===FP)"), false);
+  assert.equal(JSON.parse(ev("hops()")).length, 2, 'the old save still routes, avoiding the direct link');
+  assert.deepEqual(errors, []);
+});
+
+test('preset buttons stay plain, and Custom explains the numbers, also on phones', () => {
+  const { ev, dom, errors } = load();
+  triangle(ev);
+  for (const w of [1280, 390]) {
+    ev(`window.innerWidth=${w};ACT.setMetric({id:FP,v:'normal'});ACT.selLink({id:FP});renderAll()`);
+    const doc = dom.window.document;
+    const btns = [...doc.querySelectorAll('#panel [data-act="setMetric"]')];
+    assert.equal(btns.length, 5);
+    const km = ev("S.links.find(l=>l.id===FP).km");
+    assert.deepEqual(btns.map(b => b.textContent), ['Prefer', 'Normal', 'Avoid', 'Backup only', 'Custom']);
+    assert.equal(doc.getElementById('metIn'), null);
+    assert.doesNotMatch(doc.getElementById('panel').textContent, /times a multiplier/);
+    ev("ACT.setMetric({id:FP,v:'custom'})");
+    assert.ok(doc.getElementById('metIn'), `custom editor at ${w}px`);
+    assert.ok(doc.querySelector('#panel [data-act="metricMode"]'));
+    const txt = doc.getElementById('panel').textContent;
+    assert.match(txt, /times a multiplier/);
+    assert.match(txt, new RegExp(`Normal ×1 = ${Math.round(km + 60)}, Avoid ×4 = ${Math.round((km + 60) * 4)}`));
+    assert.match(txt, /Multiplier: scales the distance cost/);
+    assert.match(txt, /Cost on this link/);
+    ev("ACT.metricMode({id:FP,k:'w'})");
+    assert.match(doc.getElementById('panel').textContent, /Cost: the exact number/);
+  }
+  assert.deepEqual(errors, []);
+});
+
+test('a custom metric belongs to the city pair, like the presets, and a standby link keeps it', () => {
+  const { ev, errors } = load();
+  triangle(ev);
+  ev("UI.via=null;openLinkModal('fra','par');ACT.buildLink({tier:1});closeModal();compute()");
+  ev("ACT.setMetric({id:FP,v:'custom'});ACT.metricMode({id:FP,k:'w'});ACT.selLink({id:FP});renderAll();$('metIn').value='65535';ACT.metricSet({id:FP})");
+  const other = ev("S.links.find(l=>l.id!==FP&&edgeKey(l)===FK).id");
+  assert.equal(ev(`pairMet(edgeKey(S.links.find(l=>l.id==='${other}')))`), 'custom', 'the second link between the cities shares it');
+  ev(`ACT.setStandby({id:'${other}',on:1})`);
+  assert.ok(!JSON.parse(ev("hops()")).includes(ev("FP")), 'the pair is still avoided');
+  assert.equal(ev("pmOf().v"), 65535);
+  // Removing every link of the pair drops the metric with it.
+  ev("S.links=S.links.filter(l=>edgeKey(l)!==FK);prunePairMet()");
+  assert.equal(ev("FK in S.pairMet"), false);
+  assert.deepEqual(errors, []);
+});

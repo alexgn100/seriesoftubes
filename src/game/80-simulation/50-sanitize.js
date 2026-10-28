@@ -20,7 +20,9 @@ function sanitize(s){
      links, with all of them carrying traffic, so the pair keeps that metric and nothing goes on standby. */
   {const pm=s.pairMet,lo={};for(const l of s.links){if(l.metric!==undefined){const k=edgeKey(l),m=own(MET,l.metric)?l.metric:'normal';if(!lo[k]||MET[m].f<MET[lo[k]].f)lo[k]=m;}if(l.standby!==true)delete l.standby;}
    for(const l of s.links){const k=edgeKey(l);if(lo[k]&&l.metric===undefined)lo[k]='normal';delete l.metric;}
-   for(const k in lo)pm[k]=lo[k];const ks=new Set(s.links.map(edgeKey));for(const k of Object.keys(pm))if(!ks.has(k)||!own(MET,pm[k])||pm[k]==='normal')delete pm[k];}
+   for(const k in lo)pm[k]=lo[k];const ks=new Set(s.links.map(edgeKey));for(const k of Object.keys(pm)){const v=pm[k];
+     if(v&&typeof v==='object'&&ks.has(k)){const mk=v.k==='w'?'w':'f';pm[k]={k:mk,v:clampM(mk,num(v.v,mk==='w'?60:1))};continue;}
+     if(!ks.has(k)||typeof v!=='string'||!own(MET,v)||v==='normal')delete pm[k];}}
   const degO=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;
   s.transit=s.transit.filter(t=>t&&isCity(t.city)&&isNet(t.net)).map(t=>(t.lacp=degO(t.lacp),t.site=['a','b','ab'].includes(t.site)?t.site:'a',t.id=sid(t.id),t.tier=tier(t.tier),t.n=lag(t.n),t.down=num(t.down,0),t.clean=!!t.clean,t.premium=premOnlyAt(NET[t.net],t.city)||!!t.premium&&premCity(NET[t.net],t.city),t));
   s.pni=s.pni.filter(x=>x&&isCity(x.city)&&isNet(x.net)).map(x=>(x.lacp=degO(x.lacp),x.site=['a','b','ab'].includes(x.site)?x.site:'a',x.id=sid(x.id),x.tier=tier(x.tier),x.n=lag(x.n),x.sacrif=!!x.sacrif,x));

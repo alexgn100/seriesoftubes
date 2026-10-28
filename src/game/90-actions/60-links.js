@@ -28,7 +28,14 @@ Object.assign(ACT,{
  upVxc:({id,t})=>{t=+t;const l=S.links.find(x=>x.id===id);if(!l||l.kind!=='vxc'||!VXC[t]||t<=l.vt)return;const extra=VXC[t].g-VXC[l.vt].g;for(const c of [l.a,l.b]){const pt=nniPort(c,l.prov);if(pt&&nniUsed(c,l.prov)+extra>NNI[pt.tier].g){toast(tr('links.fabric_port_in_city_is_full',{city:CITY[c].name}),'bad');sfx('err');return;}}const mo=vxcMo(l.km,l.sub,t);if(!spend(mo))return;l.vt=t;l.mo=mo;after();},
  cancelVxc:({id})=>{if(UI.confirm!==id){UI.confirm=id;renderPanel();return;}S.links=S.links.filter(l=>l.id!==id);prunePairMet();const rem=remoteCities();for(const c in S.ixp){if(!S.pops[ixCity(c)]&&!rem.includes(ixCity(c))){delete S.ixp[c];delete S.rs[c];for(const k in S.peers)if(k.endsWith('@'+c))delete S.peers[k];}}UI.sel=null;UI.confirm=null;after();},
  setPref:({kind,id,v})=>{if(!own(PREF,v))return;if(kind!=='t'&&kind!=='p'&&!(isIx(id)&&S.ixp[id]!==undefined))return;if(kind==='t'){const t=S.transit.find(x=>x.id===id);if(t)t.pref=v;}else if(kind==='p'){const x=S.pni.find(y=>y.id===id);if(x)x.pref=v;}else{S.ixPref=S.ixPref||{};S.ixPref[id]=v;}sfx('click');after();},
- setMetric:({id,v})=>{if(!own(MET,v))return;const l=S.links.find(x=>x.id===id);if(!l)return;const m=S.pairMet||(S.pairMet={}),k=edgeKey(l);if(v==='normal')delete m[k];else m[k]=v;sfx('click');after();},
+ setMetric:({id,v})=>{if(v!=='custom'&&!own(MET,v))return;const l=S.links.find(x=>x.id===id);if(!l)return;const m=S.pairMet||(S.pairMet={}),k=edgeKey(l);
+   // Switching to custom starts from the current preset's factor, so nothing moves until the player edits it.
+   if(v==='custom'){if(!pairCm(k))m[k]={k:'f',v:MET[pairMet(k)].f};}else if(v==='normal')delete m[k];else m[k]=v;sfx('click');after();},
+ metricMode:({id,k})=>{if(k!=='f'&&k!=='w')return;const l=S.links.find(x=>x.id===id);if(!l)return;const key=edgeKey(l),c=pairCm(key);if(!c||c.k===k)return;
+   // The cost stays what it was on this link, written the other way.
+   const w=pairW(key,l.km);S.pairMet[key]={k,v:clampM(k,k==='w'?w:w/(l.km+60))};sfx('click');after();},
+ metricSet:({id})=>{const l=S.links.find(x=>x.id===id),t=$('metIn');if(!l||!t)return;const key=edgeKey(l),c=pairCm(key);if(!c)return;const v=parseFloat(String(t.value).replace(',','.'));if(!Number.isFinite(v)){sfx('err');return;}
+   t.blur();S.pairMet[key]={k:c.k,v:clampM(c.k,v)};sfx('click');after();},
  setStandby:({id,on})=>{const l=S.links.find(x=>x.id===id);if(!l)return;if(on)l.standby=true;else delete l.standby;sfx('click');after();},
  goEgress:({city,k})=>{ACT.focusCity({city});UI.tab=k==='t'?'up':k==='l2'?'cust':k==='nni'?'links':'peer';renderPanel();},
 });
