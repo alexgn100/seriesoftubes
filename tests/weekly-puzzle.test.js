@@ -61,14 +61,15 @@ test('weeks start Sunday 06:00 Berlin, in winter and in summer, and keys run acr
   assert.deepEqual(errors, []);
 });
 
-test('generator: deterministic for a week, and the committed weeks are what it makes', () => {
+// Weeks already out are not compared with a fresh run: a later release may change prices, and a published week stays as
+// it was (--check still makes sure the weeks not over yet can be solved).
+test('generator: deterministic for a week', () => {
   const g = G.game(), a = tmp(), b = tmp();
   const first = G.list(DIR)[0];
   const keys = G.list(DIR).length;
   for (const d of [a, b]) for (let i = 0; i < keys; i++) G.writeWeek(d, G.generate(g, g.ev(`pzKeyAdd('${first}',${i})`), d));
   for (const k of G.list(a)) {
     assert.equal(fs.readFileSync(path.join(a, k + '.json'), 'utf8'), fs.readFileSync(path.join(b, k + '.json'), 'utf8'), `${k} twice the same`);
-    assert.equal(fs.readFileSync(path.join(a, k + '.json'), 'utf8'), fs.readFileSync(path.join(DIR, k + '.json'), 'utf8'), `${k} as committed`);
   }
   assert.ok(keys >= 3, 'the release ships with weeklies in place');
 });
