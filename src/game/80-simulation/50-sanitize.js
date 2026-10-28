@@ -75,7 +75,7 @@ function sanitize(s){
   s.auV=s.auV===1?1:0;if(s.auNews!==true)delete s.auNews;
   // Badges: S.ach[id] is the day it was earned (any save); S.achP[id] the variant (2.0). A missing variant is the standard one.
   for(const k of Object.keys(s.ach))s.ach[k]=num(s.ach[k],0);
-  {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=BVAR[p[k]]?p[k]:'oncall';}
+  {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=typeof p[k]==='string'&&own(BVAR,p[k])?p[k]:'oncall';}
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
   // The rules (2.0): a save without them is the classic game, On-call (or a sandbox or puzzle, if it was one). Locked after the start.
   {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{},p=s.mode==='sandbox'?'sandbox':s.mode==='puzzle'?'puzzle':own(PRESETS,r.preset)?r.preset:'oncall';s.rules=makeRules(p,own(PRESETS,r.preset)?r:{});}

@@ -135,3 +135,17 @@ test('the share card rings the variant badges', () => {
   assert.ok(fiery > plain, `the ring and the tally are drawn (${fiery} > ${plain} calls)`);
   assert.deepEqual(errors, []);
 });
+
+test('a variant named after an Object prototype key is not a variant', () => {
+  const { ev, errors } = load();
+  start(ev);
+  for (const k of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    ev(`const o=JSON.parse(JSON.stringify(S));o.ach={hello:3};o.achP={hello:${JSON.stringify(k)}};S=migrate(o)`);
+    assert.equal(ev('S.achP.hello'), 'oncall', k);
+    assert.equal(ev(`bvar(${JSON.stringify(k)}).k`), 'oncall', `bvar(${k})`);
+    ev(`S.rules={preset:${JSON.stringify(k)}}`);
+    assert.equal(ev('badgeVar()'), 'oncall', `badgeVar() under preset ${k}`);
+  }
+  ev("S.rules={preset:'oncall'};S.achP.hello='constructor';shareCanvas()");
+  assert.deepEqual(errors, []);
+});

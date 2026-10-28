@@ -74,10 +74,10 @@ const BADGES=[
    fiery one; Sandbox and the puzzles earn none (puzzles have stars). Earning a badge again under a harder preset
    upgrades its look, here and in the hall of fame. S.ach[id] stays the day it was earned; S.achP[id] is its variant. */
 const BVAR={freeze:{k:'freeze',lv:1,i:'🧊',n:N_('badges.variant_freeze_dried'),col:'#5BC0EB'},oncall:{k:'oncall',lv:2,i:'⭐',n:N_('badges.variant_on_call'),col:'#FFD23F'},bgp:{k:'bgp',lv:3,i:'🔥',n:N_('badges.variant_forged_at_3_a_m'),col:'#FF5A1F'}};
-const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>BVAR[k]||BVAR.oncall;
+const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>own(BVAR,k)?BVAR[k]:BVAR.oncall;
 // The preset this save plays under ('oncall' for every save from before rulesets), and the variant it earns (null: none).
 const rulePre=()=>(typeof rulePreset==='function'?rulePreset():(S&&S.rules&&S.rules.preset))||'oncall';
-function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:BVAR[p]?p:'oncall';}
+function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:own(BVAR,p)?p:'oncall';}
 // The hall of fame is this device's localStorage, so it is checked like a save: unknown variants count as standard.
 function hof(){let h;try{h=JSON.parse(localStorage.getItem('sot-badges')||'{}');}catch(e){h=null;}if(!h||typeof h!=='object'||Array.isArray(h))return {};
   for(const k of Object.keys(h)){const x=h[k];if(!x||typeof x!=='object'){delete h[k];continue;}const vs=x.vs&&typeof x.vs==='object'&&!Array.isArray(x.vs)?x.vs:{};
