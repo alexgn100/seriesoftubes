@@ -36,7 +36,7 @@ function dayTick(){
     if(l.own&&l.ready>d&&Math.random()<0.012){const extra=10+Math.floor(Math.random()*40);setCableReady(l,l.ready+leadDays(extra));toast(tr('day_tick.construction_delay_n_days_why_a',{n:leadDays(extra),why:pick(l.sub?SEA_DELAYS.map(x=>tr(x)):[tr('day_tick.archaeologists_found_a_roman'),tr('day_tick.a_protected_hamster_species_lives'),tr('day_tick.the_railway_changed_its_mind_about'),tr('day_tick.the_drilling_crew_hit_a_granite'),tr('day_tick.a_town_council_wants_a_public'),tr('day_tick.somebody_else_s_gas_main_was'),tr('day_tick.the_permit_office_lost_your_permit')]),a:CITY[l.a].name,b:CITY[l.b].name}),'bad');}}
   // DDoS protection SLA: if a protected customer's own city is hit and still goes down, you pay out (once per attack).
   for(const a of ddosAll()){
-    for(const b of S.biz)if(b.type==='scrub'&&ddosCities(a).includes(b.city)&&!(a.sla||[]).includes(b.id)&&(a.id||b.slaFor!==a.start)&&sfOf(R,b.city)<0.85){
+    for(const b of S.biz)if(b.type==='scrub'&&b.city===a.city&&!(a.sla||[]).includes(b.id)&&(a.id||b.slaFor!==a.start)&&sfOf(R,b.city)<0.85){
       (a.sla||(a.sla=[])).push(b.id);b.slaFor=a.start;S.cash-=SLA_PEN;b.mood=Math.max(0,b.mood-18);S.stats.sla=(S.stats.sla||0)+1;
       toast(tr('day_tick.sla_breach_name_the_attack_on',{name:esc(b.name),city:CITY[a.city].name,pen:fmt$(SLA_PEN)}),'bad');sfx('err');}}
   // businesses mood

@@ -37,7 +37,8 @@ function ddosSlices(a){if(!a.entries?.length)return [a];const groups={};
   return Object.entries(groups).map(([city,entries])=>({...a,parent:a,city,entries,gbps:a.gbps*entries.reduce((n,en)=>n+en.share,0)}));}
 const ddosCities=a=>[...new Set([a.city,...(a.entries||[]).map(en=>en.city)])].filter(c=>S.pops[c]);
 const ddosHasIx=a=>ddosCities(a).some(hasIxAt);
-const ddosSf=a=>Math.min(1,...ddosCities(a).map(c=>sfOf(R,c)));
+// An attack is held or lost at its victim: the junk lands there, and other POPs' bad days are not the attacker's doing.
+const ddosSf=a=>sfOf(R,a.city);
 function ddosReport(a){const ms=(R.ddos||[]).filter(m=>m.attack===a||m.attack.parent===a);if(!ms.length)return ddosMitigation(a);
   const parts={};for(const m of ms)for(const x of m.sp?.parts||[]){const q=parts[x.city]||(parts[x.city]={city:x.city,tier:x.tier,a:0,cleaned:0});q.a+=x.a;q.cleaned+=x.cleaned;}
   return {attack:a,blackhole:ms.some(m=>m.blackhole),upstream:ms.some(m=>m.upstream),reaching:ms.reduce((n,m)=>n+m.reaching,0),flowspec:ms.reduce((n,m)=>n+m.flowspec,0),fsMissing:ms.some(m=>m.fsMissing),filtered:ms.reduce((n,m)=>n+m.filtered,0),sp:Object.keys(parts).length?{parts:Object.values(parts)}:null,near:ms.find(m=>m.near)?.near||null,leak:ms.reduce((n,m)=>n+m.leak,0)};}
@@ -53,7 +54,7 @@ const fsAt=c=>{const p=S.pops[c];return p?(RG[p.rgen||0].fs||0):0;};
 function scrubEngaged(atk){return hasScrub()&&(S.scrubMode==='always'||(S.day-(atk.start??S.day))>=SCRUB_DELAY);}
 // Several centers (#117): the flood goes to the nearest working one, and what it cannot take spills to the next.
 // A center in another city only helps if the backbone can carry the flood there; routing works that out.
-const scrubFar=c=>ddosAll().some(a=>ddosCities(a).includes(c))&&(R.haul||[]).find(q=>q.city===c&&q.ms!==null&&q.ms>=SCRUB_FAR_MS)||null;
+const scrubFar=c=>{for(const a of ddosAll())if(a.city===c){const q=(R.haul||[]).find(q=>q.attack===a.id&&q.city===c&&q.ms!==null&&q.ms>=SCRUB_FAR_MS);if(q)return q;}return null;};
 function scrubPlan(atk,g=atk.gbps||0,room={},take=null){if(!scrubEngaged(atk))return null;const c=atk.city;const parts=[];
   for(const x of S.scrubs.filter(x=>popUp(x.city)&&(x.city===c||pathExists(c,x.city))).sort((a,b)=>(a.city===c?0:kmBetween(c,a.city))-(b.city===c?0:kmBetween(c,b.city)))){if(g<=0)break;const cap=SCRUB_TIERS[x.tier||0].g,a=Math.min(g,room[x.city]??cap);if(a<=0)continue;const cleaned=take?take(x,a):a;room[x.city]=(room[x.city]??cap)-cleaned;parts.push({city:x.city,tier:x.tier||0,a,cleaned});g-=cleaned;}
   return parts.length?{parts,leak:g}:null;}

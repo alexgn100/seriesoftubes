@@ -38,3 +38,24 @@ test('a flood entering in another city crosses the backbone to its victim, whate
   }
   assert.equal(out[0], out[1], 'POP build order does not change the outcome');
 });
+
+test('an attack is held or lost at its victim; other POPs and their DDoS-protected customers are not charged', () => {
+  const { ev, errors } = load({ seed: 5 });
+  ev("ACT.start({});S.cash=1e9;S.lvl=6;S.nextFail=1e9;S.nextEvent=1e9;ACT.buildPop({city:'nyc'});for(const c of ['fra','nyc']){S.pops[c].bb={d:50};S.pops[c].rgen=3}");
+  ev("S.transit=[{id:'tf',city:'fra',net:'cog',tier:2},{id:'tn',city:'nyc',net:'cog',tier:1}];S.scrubs=[{city:'fra',tier:1}];S.scrubMode='always'");
+  // New York is struggling on its own (a 10G port for 50G of eyeballs), and has a DDoS-protected customer.
+  ev("S.pops.nyc.bb.d=200;S.biz.push({id:'sc',type:'scrub',name:'Shield',city:'nyc',bw:1,rate:1000,mood:80,since:0})");
+  ev("S.day=60;S.ev.ddos={id:'a',city:'fra',vec:'http',gbps:20,start:S.day,until:S.day+3,entry:{k:'distributed',lab:''},entries:[{k:'t',id:'tf',city:'fra',share:.5},{k:'t',id:'tn',city:'nyc',share:.5}]};compute()");
+  assert.ok(ev("sfOf(R,'nyc')") < 0.85, 'New York is under water anyway');
+  assert.ok(ev("sfOf(R,'fra')") >= 0.97, 'the victim is fine');
+  assert.equal(ev('ddosSf(S.ev.ddos)'), ev("sfOf(R,'fra')"));
+  const cash = ev('S.cash');
+  ev('dayTick()');
+  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.ev.ddos.sla||[])')), [], 'no SLA payout for a customer in another city');
+  assert.equal(ev('S.stats.sla||0'), 0);
+  ev('S.day=S.ev.ddos.until;ddosExpire()');
+  assert.equal(ev('S.stats.ddosOk||0'), 1, 'held at the victim');
+  assert.equal(ev('S.stats.ddosLost||0'), 0);
+  assert.ok(cash > 0);
+  assert.deepEqual(errors, []);
+});
