@@ -149,3 +149,23 @@ test('a variant named after an Object prototype key is not a variant', () => {
   ev("S.rules={preset:'oncall'};S.achP.hello='constructor';shareCanvas()");
   assert.deepEqual(errors, []);
 });
+
+test('"Badge upgraded" means the collection on this device got a better variant', () => {
+  const { ev, errors } = load();
+  const spy = () => ev("window.__t=[];if(!window.__sp){window.__sp=1;const _t=toast;toast=(h,...a)=>{window.__t.push(h);return _t(h,...a);};}");
+  // a new game, but this device already holds the frosted badge: the standard one upgrades it
+  start(ev, 'oncall');
+  ev("localStorage.setItem('sot-badges',JSON.stringify({hello:{d:'2026-01-01',n:'Old',vs:{freeze:'2026-01-01'}}}))");
+  spy(); earnHello(ev);
+  assert.match(ev("window.__t.join(' ')"), /Badge upgraded/);
+  assert.equal(hof(ev).hello.v, 'oncall');
+  // another new game, the device already holds the fiery one: earning the frosted one is a plain unlock
+  start(ev, 'freeze');
+  ev("localStorage.setItem('sot-badges',JSON.stringify({hello:{d:'2026-01-01',n:'Old',vs:{bgp:'2026-01-01'}}}))");
+  spy(); earnHello(ev);
+  const t = ev("window.__t.join(' ')");
+  assert.match(t, /Badge unlocked/);
+  assert.doesNotMatch(t, /Badge upgraded/);
+  assert.equal(hof(ev).hello.v, 'bgp', 'the best variant stays on the shelf');
+  assert.deepEqual(errors, []);
+});
