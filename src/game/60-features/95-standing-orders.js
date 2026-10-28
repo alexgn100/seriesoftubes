@@ -71,6 +71,11 @@ function opsWeekLine(x){const I=INTERNS[x.i],name=I?tr(I.s):'',ks=Object.keys(x.
   const parts=ks.map(k=>k==='sales'?trn('ops.w_sales',x.n[k],{rev:opsMo$(x.rev)}):trn(OPS_SAY[k],x.n[k],{where:(x.wh[k]||[]).map(opsWhere).join(', ')}));
   if(x.ff)parts.push(trn('ops.w_oops',x.ff));
   return tr('ops.w_line',{name,list:parts.join(', ')})+(x.up||x.mo?' '+tr('ops.w_money',{cost:fmt$(x.up),mo:opsMo$(x.mo)}):'');}
+// The intern's mood, from what the week has been like. No dice: the same day always reads the same.
+function opsMood(){const O=S.ops,x=O.wk&&O.wk.w===Math.floor(S.day/7)?O.wk:null,n=x?x.n:{},jobs=Object.keys(n).filter(k=>k!=='broke'&&k!=='decline').reduce((a,k)=>a+n[k],0);
+  const k=S.day-O.hired<7?'new':x&&x.ff?'oops':n.snag?'snag':S.inc.some(i=>i.until>S.day&&i.type!=='ddos')?'outage':n.sales?'sales':n.broke?'broke':jobs>=5?'busy':S.day%2?'quiet':O.intern;
+  return tr({new:N_('ops.mood_new'),oops:N_('ops.mood_oops'),snag:N_('ops.mood_snag'),outage:N_('ops.mood_outage'),sales:N_('ops.mood_sales'),broke:N_('ops.mood_broke'),busy:N_('ops.mood_busy'),quiet:N_('ops.mood_quiet'),
+    annie:N_('ops.mood_annie'),kevin:N_('ops.mood_kevin'),tracy:N_('ops.mood_tracy')}[k],{name:opsName()});}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
 function opsWhere(w){const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
 function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(opsWhere).join(', ')}));

@@ -22,6 +22,7 @@ function opsModal(){if(!S)return;const hired=opsHired();let h=`<div style="displ
   const O=S.ops,I=INTERNS[O.intern];
   h+=`<div class="ops-o on"><div class="ops-h"><span class="ops-i" aria-hidden="true">${I.i}</span><div class="grow"><div class="nm">${tr(I.n)}</div><div class="meta">${tr('ops.salary',{price:fmt$(INTERN_MO),d:dateStr(O.hired)})}</div></div>
     ${btn(UI.confirm==='opsFire'?tr('ops.really_fire'):tr('ops.fire'),'opsFire',{},'ghost sm')}</div>
+    <p class="ops-mood">${esc(opsMood())}</p>${opsReportHtml()}
     ${O.log.length?`<pre class="term ops-log">${O.log.slice(0,6).map(e=>esc(tr('peering_inbox.day_d',{d:e.d})+': '+opsEntry(e))).join('\n')}</pre>`:''}
     <p class="meta">${ibx().bot?tr('ops.lpm_on',{name:opsName()}):tr('ops.lpm_off',{name:opsName()})}</p>
     <div class="ops-p">${btn(`${tr('ops.floor')}: <b>${O.floor?fmt$(O.floor):tr('ops.no_cap')}</b>`,'opsFloor',{},'ghost sm')}</div></div>`;
@@ -33,6 +34,10 @@ function opsModal(){if(!S)return;const hired=opsHired();let h=`<div style="displ
     <p class="meta">${tr('ops.per_pop_note')}</p></section>`;
   h+=`<section><h3>${tr('ops.template')}</h3><p class="meta">${tr('ops.template_note',{name:opsName()})}</p><div class="ops-p">${OPS_TPL.map(k=>`<button class="b sm ${O.tpl[k]?'green':'ghost'}" data-act="opsTpl" data-args='{"k":"${k}"}' aria-pressed="${O.tpl[k]}">${tr(OPS_TPL_L[k])}</button>`).join('')}</div></section>`;
   h+=opsOnceHtml();openModal(h,'ops');}
+// The shift report: last week in one paragraph, and this week so far. The daily lines below are the detail.
+function opsReportHtml(){const O=S.ops,w=Math.floor(S.day/7),cur=O.wk&&O.wk.w===w&&opsWkAny(O.wk)?O.wk:null,rep=O.rep&&O.rep.w===w-1?O.rep:null;if(!cur&&!rep)return '';
+  const row=(t,x)=>`<div class="ops-rep"><div class="eyebrow">${t}</div><div>${esc(opsWeekLine(x))}</div></div>`;
+  return (rep?row(tr('ops.report_last'),rep):'')+(cur?row(tr('ops.report_now'),cur):'');}
 // The big one-off batches (#181, #192) live here now, next to the orders that run them every week.
 const opsOnceHtml=()=>`<section><h3>${tr('ops.by_hand')}</h3><p class="meta">${tr('ops.by_hand_note')}</p><div class="btns">${btn(tr('utilities.title'),'utilities',{},'sm')}${btn(tr('pni_all.peer_all_networks'),'pniAllOpen',{net:null},'sm')}</div></section>`;
 // On a city without a POP: open it from the template in one tap.

@@ -260,6 +260,40 @@ test('the NOC gets one notice a week, the shift report; the daily lines stay in 
   assert.deepEqual(errors, []);
 });
 
+test('the Ops sheet opens with the intern\'s mood and the weekly shift report, at 360 px, in every language', t => {
+  for (const lang of ['en', 'de', 'es', 'fr', 'it', 'pt']) {
+    const h = load(lang === 'en' ? {} : { lang });
+    const { ev, dom, errors } = h;
+    ev(BASE); ev('S.day=14'); dom.window.innerWidth = 360;
+    hire(ev);
+    ev('opsModal()');
+    const mood = () => dom.window.document.querySelector('#modalCard .ops-mood').textContent;
+    assert.equal(mood(), ev("tr('ops.mood_new',{name:opsName()})"), lang + ': a new hire says so');
+    on(ev, 'transit', { x: 1.5 }, 0);
+    ev("S.transit[0].hist=[600];S.day=21");shift(ev);ev("S.transit[0].hist=[6000];S.day=28");shift(ev);ev('opsModal()');
+    const reps = [...dom.window.document.querySelectorAll('#modalCard .ops-rep')];
+    assert.equal(reps.length, 2, lang + ': last week, and this week so far');
+    assert.equal(reps[0].lastElementChild.textContent, ev('opsWeekLine(S.ops.rep)'), lang);
+    assert.ok(mood().length > 10, lang);
+    assert.doesNotMatch(dom.window.document.getElementById('modalCard').textContent, /\bops\.[a-z_]+/, lang);
+    assert.deepEqual(errors, [], lang);
+    dom.window.close();
+  }
+});
+
+test('the mood follows the week, with no dice', t => {
+  const { ev, errors } = game(t);
+  ev('S.day=100'); hire(ev); ev('S.day=110');
+  const quiet = ev('opsMood()');
+  assert.equal(ev('opsMood()'), quiet, 'the same day reads the same');
+  assert.ok([ev("tr('ops.mood_quiet',{name:'Kevin'})"), ev("tr('ops.mood_kevin')")].includes(quiet));
+  ev("S.ops.wk=opsWkNew(Math.floor(S.day/7));S.ops.wk.n.sales=1");
+  assert.equal(ev('opsMood()'), ev("tr('ops.mood_sales',{name:'Kevin'})"));
+  ev("S.ops.wk.n.broke=1;delete S.ops.wk.n.sales");
+  assert.equal(ev('opsMood()'), ev("tr('ops.mood_broke',{name:'Kevin'})"));
+  assert.deepEqual(errors, []);
+});
+
 test('fat fingers: never under Change Freeze, rare and harmless in On-call and BGP at 3 a.m.', t => {
   const { ev, errors } = game(t);
   hire(ev);
