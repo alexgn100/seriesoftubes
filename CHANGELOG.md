@@ -23,6 +23,7 @@ All notable changes to this project are documented here. The project follows
 - DDoS bandwidth now adds up: upstream scrubbing, edge filters and scrubbing centers work in sequence. The NOC uses the same figures as traffic routing, including floods that cannot reach a remote center.
 - Attacks can now use Memcached amplification or an ACK flood. Flowspec catches the former; the latter need mitigation.
 - Set the number of each optic model directly on land and subsea fiber links. Apply a whole change at once, with its total price shown before buying; removed optics return to the spares shelf.
+- Order PNIs with one network or every network at all shared POPs from the NOC Traffic tab: choose a port size, review the total cost, and add missing connections or upgrade smaller ones in one go. Each network keeps its own smallest PNI size and delivery time.
 
 ## [1.36.0] — 2026-10-28
 
