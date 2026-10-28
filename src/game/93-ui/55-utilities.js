@@ -5,6 +5,11 @@ function utilityKitHtml(city,modal=false){const q=utilityKit(city);if(!q)return 
     <p class="meta">${tr('utilities.cache_moves',{n:q.moves.length})}</p>
     ${q.cost||q.moves.length?`<p class="meta">${tr('utilities.kit_cost',{cost:fmt$(q.cost),mo:fmt$(q.mo)})}</p><div class="btns">${btn(tr('utilities.apply_kit'),'utilityKit',{city,cost:q.cost,modal},'pink',q.cost>0&&S.cash<q.cost)}</div>`:`<p class="meta">${tr('utilities.kit_balanced')}</p>`}
     <p class="note">${tr('utilities.redundancy_note')}</p></section>${utilityCachesHtml(city,modal)}`;}
+// In the Infra tab (#192): one line and the button, since the generator, second site, routers and caches each have
+// their own rows below; the full kit with its caches is in Utilities.
+function utilityKitLine(city){const q=utilityKit(city);if(!q)return '';const todo=q.cost||q.moves.length;
+  return `<section><p class="meta"><b>${tr('utilities.redundancy_kit')}</b> · ${todo?tr('utilities.kit_cost',{cost:fmt$(q.cost),mo:fmt$(q.mo)})+(q.moves.length?' · '+tr('utilities.cache_moves',{n:q.moves.length}):''):tr('utilities.kit_balanced')}</p>
+    <div class="btns">${todo?btn(tr('utilities.apply_kit'),'utilityKit',{city,cost:q.cost},'pink sm',q.cost>0&&S.cash<q.cost):''}${btn(tr('utilities.title'),'utilities',{city},'ghost sm')}</div></section>`;}
 function utilityCachesHtml(city,modal=false){const q=utilityCaches(city);if(!q)return '';
   return `<section><h3>${tr('common.embedded_caches')}</h3><p class="lead">${tr('utilities.cache_note')}</p>
     <p class="meta">${tr('utilities.cache_quote',{n:q.add.length,mo:fmt$(q.mo)})}</p>

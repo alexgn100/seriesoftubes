@@ -1076,7 +1076,12 @@ test('prices follow real connectivity: thin markets cost more, hubs stay put', (
   const { ev, errors } = load();
   start(ev);
   assert.deepEqual(JSON.parse(ev('JSON.stringify(Object.keys(CITY_PDB).filter(c=>!CITY[c]))')), [], 'every entry is a city on the map');
-  assert.ok(ev('Object.keys(CITY_PDB).length') >= 190, 'real-world data for most cities');
+  assert.deepEqual(JSON.parse(ev('JSON.stringify(CITIES.filter(c=>!CITY_PDB[c.id]).map(c=>c.id))')), [], 'every city has data, so none keeps the plain price by accident');
+  assert.ok(ev('Object.values(CITY_PDB).every(q=>Array.isArray(q)&&q.length===3&&q.every(x=>Number.isInteger(x)&&x>=0)&&q[1]>=0)'), '[facilities, presences, ASNs], whole numbers');
+  // The cities that used to have none: thin markets cost more than Frankfurt, and the Arctic has no neutral data center.
+  for (const c of ['dus', 'rix', 'mct', 'mle', 'fuk', 'sju', 'kin', 'anc', 'tik']) assert.ok(ev(`txComp('${c}')`) > 1, `${c} is no hub`);
+  for (const c of ['brw', 'tik', 'pvs', 'hav']) assert.equal(ev(`colo('${c}')`), 1.5, `${c}: no carrier-neutral data center`);
+  assert.ok(ev("txComp('dus')") < ev("txComp('rix')") && ev("txComp('rix')") < ev("txComp('mle')"), 'Düsseldorf, Riga, Malé: ever thinner');
   // A city without data keeps the plain regional price.
   assert.equal(ev("(()=>{const q=CITY_PDB.fra;delete CITY_PDB.fra;const r=[txComp('fra'),colo('fra'),popMo('fra')];CITY_PDB.fra=q;return r.join()})()"), `1,1,${ev('POP_MO')}`);
   assert.equal(ev("regionMult('syd')"), ev('AU_TRANSIT'), 'Australia keeps its hand-set transit price');

@@ -30,10 +30,10 @@ Object.assign(ACT,{
  setPref:({kind,id,v})=>{if(!own(PREF,v))return;if(kind!=='t'&&kind!=='p'&&!(isIx(id)&&S.ixp[id]!==undefined))return;if(kind==='t'){const t=S.transit.find(x=>x.id===id);if(t)t.pref=v;}else if(kind==='p'){const x=S.pni.find(y=>y.id===id);if(x)x.pref=v;}else{S.ixPref=S.ixPref||{};S.ixPref[id]=v;}sfx('click');after();},
  setMetric:({id,v})=>{if(v!=='custom'&&!own(MET,v))return;const l=S.links.find(x=>x.id===id);if(!l)return;const m=S.pairMet||(S.pairMet={}),k=edgeKey(l);
    // Switching to custom starts from the current preset's factor, so nothing moves until the player edits it.
-   if(v==='custom'){if(!pairCm(k))m[k]={k:'f',v:MET[pairMet(k)].f};}else if(v==='normal')delete m[k];else m[k]=v;sfx('click');after();},
+   if(v==='custom'){if(!pairCm(k))m[k]={k:'f',v:MET[pairMet(k)].f};}else if(v==='normal')delete m[k];else m[k]=v;metBlur();sfx('click');after();},
  metricMode:({id,k})=>{if(k!=='f'&&k!=='w')return;const l=S.links.find(x=>x.id===id);if(!l)return;const key=edgeKey(l),c=pairCm(key);if(!c||c.k===k)return;
    // The cost stays what it was on this link, written the other way.
-   const w=pairW(key,l.km);S.pairMet[key]={k,v:clampM(k,k==='w'?w:w/(l.km+60))};sfx('click');after();},
+   const w=pairW(key,l.km);S.pairMet[key]={k,v:clampM(k,k==='w'?w:w/(l.km+60))};metBlur();sfx('click');after();},
  metricSet:({id})=>{const l=S.links.find(x=>x.id===id),t=$('metIn');if(!l||!t)return;const key=edgeKey(l),c=pairCm(key);if(!c)return;const v=parseFloat(String(t.value).replace(',','.'));if(!Number.isFinite(v)){sfx('err');return;}
    t.blur();S.pairMet[key]={k:c.k,v:clampM(c.k,v)};sfx('click');after();},
  setStandby:({id,on})=>{const l=S.links.find(x=>x.id===id);if(!l)return;if(on)l.standby=true;else delete l.standby;sfx('click');after();},
