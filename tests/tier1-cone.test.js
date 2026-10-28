@@ -146,3 +146,21 @@ test('routing with cones costs about what it did: exits are asked once, cones ar
   assert.ok(t < plain * 2 + 20, `compute() with cones ${t.toFixed(1)} ms vs without ${plain.toFixed(1)} ms`);
   assert.deepEqual(errors, []);
 });
+
+test('the panel names the peer that really carries a network, not the first Tier 1 it buys from', () => {
+  const { ev, dom, errors } = load();
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=6;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=50");
+  // a long-tail network that buys from Cogentle first and Level Tree second; peer only with Level Tree
+  const t = ev("NETS.find(n=>n.tail&&n.up.length===2&&n.up[0]==='cog'&&n.up[1]==='lvl').id");
+  ev("S.transit=[];S.ixp={};S.peers={};S.grace=null;S.pni=[{id:'pl',net:'lvl',city:'fra',tier:2}];compute()");
+  assert.equal(ev(`R.cone.${t}`), 'lvl');
+  ev(`UI.left='goals';UI.leftOpen=true;ACT.netFocus({id:'${t}'})`);
+  const txt = dom.window.document.getElementById('leftBody').textContent;
+  assert.match(txt, /Reached through the customer cone of Level Tree/);
+  assert.doesNotMatch(txt, /customer cone of Cogentle/);
+  // over an exchange: the member you have a session with
+  ev("S.pni=[];compute()");
+  assert.equal(ev(`!!R.cone.${t}`), false);
+  assert.match(ev(`(ACT.netFocus({id:'${t}'}),document.getElementById('leftBody').textContent)`), /Buys transit from Cogentle/);
+  assert.deepEqual(errors, []);
+});
