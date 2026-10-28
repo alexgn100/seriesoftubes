@@ -85,7 +85,7 @@ function drawFrame(now){
   // Which cities show an offer bubble (a big one?) or an incident marker, worked out once for all of them.
   CM.off=new Set();CM.big=new Set();for(const o of S.offers){const big=BIZ_T[o.type].lv>=3||BIZ_T[o.type].event;for(const c of bCities(o)){CM.off.add(c);if(big)CM.big.add(c);}}
   CM.inc=new Set(S.inc.filter(i=>i.type!=='leak').map(i=>i.ref));CM.far=farL;
-  for(const v of vis.slice().reverse())drawCity(v.C,v.sx,v.sy,sc,now,v.ly);
+  if(pzOn())for(const v of vis.slice().reverse())pzDrawCity(v,sc,now);else for(const v of vis.slice().reverse())drawCity(v.C,v.sx,v.sy,sc,now,v.ly);
   // floaters
   for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1){FLOATS.splice(i,1);continue;}
     for(const k of ks){const [sx,sy]=toS(f.x,f.y,k);ctx.globalAlpha=1-a*a;ctx.font='800 17px "Baloo 2", sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(f.text,sx,sy-a*40);ctx.fillStyle=f.col;ctx.fillText(f.text,sx,sy-a*40);ctx.globalAlpha=1;}}

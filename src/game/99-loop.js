@@ -8,9 +8,9 @@ function frame(now){
   if(S&&UI.started&&!S.lost&&now-(UI.lastSave||0)>5000)save();
   // The panels catch up on the frame after a day, so one frame does not carry both the day's simulation and them.
   if(UI.panelsDue){UI.panelsDue=false;if(!pressing){renderPanel();renderLeft();if(!$('dash').hidden)renderDash();renderBank();}renderHint();}
-  if(S&&!S.lost&&$('modal').hidden&&UI.speed){acc+=dt*UI.speed;let n=0;while(acc>=DAY_MS&&n<4&&UI.speed){acc-=DAY_MS;try{dayTick();}catch(e){tickErr(e);}n++;}
+  if(S&&!S.lost&&$('modal').hidden&&UI.speed&&!pzOn()){acc+=dt*UI.speed;let n=0;while(acc>=DAY_MS&&n<4&&UI.speed){acc-=DAY_MS;try{dayTick();}catch(e){tickErr(e);}n++;}
     if(n){UI.ticking=true;renderHUD();UI.ticking=false;UI.panelsDue=true;}}
-  if(UI.speed&&!(S&&S.lost))animT+=dt; /* paused = frozen dots, waves and clouds */
+  if((UI.speed||pzOn())&&!(S&&S.lost))animT+=dt; /* paused = frozen dots, waves and clouds */
   const t=animOn()?animT:0;
   if(!(UI.mapHid=mapHidden())&&!mapStill(t,now)){try{draw(t);}catch(e){tickErr(e);}UI.drawnAt=now;}
 }

@@ -13,7 +13,7 @@ Object.assign(ACT,{
  exportSave:()=>exportSave(),
  importPick:()=>{let f=$('importIn');if(!f){f=document.createElement('input');f.type='file';f.accept='.json,application/json';f.id='importIn';f.hidden=true;document.body.appendChild(f);f.addEventListener('change',()=>{importFile(f.files[0]);f.value='';});}f.click();},
  importGo:()=>{const s0=UI.importing;if(!s0)return;UI.importing=null;const prev=S;try{S=migrate(JSON.parse(JSON.stringify(s0)));compute();checkGoals();renderAll();}catch(e){S=prev;if(S)compute();renderAll();toast(tr('game_and_settings.import_failed_that_save_is_damaged'),'bad');sfx('err');return;}UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;UI.speed=S.uiSpeed===undefined?1:S.uiSpeed;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;}}closeModal();$('modal').hidden=true;compute();renderAll();save();toast(tr('game_and_settings.welcome_back_name_imported_and_saved',{name:esc(S.name)}),'good');sfx('coin');track('game_import');},
- menu:()=>{if(!S||!UI.started){showTitle();return;}openModal(`<div style="display:flex;align-items:center"><div><div class="eyebrow">AS${S.asn} · ${esc(dateStr(S.day))} · ${tierLabel()}</div><h2 style="font-size:28px">${esc(S.name)}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>
+ menu:()=>{if(!S||!UI.started){showTitle();return;}if(pzOn()){pzMenu();return;}openModal(`<div style="display:flex;align-items:center"><div><div class="eyebrow">AS${S.asn} · ${esc(dateStr(S.day))} · ${tierLabel()}</div><h2 style="font-size:28px">${esc(S.name)}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>
   ${saveFailing()?`<p class="why">${saveFailMsg()}</p>`:`<p class="tagline">${tr('game_and_settings.your_game_saves_itself_every_few')}</p>`}${isPhone()?installRow():''}
   <div class="menu-list">
    ${btn(tr('common.back_to_the_map'),'closeModal',{},'pink big')}
@@ -21,6 +21,7 @@ Object.assign(ACT,{
    ${btn(tr('game_and_settings.import_a_save_from_a_file'),'importPick',{},'')}
    ${btn(tr('game_and_settings.share_your_network_image_card'),'share',{},'')}
    ${btn(tr('game_and_settings.scenarios_amp_weekly_challenge'),'scenarios',{},'ghost')}
+   ${btn(tr('puzzles.puzzles'),'puzzleMenu',{},'ghost')}
    ${btn(tr('common.how_to_play'),'help',{},'ghost')}
    ${RELEASE_NOTES.length?btn(tr('common.what_s_new_in_v',{v:esc(APP_VERSION)}),'whatsNewShow',{},'ghost'):''}
    ${btn(tr('common.settings'),'settings',{},'ghost')}
