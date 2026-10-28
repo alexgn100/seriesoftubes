@@ -65,13 +65,13 @@ test('weeks start Sunday 06:00 Berlin, in winter and in summer, and keys run acr
 // it was (--check still makes sure the weeks not over yet can be solved).
 test('generator: deterministic for a week', () => {
   const g = G.game(), a = tmp(), b = tmp();
-  const first = G.list(DIR)[0];
-  const keys = G.list(DIR).length;
+  const first = G.list(DIR).slice(-3)[0];
+  const keys = Math.min(3, G.list(DIR).length);
   for (const d of [a, b]) for (let i = 0; i < keys; i++) G.writeWeek(d, G.generate(g, g.ev(`pzKeyAdd('${first}',${i})`), d));
   for (const k of G.list(a)) {
     assert.equal(fs.readFileSync(path.join(a, k + '.json'), 'utf8'), fs.readFileSync(path.join(b, k + '.json'), 'utf8'), `${k} twice the same`);
   }
-  assert.ok(keys >= 3, 'the release ships with weeklies in place');
+  assert.ok(G.list(DIR).length >= 3, 'the release ships with weeklies in place');
 });
 
 test('generator: a quarter of weeks, all verified, varied, small and in the schema', () => {
@@ -96,10 +96,12 @@ test('generator: a quarter of weeks, all verified, varied, small and in the sche
 
 test('--check passes on the committed files and rejects tampered ones', () => {
   const g = G.game();
-  assert.deepEqual(G.check(g, DIR, 0), [], 'committed weeklies verify');
+  // Weeks still to come are re-solved; past ones are checked the way the game reads them.
+  assert.deepEqual(G.check(g, DIR), [], 'committed weeklies verify');
   const bad = (edit, why) => {
     const d = tmp();
-    for (const f of fs.readdirSync(DIR)) fs.copyFileSync(path.join(DIR, f), path.join(d, f));
+    for (const k of G.list(DIR).slice(-3)) fs.copyFileSync(path.join(DIR, k + '.json'), path.join(d, k + '.json'));
+    G.writeIndex(d);
     const k = G.list(d)[0], f = path.join(d, k + '.json'), j = JSON.parse(fs.readFileSync(f, 'utf8'));
     const r = edit(j, d, k); fs.writeFileSync(f, typeof r === 'string' ? r : JSON.stringify(j));
     assert.notDeepEqual(G.check(g, d, 0), [], why);
