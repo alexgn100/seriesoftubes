@@ -14,6 +14,8 @@ function compute(){
   // ALONE[i]: no other city lies within 1e-6 of POP i (so only its own exits can be at distance 0 from it).
   const SPD={},SPP={},SDi=[],SPi=[],ALONE=new Uint8Array(NC),wW=e=>e.w,wLat=e=>e.lat+0.05;
   for(const s of pops){const i=CIDX[s],r=dijkstra(adj,i,wW);SDi[i]=SPD[s]=r.D;SPi[i]=SPP[s]=r.P;ALONE[i]=1;for(let x=0;x<NC;x++)if(x!==i&&r.D[x]<1e-6)ALONE[i]=0;}
+  // COMP[i]: the island city i is on (-1: no POP reaches it). Links run both ways, so reaching is mutual.
+  const COMP=new Int32Array(NC).fill(-1);let NCOMP=0;for(const s of pops){const i=CIDX[s];if(COMP[i]>=0)continue;const D=SDi[i],k=NCOMP++;for(let x=0;x<NC;x++)if(D[x]<Infinity)COMP[x]=k;}
   const E=[], ev=S.ev;
   const depeer=ev.depeer>day||scnRule('spat'), leak=ev.leak&&ev.leak.until>day?ev.leak.net:null;
   for(const t of S.transit){if(!popUp(t.city)||t.down>day||!liveN(t.city,t.site,t.n))continue;
@@ -165,8 +167,10 @@ function compute(){
   const PASSES=TR&&TR.protect?[x=>x.bz,x=>!x.bz]:null;
   // Each network's exits by the rank they route at (RouteScript can move an exit per network), in E's order.
   // Each list also knows whether it holds a preferred exit (hi) and its exits by city (at), in list order.
+  // With several islands (POPs no backbone joins), each list is split by island: a flow only scans exits it can reach.
+  const idx=L=>{L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}};
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
-    for(const r in m){const L=m[r];L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}}}
+    for(const r in m){const L=m[r];if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);m[r]={cs};}else idx(L);}}
   // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
   for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(base(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
@@ -218,7 +222,7 @@ function compute(){
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
       Dv=SDi[f.ci];Pv=SPi[f.ci];PP=walked[f.ci]||(walked[f.ci]=[]);vis++;
       if(f.pin){for(const e of ingressE[f.pin]||[])if(base(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
-      const lst=byRank[f.n][rank];if(!lst)continue;
+      let lst=byRank[f.n][rank];if(!lst)continue;if(lst.cs){lst=lst.cs[COMP[f.ci]];if(!lst)continue;}
       /* Groups are tried nearest first, preferred exits before the rest, in the order a stable sort of the usable
          exits gives. Exits only fill up once tried, so the usable ones stay the same until then. Nearly every flow
          fits in its first group: find that one with a scan (nothing is visited yet), and sort only what is left
