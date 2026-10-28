@@ -52,7 +52,17 @@ function compute(){
   // Customer demand per city, added up in S.biz order (what filtering S.biz for each city would give).
   const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&(!T.event||eventLive(b))){const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
   // Traffic shares by network index, and their sums, for each share table (and with Russia's throttle).
-  const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local'),scrubRoom={},atkBy={},junkGroups=[],bhCities=new Set(ddosAll().filter(a=>a.bh).map(a=>a.city));R2.haul=[];R2.ddos=[];for(const a of ddosAll())for(const part of ddosSlices(a))(atkBy[part.city]||(atkBy[part.city]=[])).push(part);
+  const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local'),scrubRoom={},atkBy={},junkGroups=[],bhCities=new Set(ddosAll().filter(a=>a.bh).map(a=>a.city));R2.haul=[];R2.ddos=[];
+  /* Floods first, before any real traffic and in the order the attacks started, so no POP's place in S.pops decides who
+     gets a full port. Each slice is the flood entering in one city (mitigated and scrubbed there); what leaks is junk at
+     the victim, pinned to the port it came in on, so it loads that port, the backbone between them and the victim's router. */
+  // A port the victim cannot be reached from (down, or no backbone to it) still fills with the junk arriving there.
+  const VIC={};for(const a of ddosAll()){const v=a.city;(VIC[v]||(VIC[v]=[])).push(a);
+    for(const part of ddosSlices(a)){const c=part.city;(atkBy[c]||(atkBy[c]=[])).push(part);
+      const m=ddosMitigation(part,{},bhCities.has(v),false),group={m,flows:[]};R2.ddos.push(m);junkGroups.push(group);if(!popUp(c))m.offline=true;
+      const src=popUp(v)&&SPD[v][CIDX[c]]<Infinity?v:c,si=CIDX[src],sn=cnCity(src);
+      if(part.entries?.length){for(const q of m.ingress){const f=flow(src,si,sn,0,q.g,false,true);f.pin=q.entry.k+':'+q.entry.id;group.flows.push({f,share:m.leak>0?q.g/m.leak:0});}}
+      else for(let j=0;j<NN;j++)group.flows.push({f:flow(src,si,sn,j,m.leak*NSH[NETS[j].id],false,true),share:NSH[NETS[j].id]});}}
   for(const c of Object.keys(S.pops)){
     const p=S.pops[c],ci=CIDX[c],cn=cnCity(c),SH=cn?NSH_CN:ruCity(c)?NSH_RU:CITY[c].kr&&S.krExit?NSH_KRX:NSH;const eye=(p.bb?p.bb.d:0)*viral*(cn&&ev.golden>day?1.4:1);const biz=bizBw[c]??0;const d0=eye+biz;
     // Goggle video is throttled in Russia (#70): people there get half of it, so they ask for half. It is not
@@ -64,13 +74,8 @@ function compute(){
     // A shaped attack: `rtbh` is the player pulling the plug on the victim IP (junk gone, customer dark too);
     // `edge` is the crude RouteScript `blackhole ddos` filter (junk gone, 10% of real traffic with it). Flowspec
     // (a standing licence) and a scrubbing center each knock the flood down before it reaches the sim.
-    const attacks=atkBy[c]||[],rtbh=bhCities.has(c),edge=!!(attacks.length&&TRX&&TRX.blackhole&&!rtbh);
-    let dd=0;
-    for(const atk of attacks){const m=ddosMitigation(atk,{},bhCities.has((atk.parent||atk).city),false);R2.ddos.push(m);dd+=m.leak;
-      const group={m,flows:[]};junkGroups.push(group);
-      if(atk.entries?.length){for(const q of m.ingress){const f=flow(c,ci,cn,0,q.g,false,true);f.pin=q.entry.k+':'+q.entry.id;group.flows.push({f,share:m.leak>0?q.g/m.leak:0});}}
-      else for(let j=0;j<NN;j++)group.flows.push({f:flow(c,ci,cn,j,m.leak*NSH[NETS[j].id],false,true),share:NSH[NETS[j].id]});}
-    if(!popUp(c)){for(const m of R2.ddos.filter(m=>m.attack.city===c))m.offline=true;continue;}
+    const attacks=VIC[c]||[],rtbh=bhCities.has(c),edge=!!(attacks.length&&TRX&&TRX.blackhole&&!rtbh);
+    if(!popUp(c))continue;
     const bh=rtbh||edge;
     if(edge)R2.teBlack+=attacks.reduce((n,a)=>n+a.gbps,0)+d*0.1;if(rtbh)R2.teBlack+=attacks.reduce((n,a)=>n+a.gbps,0)+d;
     R2.cityBlocked=R2.cityBlocked||{};
