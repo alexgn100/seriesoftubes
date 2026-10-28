@@ -167,6 +167,8 @@ function compute(){
   // Each list also knows whether it holds a preferred exit (hi) and its exits by city (at), in list order.
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
     for(const r in m){const L=m[r];L.hi=L.some(e=>e.hp===0);L.at=new Map();for(const e of L){const h=L.at.get(e.ci);if(h)h.push(e);else L.at.set(e.ci,[e]);}}}
+  // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
+  for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(base(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
   // An exit the flow can still try: not visited yet, not full when the flow started, and reachable from the POP.
