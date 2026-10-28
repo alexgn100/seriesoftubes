@@ -34,10 +34,11 @@ function vxcPanel(l){
   return h;
 }
 function prefCtl(kind,id,cur){cur=cur||'normal';return `<div class="btns"><span class="meta" style="align-self:center">${tr('common.egress')}</span>${Object.keys(PREF).map(v=>btn(PREF[v],'setPref',{kind,id,v},cur===v?'pink sm':'ghost sm')).join('')}</div>`;}
-// Trial routing is isolated from the live save, counters and scenic-route memory.
+// Trial routing is isolated from the live save, counters and scenic-route memory. "Before" is the live routing, which
+// after() keeps current, so a check costs one compute() on a big network, not two.
 function linkTrial(id){const save=S,live=R,hot=UI.hotMap,cache=TE_CACHE;
-  try{S=JSON.parse(JSON.stringify(save));const l=S.links.find(x=>x.id===id);if(!l||linkDown(l))return null;
-    compute();const before=R;l.cut=S.day+1;compute();
+  try{const l0=save.links.find(x=>x.id===id);if(!l0||linkDown(l0))return null;
+    S=JSON.parse(JSON.stringify(save));const l=S.links.find(x=>x.id===id),before=live;l.cut=S.day+1;compute();
     const allowed=new Set(Object.keys(S.pops).filter(popUp).concat(remoteCities())),adj={};
     for(const x of S.links)if(!linkDown(x)&&allowed.has(x.a)&&allowed.has(x.b)){(adj[x.a]=adj[x.a]||[]).push(x.b);(adj[x.b]=adj[x.b]||[]).push(x.a);}
     const seen=new Set([l.a]),q=[l.a];for(let i=0;i<q.length;i++)for(const c of adj[q[i]]||[])if(!seen.has(c)){seen.add(c);q.push(c);}
