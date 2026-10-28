@@ -2944,7 +2944,7 @@
 "puzzles.weekly_puzzle":"Weekly puzzle",
 "puzzles.weekly_puzzle_key":"Weekly puzzle {key}",
 "puzzles.with_the_pop_price":"with the POP: {price}",
-"puzzles.your_first_tubes_no_pressure":"Your first tubes. No pressure, no budget.",
+"puzzles.your_first_tubes_roomy_budgets":"Your first tubes. Roomy budgets, and the first two are on the house.",
 "puzzles.your_stars":"Your stars",
 "reach_and_subsea.premium_submarine_terminals":"Premium submarine terminals",
 "release_notes.and_n_more_change":{"one":"…and {n} more change","other":"…and {n} more changes"},

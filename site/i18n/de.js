@@ -2945,7 +2945,7 @@
 "puzzles.weekly_puzzle":"Wochenpuzzle",
 "puzzles.weekly_puzzle_key":"Wochenpuzzle {key}",
 "puzzles.with_the_pop_price":"mit POP: {price}",
-"puzzles.your_first_tubes_no_pressure":"Deine ersten Röhren. Kein Druck, kein Budget.",
+"puzzles.your_first_tubes_roomy_budgets":"Deine ersten Röhren. Großzügige Budgets, und die ersten zwei gehen aufs Haus.",
 "puzzles.your_stars":"Deine Sterne",
 "reach_and_subsea.premium_submarine_terminals":"Premium-Seekabel-Terminals",
 "release_notes.and_n_more_change":{"one":"… und {n} weitere Änderung","other":"… und {n} weitere Änderungen"},

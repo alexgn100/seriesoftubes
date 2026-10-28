@@ -7,24 +7,24 @@ const { load } = require('./harness');
 // `one` earns the goal star, `three` earns all three. A second land link on the same pair is a diverse route.
 const REF = {
   hello: { one: [['lon', 'nyc', 'grace']], three: [['lon', 'nyc', 'grace'], ['lon', 'nyc', 'amitie']] },
-  eurotrip: { one: [['lon', 'ams', 'uly'], ['ams', 'fra', 'land']], three: [['lon', 'ams', 'uly'], ['lon', 'ams', 'concerto'], ['ams', 'fra', 'land'], ['ams', 'fra', 'land']] },
-  shining: { one: [['nyc', 'chi', 'land'], ['chi', 'dal', 'land'], ['dal', 'sjc', 'land']], three: [['nyc', 'chi', 'land'], ['chi', 'sjc', 'land'], ['sjc', 'dal', 'land'], ['dal', 'nyc', 'land']] },
-  smorgas: { one: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['osl', 'cph', 'land']], three: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['hel', 'cph', 'land'], ['cph', 'osl', 'land']] },
-  downunder: { one: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['syd', 'bne', 'land']], three: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['adl', 'bne', 'land'], ['bne', 'syd', 'land']] },
-  aloha: { one: [['sjc', 'hnl', 'scx'], ['hnl', 'syd', 'hwk']], three: [['sjc', 'hnl', 'scx'], ['sjc', 'hnl', 'aag'], ['hnl', 'syd', 'hwk'], ['hnl', 'syd', 'aloha']] },
-  rimshot: { one: [['sea', 'tok', 'fast'], ['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2']], three: [['sea', 'tok', 'fast'], ['sea', 'tok', 'ncp'], ['tok', 'hkg', 'adc'], ['tok', 'hkg', 'apg'], ['hkg', 'sin', 'sjc2'], ['hkg', 'sin', 'land']] },
-  fire: { one: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']], three: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']] },
+  eurotrip: { one: [['lon', 'ams', 'uly'], ['ams', 'fra', 'land']], three: [['ams', 'lon', 'concerto'], ['ams', 'lon', 'nshuttle'], ['ams', 'fra', 'land'], ['ams', 'fra', 'land']] },
+  shining: { one: [['nyc', 'chi', 'land'], ['chi', 'dal', 'land'], ['dal', 'sjc', 'land']], three: [['chi', 'nyc', 'land'], ['chi', 'sjc', 'land'], ['dal', 'nyc', 'land'], ['dal', 'sjc', 'land']] },
+  smorgas: { one: [['osl', 'sto', 'land'], ['sto', 'hel', 'land'], ['osl', 'cph', 'land']], three: [['osl', 'sto', 'land'], ['cph', 'osl', 'land'], ['cph', 'hel', 'land'], ['hel', 'sto', 'land']] },
+  downunder: { one: [['syd', 'mel', 'land'], ['mel', 'adl', 'land'], ['syd', 'bne', 'land']], three: [['mel', 'syd', 'land'], ['bne', 'syd', 'land'], ['adl', 'mel', 'land'], ['adl', 'bne', 'land']] },
+  aloha: { one: [['sjc', 'hnl', 'scx'], ['hnl', 'syd', 'hwk']], three: [['hnl', 'sjc', 'scx'], ['hnl', 'sjc', 'aag'], ['hnl', 'syd', 'hwk'], ['hnl', 'syd', 'aloha']] },
+  rimshot: { one: [['sea', 'tok', 'fast'], ['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2']], three: [['sea', 'tok', 'fast'], ['sea', 'tok', 'ncp'], ['hkg', 'tok', 'apg'], ['hkg', 'tok', 'adc'], ['hkg', 'sin', 'land'], ['hkg', 'sin', 'land']] },
+  fire: { one: [['tok', 'hkg', 'adc'], ['hkg', 'sin', 'sjc2'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']], three: [['hkg', 'tok', 'adc'], ['hkg', 'sin', 'land'], ['sin', 'syd', 'indigo'], ['syd', 'tok', 'guam']] },
   // Hawaiki is Seattle's only cable south, so the second way out runs overland to LA and on via Suva.
-  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'syd', 'tasman'], ['akl', 'sea', 'hwk'], ['syd', 'suv', 'scxn'], ['sea', 'lax', 'land'], ['lax', 'suv', 'scxn']] },
-  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['tok', 'mnl', 'jup'], ['tok', 'syd', 'sushi'], ['mnl', 'gum', 'bifrost'], ['gum', 'syd', 'guam']] },
-  flash: { one: [['nyc', 'lon', 'hibx']], three: [['nyc', 'lon', 'hibx'], ['nyc', 'lon', 'grace']] },
+  kiwi: { one: [['akl', 'sea', 'hwk'], ['akl', 'syd', 'tasman']], three: [['akl', 'syd', 'tasman'], ['akl', 'sea', 'hwk'], ['suv', 'syd', 'scxn'], ['lax', 'sea', 'land'], ['lax', 'suv', 'scxn']] },
+  guam: { one: [['tok', 'gum', 'jga'], ['gum', 'syd', 'guam'], ['tok', 'mnl', 'jup']], three: [['mnl', 'tok', 'jup'], ['syd', 'tok', 'sushi'], ['gum', 'mnl', 'bifrost'], ['gum', 'syd', 'guam']] },
+  flash: { one: [['nyc', 'lon', 'hibx']], three: [['lon', 'nyc', 'grace'], ['lon', 'nyc', 'hibx']] },
   pingpong: { one: [['lax', 'tok', 'jup']], three: [['lax', 'tok', 'jup'], ['lax', 'sea', 'land'], ['sea', 'tok', 'fast']] },
-  suez: { one: [['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace']], three: [['fra', 'mrs', 'land'], ['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace'], ['mrs', 'bom', 'twoaf'], ['bom', 'sin', 'land']] },
-  samba: { one: [['sao', 'mia', 'monet']], three: [['sao', 'for', 'land'], ['sao', 'for', 'land'], ['for', 'mia', 'monet'], ['for', 'mia', 'sam1']] },
-  sharks: { one: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land']], three: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land'], ['mil', 'lis', 'land']] },
-  braces: { one: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix']], three: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix'], ['dub', 'nyc', 'havf']] },
-  nofra: { one: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']], three: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land'], ['zrh', 'ams', 'land']] },
-  fatpipes: { one: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1]], three: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1], ['zrh', 'par', 'land', 1]] },
+  suez: { one: [['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace']], three: [['fra', 'mrs', 'land'], ['fra', 'mrs', 'land'], ['mrs', 'sin', 'peace'], ['bom', 'sin', 'land'], ['bom', 'mrs', 'twoaf']] },
+  samba: { one: [['sao', 'mia', 'monet']], three: [['for', 'sao', 'land'], ['for', 'sao', 'land'], ['for', 'mia', 'monet'], ['for', 'mia', 'sam1']] },
+  sharks: { one: [['lis', 'mad', 'land'], ['mad', 'par', 'land'], ['par', 'mil', 'land']], three: [['lis', 'mad', 'land'], ['lis', 'mil', 'land'], ['mad', 'par', 'land'], ['mil', 'par', 'land']] },
+  braces: { one: [['nyc', 'lon', 'grace'], ['lon', 'dub', 'celtix']], three: [['lon', 'nyc', 'grace'], ['dub', 'nyc', 'havf'], ['dub', 'lon', 'celtix']] },
+  nofra: { one: [['ams', 'ber', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']], three: [['ams', 'ber', 'land'], ['ams', 'zrh', 'land'], ['ber', 'muc', 'land'], ['muc', 'zrh', 'land']] },
+  fatpipes: { one: [['par', 'mrs', 'land', 1], ['mrs', 'mil', 'land', 1], ['mil', 'zrh', 'land', 1]], three: [['par', 'zrh', 'land', 1], ['mrs', 'par', 'land', 1], ['mil', 'mrs', 'land', 1], ['mil', 'zrh', 'land', 1]] },
 };
 
 // Builds links the way a player does: POP at the first city, then the link picker for each hop.
@@ -59,6 +59,45 @@ test('puzzle data: every puzzle is valid, solvable, and its 3-star reference ear
     e = evalP(ev);
     assert.equal(e.stars, 3, `${id}: three stars (spend ${e.spend} of ${ev('S.pz.budget')}, n1 ${e.n1}, twists ${JSON.stringify(e.tw)})`);
   }
+  assert.deepEqual(errors, []);
+});
+
+// Brute force over every route between the puzzle's cities (one size: 10G, or 100G under minG): is any 3-star build
+// cheaper than `limit`? Each cable is one failure unit; each overland link its own trench (a second one is diverse).
+function cheaper3(ev, id, limit) {
+  const D = JSON.parse(ev(`(()=>{pzBegin(pzDef('${id}'));const P=S.pz,cs=[...P.cities,...P.via],tier=P.minG?1:0,o=[];
+    for(const a of cs)for(const b of cs)if(a<b)for(const r of pzRoutes(a,b)){if((P.noSub&&r.sub)||subWaveWhy(tier,r.km,r.sub))continue;
+      o.push({a,b,cab:r.cab,cost:pzLinkCost(r,tier,false),ms:r.ms});if(!r.cab)o.push({a,b,cab:null,cost:pzLinkCost(r,tier,true),ms:r.ms,div:1});}
+    const pop={};for(const c of cs)pop[c]=pzPopCost(c);return JSON.stringify({P,o,pop});})()`));
+  const { P, o, pop } = D, unit = (i) => o[i].cab ? 'c' + o[i].cab : 't' + i;
+  const reach = (ls, skip) => { const adj = {}; for (const i of ls) { if (unit(i) === skip) continue; const { a, b } = o[i]; (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); }
+    const seen = new Set([P.cities[0]]), q = [P.cities[0]]; while (q.length) for (const v of adj[q.pop()] || []) if (!seen.has(v)) { seen.add(v); q.push(v); } return P.cities.every((c) => seen.has(c)); };
+  const lat = (ls) => { const d = { [P.lat[0]]: 0 }, done = new Set(); for (;;) { let u = null; for (const k in d) if (!done.has(k) && (u === null || d[k] < d[u])) u = k; if (u === null) return Infinity; if (u === P.lat[1]) return d[u]; done.add(u);
+    for (const i of ls) { const l = o[i]; if (l.a !== u && l.b !== u) continue; const v = l.a === u ? l.b : l.a, nd = d[u] + l.ms + 0.05; if (!(nd >= d[v])) d[v] = nd; } } };
+  const ring = (ls) => { const nb = {}; for (const i of ls) { const { a, b } = o[i]; (nb[a] = nb[a] || new Set()).add(b); (nb[b] = nb[b] || new Set()).add(a); } const ns = Object.keys(nb);
+    if (ns.length < 3 || !ns.every((c) => nb[c].size === 2)) return false; let prev = null, cur = ns[0], n = 0; do { const nx = [...nb[cur]].find((x) => x !== prev); prev = cur; cur = nx; n++; } while (cur !== ns[0] && n <= ns.length); return n === ns.length; };
+  const ok = (ls) => { if (!reach(ls, null) || (P.ring && !ring(ls)) || (P.lat && lat(ls) > P.lat[2])) return false; return [...new Set(ls.map(unit))].every((u) => reach(ls, u)); };
+  let found = null;
+  const rec = (start, ls, cost) => { if (found) return; if (ls.length && cost < limit - 1) { const pops = new Set(P.cities); for (const i of ls) { pops.add(o[i].a); pops.add(o[i].b); } const tot = cost + [...pops].reduce((x, c) => x + pop[c], 0); if (tot < limit - 1 && ok(ls)) { found = tot; return; } }
+    if (ls.length >= 7) return; for (let i = start; i < o.length; i++) { if (o[i].div && !ls.some((j) => !o[j].div && !o[j].cab && o[j].a === o[i].a && o[j].b === o[i].b)) continue; if (cost + o[i].cost < limit - 1) rec(i + 1, [...ls, i], cost + o[i].cost); } };
+  rec(0, [], 0);
+  return found;
+}
+
+test('budgets follow the difficulty curve: roomy first pack, ~10% in the middle, tight N-1 Club', () => {
+  const { ev, errors } = load();
+  const SLACK = { hello: [0.15, 0.2], fire: [0.09, 0.11], speed: [0.09, 0.11], n1: [0.05, 0.08] };
+  const rows = JSON.parse(ev('JSON.stringify(PZ.filter(p=>p.budget).map(p=>({id:p.id,pack:p.pack,budget:p.budget})))'));
+  for (const { id, pack, budget } of rows) {
+    ev(`pzBegin(pzDef('${id}'))`);
+    build(ev, REF[id].three);
+    const e = evalP(ev);
+    assert.equal(e.stars, 3, id);
+    assert.equal(cheaper3(ev, id, e.spend), null, `${id}: the reference is the cheapest 3-star build`);
+    const slack = budget / e.spend - 1, [lo, hi] = SLACK[pack];
+    assert.ok(slack >= lo && slack <= hi, `${id}: ${(slack * 100).toFixed(1)}% slack, want ${lo * 100}-${hi * 100}%`);
+  }
+  assert.match(ev("PZ_PACKS[0].d"), /Roomy budgets/, 'the first pack does not promise "no budget"');
   assert.deepEqual(errors, []);
 });
 

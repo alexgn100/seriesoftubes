@@ -2943,7 +2943,7 @@
 "puzzles.weekly_puzzle":"Puzzle della settimana",
 "puzzles.weekly_puzzle_key":"Puzzle della settimana {key}",
 "puzzles.with_the_pop_price":"con il POP: {price}",
-"puzzles.your_first_tubes_no_pressure":"I tuoi primi tubi. Niente pressione, niente budget.",
+"puzzles.your_first_tubes_roomy_budgets":"I tuoi primi tubi. Budget comodi, e i primi due li offre la casa.",
 "puzzles.your_stars":"Le tue stelle",
 "reach_and_subsea.premium_submarine_terminals":"Terminali sottomarini avanzati",
 "release_notes.and_n_more_change":{"one":"…e {n} altra modifica","other":"…e altre {n} modifiche"},
