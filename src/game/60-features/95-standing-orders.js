@@ -68,7 +68,15 @@ function opsShift(){const r=new Map(),broke=new Set();
     can(k,cost){const O=S.ops,cap=opsCap(k);if(cost<=0)return true;if(S.cash-cost<O.floor||(cap&&(O.spent[k]||0)+cost>cap)){broke.add(k);return false;}return true;},
     // Run a click and book what it really cost; false when the action refused (no ports, no cash, a quote changed).
     pay(k,fn){const c0=S.cash,x=fn();const d=c0-S.cash;if(d>0&&OPSK[k].cap)S.ops.spent[k]=(S.ops.spent[k]||0)+d;return x===undefined?d>0:x;}};}
-const cheapestTransit=c=>NETS.filter(n=>sellsAt(n,c)).sort((a,b)=>transitPerG(a,c,premOnlyAt(a,c))-transitPerG(b,c,premOnlyAt(b,c)))[0];
+// Never buy from a provider that breaks a promise: a customer's "no Cogentle" or "two upstreams", a bank's covenant,
+// or Cogentle while it is not speaking to Goggle (the Spat scenario, a de-peering). Only met → failed counts.
+const OPS_TREQ=['nocog','twoup'];
+function opsTransitOk(n,c){if(n.id==='cog'&&(scnRule('spat')||S.ev.depeer>S.day))return false;
+  const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>OPS_TREQ.includes(k))),ls=(S.loans||[]).filter(l=>(l.covs||[]).includes('nocog'));if(!bz.length&&!ls.length)return true;
+  const chk=()=>bz.map(b=>b.reqs.every(k=>!OPS_TREQ.includes(k)||REQS[k].ok(b))).concat(ls.map(l=>COVS.nocog.ok(l)));
+  const was=chk(),all=S.transit;S.transit=all.concat({net:n.id,city:c});try{const now=chk();return was.every((v,i)=>!v||now[i]);}finally{S.transit=all;}}
+const cheapestTransit=c=>NETS.filter(n=>sellsAt(n,c)&&opsTransitOk(n,c)).sort((a,b)=>transitPerG(a,c,premOnlyAt(a,c))-transitPerG(b,c,premOnlyAt(b,c)))[0];
+const opsProv=c=>{const pv=opsP('transit','prov');return pv!=='cheap'&&sellsAt(NET[pv],c)&&opsTransitOk(NET[pv],c)?NET[pv]:cheapestTransit(c);};
 // The orders. Each takes the shift and does its jobs through the player's own actions.
 const OPS_RUN={
  repair(X){purgeInc();for(const i of S.inc.slice())if(i.type!=='ddos'&&i.until>S.day&&i.cost>0&&!(i.slow&&i.rushed)&&X.can('repair',i.cost)&&X.pay('repair',()=>ACT.fixInc({id:i.id})))X.did('repair');},
@@ -87,11 +95,11 @@ const OPS_RUN={
      const doSwap=how==='swap'?swap:how==='add'?false:swap&&(rt>=4||!add);if(!doSwap&&(how==='swap'||!add))continue;
      const cost=doSwap?swapCost(c,nx):routerCost(g,rt);if(!X.can('routers',cost))continue;
      if(X.pay('routers',()=>doSwap?ACT.upRouter({city:c,g:nx}):ACT.addRouter({city:c})))X.did('routers',c+(doSwap?' ⇧'+RG[nx].pn:' +1'));}},
- transit(X){if(scnRule('noTransit'))return;const N=opsP('transit','x'),pv=opsP('transit','prov');
+ transit(X){if(scnRule('noTransit'))return;const N=opsP('transit','x');
    for(const c of opsPops('transit')){let ts=S.transit.filter(t=>t.city===c);if(!ts.length)continue;
      // Thirty days of 95th-percentile-ish history per port; their peaks summed is a safe (high) estimate of the POP's peak.
      const peak=ts.reduce((a,t)=>a+(t.hist||[]).reduce((m,v)=>Math.max(m,v),0),0);if(!(peak>0))continue;
-     const n=pv!=='cheap'&&sellsAt(NET[pv],c)?NET[pv]:cheapestTransit(c);if(!n)continue;
+     const n=opsProv(c);if(!n)continue;
      for(let step=0;step<4;step++){const cap=ts.reduce((a,t)=>a+lagCap(PORT[t.tier].g,t.n),0);if(cap>=N*peak)break;
        const t=ts.find(x=>x.net===n.id);let job=null;
        if(t){const k=t.n||1,up=t.tier+1;
@@ -152,7 +160,7 @@ function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!=
 // New POP from the template: price the whole bundle first, then click through it in one go.
 function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))return null;const T=S.ops.tpl,parts=[];let cost=popCost(c),net=null,ix=null,kit=null;
   if(T.bb){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}
-  if(T.transit&&!scnRule('noTransit')){const pv=opsP('transit','prov');net=pv!=='cheap'&&sellsAt(NET[pv],c)?NET[pv]:cheapestTransit(c);if(net){cost+=PORT[0].setup;parts.push(tr('ops.tpl_transit'));}}
+  if(T.transit&&!scnRule('noTransit')){net=opsProv(c);if(net){cost+=PORT[0].setup;parts.push(tr('ops.tpl_transit'));}}
   // Priced as if the POP were already there (an IX port is dearer from afar). DE-KICKS wants a sales call first, so not those.
   S.pops[c]={day:S.day,bb:null,boost:0,down:0,routers:1,gen:false};
   try{if(T.ix&&CITY[c].ix&&!isDk(c)&&S.ixp[c]===undefined){ix=c;cost+=ixPortMo(c,0);parts.push(tr('ops.tpl_ix'));}

@@ -350,3 +350,34 @@ test('re-hiring in a later month starts on a fresh budget, not last month\'s spe
   assert.equal(ev('S.ops.spent.transit'), 1234, 'the same month: what was spent stays spent');
   assert.deepEqual(errors, []);
 });
+
+test('transit never comes from a provider that breaks a promise: no-Cogentle customers, bank covenants, the Spat', t => {
+  const { ev, errors } = game(t, "S.transit=[];ACT.buyTransit({city:'fra',net:'lvl',tier:0});compute();S.transit[0].hist=Array(30).fill(200)");
+  hire(ev); on(ev, 'transit', { x: 1.5 });
+  assert.equal(ev("cheapestTransit('fra').id"), 'cog', 'Cogentle is the cheapest here, so it would be the pick');
+  ev("S.biz.push({id:'b1',city:'fra',name:'X',type:'dia',bw:1,rate:100,mood:100,since:S.day,reqs:['nocog']})");
+  assert.equal(ev("reqOk(S.biz[0])"), true);
+  shift(ev);
+  assert.ok(ev('S.transit.length') > 1 || ev('S.transit[0].n') > 1, 'the intern still topped up');
+  assert.equal(ev("S.transit.some(t=>t.net==='cog')"), false);
+  assert.equal(ev("reqOk(S.biz[0])"), true, 'the customer still gets what they signed for');
+  ev("S.ops.p.transit={x:1.5,prov:'cog'}");
+  assert.notEqual(ev("opsProv('fra').id"), 'cog', 'even when the player picked Cogentle');
+  assert.notEqual(ev("opsTplQuote('ams').net"), 'cog', 'and the new-POP template too');
+  // A bank covenant says the same.
+  ev("S.biz=[];S.loans=[{bank:'db',covs:['nocog'],pay:1,bal:1}]");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  // Cogentle is not speaking to Goggle: the Spat scenario, or a de-peering.
+  ev("S.loans=[]");
+  assert.equal(ev("cheapestTransit('fra').id"), 'cog');
+  ev("S.ev.depeer=S.day+5");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  ev("S.ev.depeer=0;S.scn={id:'spat',rules:{spat:true}}");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  // Two upstreams: once met, never undone (adding is fine; the order never removes).
+  ev("S.scn=null;S.biz=[{id:'b2',city:'fra',name:'Y',type:'dia',bw:1,rate:1,mood:100,since:0,reqs:['twoup']}]");
+  assert.ok(ev("cheapestTransit('fra')"));
+  ev("S.transit=[]");
+  assert.equal(ev("cheapestTransit('fra')"), undefined, 'a lone first upstream would break "two upstreams"');
+  assert.deepEqual(errors, []);
+});
