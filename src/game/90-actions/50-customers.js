@@ -4,8 +4,7 @@ Object.assign(ACT,{
    const T=BIZ_T[t],nm=()=>{const list=T.names.filter(n=>!S.usedNames.includes(n)),n=list.length?pick(list):pick(T.names);useName(n);return n;};
    // A capacity broker finds a buyer at once and keeps 10% of the monthly price.
    const o=fiberOffer(t,l,nm,0.9);o.broker=true;S.offers.push(o);toast(tr('customers.listed_with_a_capacity_broker_name',{name:esc(o.name),what:esc(o.what)}),'good');sfx('click');after();},
- autoToggle:({k})=>{if(k!=='autoSales'&&k!=='autoRepair')return;S[k]=!S[k];if(k==='autoSales'){UI.autoGame=S;UI.autoSalesAt=performance.now();}sfx('click');after();},
- accept:({id,auto=false})=>{const o=S.offers.find(x=>x.id===id);if(!o)return;const customer=auto?(S.autoSales&&autoOffer(o)):offerCustomer(o);if(!customer)return;if(!bHas(o)){toast(tr('customers.you_need_a_pop_in_every'),'bad');return;}
+ accept:({id,auto=false})=>{const o=S.offers.find(x=>x.id===id);if(!o)return;const customer=auto?autoOffer(o):offerCustomer(o);if(!customer)return;if(!bHas(o)){toast(tr('customers.you_need_a_pop_in_every'),'bad');return;}
    if(o.type==='wwave'){const l=S.links.find(x=>x.id===o.link);if(!l||chMax(l)-(l.ch||[]).length-soldSlots(l)<o.slots){toast(tr('customers.not_enough_free_channels_on_that'),'bad');return;}}
    if(BIZ_T[o.type].event&&S.day>=o.start){toast(tr('customers.too_late_the_event_has_already'),'bad');return;}
    // A carrier renting more alien waves on a fiber it already rents grows its contract, like a real order for extra waves,

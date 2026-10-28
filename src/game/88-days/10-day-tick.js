@@ -65,6 +65,7 @@ function dayTick(){
   if(cm&&d>=S.nextFail){dirty=true;fireFailure();const size=S.links.length+Object.keys(S.pops).length;S.nextFail=d+Math.round((Math.max(22,50-size*1.5)+Math.floor(Math.random()*25))*(scnRule('chaos')?0.5:1)/cm);}
   if(cm&&d>=S.nextEvent){dirty=true;fireEvent();S.nextEvent=d+Math.round((45+Math.floor(Math.random()*45))/cm);}
   if(dirty)compute();
+  opsDay(d);
   // payday floaters
   if(d%30===0){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-(CITY[c].arpu||1));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
   checkGoals();
