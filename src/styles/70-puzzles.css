@@ -36,4 +36,5 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse),(orientation:landscape) and (max-width:760px) and (max-height:500px){
   #pzBox{left:auto;right:0;width:min(360px,52%);top:calc(env(safe-area-inset-top,0px) + 50px);max-height:none;border-radius:20px 0 0 0;border-right:0}
   body.pz #hint{bottom:12px !important;left:30% !important}
+  body.pz #toasts{left:8px !important;transform:none !important;width:calc(48% - 16px) !important}
 }

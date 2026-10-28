@@ -86,10 +86,10 @@ function pzLeave(){const from=UI.pzFrom;document.body.classList.remove('pz');UI.
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
     if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){S=null;UI.started=false;}}}
   renderAll();showTitle();}
-// The camera frames the puzzle's cities, leaving room for the puzzle card (left on wide screens, a bottom sheet on phones).
+// The camera frames the puzzle's cities beside the puzzle card: left on wide screens, right on phones on their side, a bottom sheet on phones.
 function pzCam(){const cs=[...S.pz.cities,...S.pz.via].map(c=>CITY[c]),x0=cs[0].x;let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;
   for(const C of cs){const x=x0+wrapDx(x0,C.x);a=Math.min(a,x);b=Math.max(b,x);c=Math.min(c,C.y);d=Math.max(d,C.y);}
-  const ph=isPhone(),pl=ph?0:330,pb=ph?Math.min(230,CH*0.4):0,aw=Math.max(120,CW-pl-90),ah=Math.max(120,CH-pb-150);
+  const ph=isPhone(),side=ph&&CW>CH,pl=side?-Math.min(360,CW*0.52):ph?0:330,pb=ph&&!side?Math.min(230,CH*0.4):0,aw=Math.max(120,CW-Math.abs(pl)-90),ah=Math.max(120,CH-pb-150);
   cam.z=clamp(Math.min(aw/Math.max(40,b-a),ah/Math.max(40,d-c)),0.5,4);cam.x=(a+b)/2-pl/2/cam.z;cam.y=(c+d)/2+(pb/2-30)/cam.z;wrapCam();}
 // ---------- building ----------
 function pzSnap(){const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links}));if(h.length>60)h.shift();}
