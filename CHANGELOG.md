@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The project follows
 - China Telecomet now sells its CN-Too premium crossing in Moscow too, at the same price as in Hong Kong (#195). Haul your European traffic to Moscow and it reaches China with about 3% loss; nothing else of theirs is on offer there.
 - Series of Tubes now speaks German. The game follows your browser's language the first time, and you can switch to German under Settings or on the title screen. Networking terms like Peering and Transit stay in English, the way network engineers say them.
 - Glowball Sakura Lager joins the map: a Tier 2 carrier in the big hubs of the US, Europe and Asia-Pacific that sells transit, takes PNIs and peers openly wherever it is. It is not a Tier 1, so it buys its own transit from three of them, while 13 smaller networks in its regions buy theirs from it, and one PNI with it reaches about 3% of all traffic. Far from home, in Asia and New Zealand, it charges more than the locals, and it sells no transit in Australia.
+- Check a selected link’s redundancy against current demand: see disconnected endpoints, additional service loss and full fallback links without changing the live network.
 
 ## [1.36.0] — 2026-10-28
 
