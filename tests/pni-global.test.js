@@ -100,14 +100,16 @@ test('global PNIs require the full budget and reject unsupported sizes and an em
   dom.window.close();
 });
 
-test('the global Traffic button preserves scope, keyboard focus and translations on phones', () => {
+test('the global batch, now in the Ops sheet, preserves scope, keyboard focus and translations on phones', () => {
   for (const lang of ['en', 'it', 'pt', 'fr', 'es']) {
     const { dom, ev, errors } = load(lang === 'en' ? {} : { lang });
     setup(ev);
     dom.window.innerWidth = 360;
+    // The Traffic tab now points at the Ops sheet, where the one-off batches live.
     ev("ACT.dash();ACT.dashTab({k:'traffic'})");
     const doc = dom.window.document;
-    const button = [...doc.querySelectorAll('#dashCard [data-act="pniAllOpen"]')].find(b => JSON.parse(b.dataset.args).net === null);
+    doc.querySelector('#dashCard [data-act="opsOpen"]').click();
+    const button = [...doc.querySelectorAll('#modalCard [data-act="pniAllOpen"]')].find(b => JSON.parse(b.dataset.args).net === null);
     assert.ok(button, lang);
     button.click();
     assert.equal(doc.querySelector('#modalCard h2').textContent, ev("tr('pni_all.peer_all_networks')"), lang);
