@@ -67,6 +67,7 @@ function cityPanel(c){
       ${have.length?btn(tr('common.remove'),'rmCache',{id:(have.find(x=>x.site==='b')||have[0]).id},'ghost sm'):''}${btn(have.length?tr('common.box'):tr('common.request'),'cache',{city:c,net:n.id},'sm',!ok)}</div>${S.pops[c].site2&&have.length?(()=>{const nb=have.filter(x=>x.site==='b').length,na=have.length-nb;return `<div class="seg site"><span class="meta">${tr('city_panel.boxes_a_in_a_b_in',{a:na,b:nb})}</span>${na?btn(tr('city_panel.move_one_to_b'),'cacheSite',{city:c,net:n.id,s:'b'},'ghost sm'):''}${nb?btn(tr('city_panel.move_one_to_a'),'cacheSite',{city:c,net:n.id,s:'a'},'ghost sm'):''}</div>`;})():''}`;}
     h+=`</section>`;
   }else{
+    h+=utilityKitHtml(c);
     const ls=S.links.filter(l=>l.a===c||l.b===c);
     const rt=p.routers||1,g=p.rgen||0,G=RG[g],nl=R.nodeLoad[c]||0,nc=R.nodeCap[c]||nodeCap(c),Ni=g===mainRG(G.cls)?mainRG(G.cls+1):-1,N=Ni>=0?RG[Ni]:null,pu=portsUsed(c),pm=portsMax(c);
     h+=`<section><h3>${tr('common.routers')}</h3><p class="lead">${tr('city_panel.the_model_sets_your_fastest')}</p>

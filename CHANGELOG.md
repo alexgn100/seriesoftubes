@@ -26,6 +26,7 @@ All notable changes to this project are documented here. The project follows
 - Order PNIs with one network or every network at all shared POPs from the NOC Traffic tab: choose a port size, review the total cost, and add missing connections or upgrade smaller ones in one go. Each network keeps its own smallest PNI size and delivery time.
 - Toggle auto-accept in Deals to check ready sales every five real seconds, including their requirements and available service capacity, with a countdown beside eligible Accept buttons.
 - Toggle auto-pay repairs in the NOC to pay for affordable rush repairs automatically while the game runs.
+- Utilities join route servers and request eligible peers across every joined IX, install missing PoP redundancy hardware and balance caches between sites, and request a cache from each eligible provider at each site.
 
 ## [1.36.0] — 2026-10-28
 
