@@ -313,3 +313,38 @@ test('a POP in a thin market costs its higher monthly rent too, and the panel sa
   assert.ok(ev("document.getElementById('panelBody').textContent").includes(ev("fmt$(popMo('suv'))") + '/mo'));
   assert.deepEqual(errors, []);
 });
+
+test('best spend: kept for the best star count, and a cheaper build at the same stars counts', () => {
+  const { ev, errors } = load();
+  ev("localStorage.removeItem('sot-puzzles');pzBegin(pzDef('braces'))");
+  const rec = () => JSON.parse(ev("JSON.stringify(pzLoad().s.braces||null)"));
+  build(ev, REF.braces.one);
+  const two = evalP(ev).spend;
+  assert.deepEqual(rec(), { st: 2, sp: two });
+  // A gold-plated third link: N-1 but over budget is still two stars, and dearer, so the best stays.
+  ev("ACT.pzLinkTo({a:'dub',b:'nyc'});ACT.pzVia({v:'havf'});ACT.pzLink({tier:2});closeModal()");
+  assert.equal(evalP(ev).stars, 2);
+  assert.deepEqual(rec(), { st: 2, sp: two });
+  // Shrinking it to 10G earns the third star: the best spend starts again at the 3-star build.
+  ev('ACT.pzTier({id:S.links[2].id,tier:0})');
+  const three = evalP(ev);
+  assert.equal(three.stars, 3);
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // With a looser budget, a dearer 3-star build does not replace it; going back to the cheaper one keeps it.
+  ev('S.pz.budget=1e7;ACT.pzTier({id:S.links[0].id,tier:1})');
+  assert.equal(evalP(ev).stars, 3);
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // A cheaper 3-star build after a dearer first one is recorded (the old code only recorded star rises).
+  ev("localStorage.removeItem('sot-puzzles')");
+  ev('ACT.pzTier({id:S.links[1].id,tier:1})');
+  const dear = evalP(ev).spend;
+  assert.deepEqual(rec(), { st: 3, sp: dear });
+  ev('ACT.pzTier({id:S.links[1].id,tier:0});ACT.pzTier({id:S.links[0].id,tier:0})');
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  // Fewer stars never overwrite more.
+  ev('ACT.pzRmLink({id:S.links[2].id})');
+  assert.deepEqual(rec(), { st: 3, sp: three.spend });
+  ev('ACT.puzzleMenu({})');
+  assert.ok(ev("document.getElementById('modalCard').textContent").includes('best ' + ev(`fmt$(${three.spend})`)));
+  assert.deepEqual(errors, []);
+});

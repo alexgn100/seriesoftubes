@@ -101,8 +101,11 @@ const pzNewPop=()=>({day:0,bb:null,boost:0,down:0,routers:1,gen:false});
 function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI.sel.id))||(UI.sel.type==='city'&&!pzKind(UI.sel.id))))UI.sel=null;
   compute();renderAll();pzCheck();}
 // Stars count the moment they are earned: a better result than this attempt has had opens the results card.
-function pzCheck(){const e=pzEval();if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzRecord(e);pzResults(e,prev);return e;}
+// Every solved state is recorded, so a cheaper build at the same stars counts too.
+function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzResults(e,prev);return e;}
+// The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
 function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=bag[k]||{st:0,sp:null};
-  r.st=Math.max(r.st,e.stars);r.sp=r.sp==null?e.spend:Math.min(r.sp,e.spend);bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
+  if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;
+  r.sp=e.spend;r.st=e.stars;bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
 // The next puzzle in the list whose pack is open.
 function pzNextDef(){const p=pzLoad(),i=PZ.findIndex(x=>x.id===S.pz.id);for(let j=i+1;j<PZ.length;j++)if(pzPackOpen(PZ[j].pack,p))return PZ[j];return null;}
