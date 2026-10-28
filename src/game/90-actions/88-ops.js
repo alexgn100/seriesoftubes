@@ -2,7 +2,9 @@
 const opsCycle=(a,v)=>a[(a.indexOf(v)+1)%a.length];
 Object.assign(ACT,{
  opsOpen:()=>{if(S)opsModal();},
- opsHire:({id})=>{if(!S||opsHired()||!own(INTERNS,id)||!opsCanHire()||!rule('clock'))return;if(!spend(INTERN_MO))return;const O=opsO();O.intern=id;O.hired=S.day;O.mon=Math.floor(S.day/30);
+ opsHire:({id})=>{if(!S||opsHired()||!own(INTERNS,id)||!opsCanHire()||!rule('clock'))return;if(!spend(INTERN_MO))return;const O=opsO(),m=Math.floor(S.day/30);O.intern=id;O.hired=S.day;
+   // A new hire starts on a fresh month's budget, whatever the last one spent.
+   if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;}
    O.log.unshift({d:S.day,i:id,r:[]});toast(esc(tr('ops.hired',{name:opsName(true)})),'good',[{l:tr('ops.ops'),act:'opsOpen',args:{}}]);after();opsModal();},
  opsFire:()=>{if(!opsHired())return;if(UI.confirm!=='opsFire'){UI.confirm='opsFire';opsModal();return;}UI.confirm=null;const nm=opsName();S.ops.intern=null;
    toast(esc(tr('ops.fired',{name:nm})),'');after();opsModal();},

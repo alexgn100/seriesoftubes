@@ -339,3 +339,14 @@ test('sales trial at most one offer a shift, and an offer that did not fit waits
   ev('autoOffer=__a');
   assert.deepEqual(errors, []);
 });
+
+test('re-hiring in a later month starts on a fresh budget, not last month\'s spending', t => {
+  const { ev, errors } = game(t);
+  hire(ev);
+  ev("S.ops.spent.transit=50000;ACT.opsFire();ACT.opsFire();S.day=400;ACT.opsHire({id:'kevin'});closeModal()");
+  assert.equal(ev('S.ops.spent.transit'), 0);
+  assert.equal(ev('S.ops.mon'), ev('Math.floor(S.day/30)'));
+  ev("S.ops.spent.transit=1234;ACT.opsFire();ACT.opsFire();ACT.opsHire({id:'annie'});closeModal()");
+  assert.equal(ev('S.ops.spent.transit'), 1234, 'the same month: what was spent stays spent');
+  assert.deepEqual(errors, []);
+});
