@@ -4,7 +4,6 @@ function pzTwistTxt(t){const P=S.pz;
   if(t.k==='sub')return tr('puzzles.no_subsea_cables');
   if(t.k==='ring')return tr('puzzles.one_ring_through_every_pop');
   if(t.k==='g')return tr('puzzles.every_link_n_g_or_more',{n:P.minG});
-  if(t.k==='avoid')return tr('puzzles.no_pop_in_list',{list:P.avoid.map(c=>CITY[c].name).join(', ')});
   const [a,b,ms]=P.lat;return isFinite(t.ms)?tr('puzzles.a_to_b_under_ms_now',{a:CITY[a].name,b:CITY[b].name,ms,now:t.ms.toFixed(1)}):tr('puzzles.a_to_b_under_ms',{a:CITY[a].name,b:CITY[b].name,ms});}
 // The short version, for the puzzle list.
 function pzTwistTag(d){const t=[];if(d.noSub)t.push(tr('puzzles.no_subsea'));if(d.ring)t.push(tr('puzzles.ring'));if(d.lat)t.push(tr('puzzles.under_n_ms',{n:d.lat[2]}));if(d.minG)t.push(tr('puzzles.n_g_links',{n:d.minG}));if(d.avoid)t.push(tr('puzzles.avoid_list',{list:d.avoid.map(c=>CITY[c].name).join(', ')}));return t;}
@@ -17,7 +16,8 @@ function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hi
   if(d)h+=`<p class="pzj">${esc(d.j)}</p>`;
   h+=`<div class="pzs">${star(e.goal,tr('puzzles.goal'))}${star(e.goal&&e.cheap,P.budget?tr('puzzles.budget'):tr('puzzles.free'))}${star(e.goal&&e.n1,'N-1')}</div>`;
   h+=`<div class="pzck">${e.marks.map(m=>`<span class="pzc s${m.st}">${esc(CITY[m.c].name)}${m.st===2?' ✓':m.st===1?' ·':' …'}</span>`).join('')}</div>`;
-  for(const t of e.tw)h+=`<div class="pztw ${t.ok?'ok':''}">${t.ok?'✓':'✗'} ${pzTwistTxt(t)}</div>`;
+  // Cities to avoid cannot be built in at all, so they read as a rule, not as a box to tick.
+  for(const t of e.tw)h+=t.k==='avoid'?`<div class="pztw rule">🚫 ${tr('puzzles.rule_not_via_list',{list:P.avoid.map(c=>esc(CITY[c].name)).join(', ')})}</div>`:`<div class="pztw ${t.ok?'ok':''}">${t.ok?'✓':'✗'} ${pzTwistTxt(t)}</div>`;
   const sp=fmt$(e.spend);
   h+=P.budget?`<div class="pzbud"><div class="kv"><span>${tr('puzzles.spent_x_of_y',{x:sp,y:fmt$(P.budget)})}</span><b>${e.cheap?'✓':'✗'}</b></div><div class="bar ${e.cheap?(e.spend>P.budget*0.85?'warn':''):'bad'}"><i style="width:${Math.min(100,e.spend/P.budget*100).toFixed(1)}%"></i></div></div>`
     :`<div class="pzbud"><div class="kv"><span>${tr('puzzles.spent_x',{x:sp})}</span><b>${tr('puzzles.no_budget_star_on_the_house')}</b></div></div>`;

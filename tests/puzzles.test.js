@@ -379,3 +379,15 @@ test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
   assert.equal(ev('S.pops.ams.routers'), 2);
   assert.deepEqual(errors, []);
 });
+
+test('a city to avoid reads as a rule, not a goal that can fail', () => {
+  const { ev, errors } = load();
+  ev("pzBegin(pzDef('nofra'))");
+  const tw = () => ev("[...document.querySelectorAll('#pzBox .pztw')].map(x=>x.className+'|'+x.textContent).join('\\n')");
+  assert.match(tw(), /pztw rule\|🚫 Rule: not via Frankfurt/);
+  assert.doesNotMatch(tw(), /[✓✗].*Frankfurt/);
+  build(ev, REF.nofra.three);
+  assert.match(tw(), /pztw rule\|🚫 Rule: not via Frankfurt/, 'still a rule once solved');
+  assert.equal(evalP(ev).stars, 3);
+  assert.deepEqual(errors, []);
+});

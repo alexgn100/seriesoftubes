@@ -7,7 +7,7 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
 .pzs span small{font:900 10px var(--body);text-transform:uppercase;letter-spacing:.05em}.pzs span.on{filter:none;opacity:1;background:#FFF3C4;transform:scale(1.05)}
 .pzck{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}.pzc{font-weight:900;font-size:12px;border:2px solid var(--ink);border-radius:999px;padding:1px 8px;background:#fff}
 .pzc.s1{background:#FFE3F0}.pzc.s2{background:var(--ok);color:#fff}
-.pztw{font-size:12.5px;font-weight:800;color:var(--bad);margin:3px 0}.pztw.ok{color:var(--eye)}
+.pztw{font-size:12.5px;font-weight:800;color:var(--bad);margin:3px 0}.pztw.ok{color:var(--eye)}.pztw.rule{color:var(--ink2)}
 .pzbud{margin:6px 0}.pzbud .kv{font-size:12.5px}
 .pzn1{font-size:12.5px;font-weight:800;margin:6px 0;padding:4px 8px;border:2px solid var(--line);border-radius:10px;color:var(--ink2)}
 .pzn1.on{border-color:var(--ok);background:#DFFBEA;color:var(--ink);animation:pzglow 1.6s ease-in-out infinite}.pzn1.bad{border-color:var(--warn);background:#FFF4D6;color:var(--ink)}
