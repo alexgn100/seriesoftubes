@@ -10,6 +10,7 @@ function frame(now){
   if(UI.panelsDue){UI.panelsDue=false;if(!pressing){renderPanel();renderLeft();if(!$('dash').hidden)renderDash();renderBank();}renderHint();}
   if(S&&!S.lost&&$('modal').hidden&&UI.speed){acc+=dt*UI.speed;let n=0;while(acc>=DAY_MS&&n<4&&UI.speed){acc-=DAY_MS;try{dayTick();}catch(e){tickErr(e);}n++;}
     if(n){UI.ticking=true;renderHUD();UI.ticking=false;UI.panelsDue=true;}}
+  try{automationTick(now);renderAutoCountdown();}catch(e){tickErr(e);}
   if(UI.speed&&!(S&&S.lost))animT+=dt; /* paused = frozen dots, waves and clouds */
   const t=animOn()?animT:0;
   if(!(UI.mapHid=mapHidden())&&!mapStill(t,now)){try{draw(t);}catch(e){tickErr(e);}UI.drawnAt=now;}
