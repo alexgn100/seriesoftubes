@@ -20,10 +20,13 @@ function hwCard(){if(!S||(S.day<=HW_FREE&&!hwShock()&&!hwLock()))return '';const
   ${s?`<div class="kv"><span>${tr('common.shortage')}</span><b>${tr('supply_chain.what_p_n_days_left',{what:tr(HW_SHOCK[s.k].n),p:pct(s.mul-1),n:s.until-S.day})}</b></div>`:''}
   ${l?`<div class="kv"><span>${tr('common.price_lock')}</span><b>${tr('supply_chain.until_date_at_p',{date:dateStr(l.until),p:pct(l.mul-1)})}</b></div>`
    :`<p class="meta">${tr('supply_chain.routers_optics_and_new_builds_at')}</p><div class="btns">${btn(tr('supply_chain.lock_prices_for_a_year_cost',{cost:fmt$(hwLockCost())}),'hwLock',{},'sm',S.cash<hwLockCost())}</div>`}</div>`;}
-const routerCost=g=>Math.round((ROUTER_COST+RG[g].cost*0.8)*hwMul('rt'));
+// Routers past the standard cage (#157) need a cage extension: pricier to install, and rent on top.
+const RCAGE=6,CAGE_MUL=1.5,CAGE_MO=2000;
+const routerCost=(g,rt)=>Math.round((ROUTER_COST+RG[g].cost*0.8)*((rt||1)>=RCAGE?CAGE_MUL:1)*hwMul('rt'));
+const routerMo=g=>ROUTER_MO+RG[g].mo,cageMo=rt=>Math.max(0,(rt||1)-RCAGE)*CAGE_MO;
 // Old routers go on eBuy when you swap models or remove one (#82), like spare optics (#45). Chassis age faster.
 const ROUTER_RESALE=0.3,tradeIn=(g,n)=>Math.round(RG[g].cost*n*ROUTER_RESALE),swapCost=(c,g)=>{const p=S.pops[c],rt=p.routers||1;return Math.max(0,Math.round(RG[g].cost*rt*hwMul('rt'))-tradeIn(p.rgen||0,rt));};
-const RMAX=6;
+const RMAX=16;
 // The plain, badge-less model of each class is the default upgrade path; the others are side-grades.
 const mainRG=k=>RG.findIndex(r=>r.cls===k&&!r.badge);
 // Ports and waves beyond 1.6T / 6.4T only show once a router that takes them is unlocked.

@@ -12,7 +12,7 @@ const REQS={
  local:{l:tr('requirements.local_breakout_transit_or_an_ix'),bonus:.2,ip:true,ok:b=>S.transit.some(t=>t.city===b.city)||hasIxAt(b.city)||(isTier1()&&S.pni.some(p=>p.city===b.city))},
  metro:{l:tr('requirements.two_data_centers_in_every_metro'),bonus:.2,only:true,ok:b=>[b.city,b.city2].filter(Boolean).every(c=>S.pops[c]&&S.pops[c].site2)},
  twoup:{l:tr('requirements.wants_two_different_transit'),bonus:.15,ip:true,ok:()=>new Set(S.transit.map(t=>t.net)).size>=2||S.transit.length===0},
- china:{l:tr('requirements.needs_low_loss_reach_into_china'),bonus:.3,ip:true,ok:()=>S.transit.some(t=>t.premium&&t.city==='hkg')||S.links.some(l=>l.premium)||S.pni.some(p=>NET[p.net].cn&&pniOn(p))},
+ china:{l:tr('requirements.needs_low_loss_reach_into_china'),bonus:.3,ip:true,ok:()=>S.transit.some(premOn)||S.links.some(l=>l.premium)||S.pni.some(p=>NET[p.net].cn&&pniOn(p))},
  scrubbed:{l:tr('requirements.will_only_sign_with_a_network'),bonus:.15,ok:()=>hasScrub()},
  scrubnear:{l:tr('requirements.wants_a_scrubbing_center_on_its'),bonus:.15,ip:true,ok:b=>S.scrubs.some(x=>CITY[x.city].reg===CITY[b.city].reg)},
  puns:{l:tr('requirements.their_ceo_hates_puns_please_do'),bonus:.05,ok:()=>true},
@@ -51,11 +51,17 @@ function diversityPossible(a,b,state=S){
   const pair=[a,b].sort().join(':');
   return diversityMap.answers[pair]??(diversityMap.answers[pair]=disjointRoutes(a,b,diversityMap.links));
 }
-function fiberOk(b){const l=S.links.find(x=>x.id===b.link);if(!l)return false;if(b.type==='dfpair'||b.type==='pairs')return l.ready<=S.day&&!(l.cut>S.day);return l.ready<=S.day&&!(l.cut>S.day)&&!(l.eqDown>S.day);}
-function soldSlots(l){return S.biz.filter(b=>b.type==='wwave'&&b.link===l.id).reduce((a,b)=>a+(b.slots||0),0);}
+// Big networks have thousands of links and customers: callers that ask about all of them (compute(), the daily mood
+// check, new offers) look links up and add up what is sold in one pass (linkIds(), fiberUse()), not once per item.
+const linkIds=()=>{const m=new Map();for(const l of S.links)if(!m.has(l.id))m.set(l.id,l);return m;};
+function fiberUse(){const sold=new Map(),dfp=new Map(),pairs=new Set();
+  for(const b of S.biz){if(b.type==='wwave')sold.set(b.link,(sold.get(b.link)||0)+(b.slots||0));else if(b.type==='dfpair')dfp.set(b.link,(dfp.get(b.link)||0)+1);else if(b.type==='pairs'||b.type==='capfib')pairs.add(b.link);}
+  return {sold,dfp,pairs};}
+function fiberOk(b,ids){const l=ids?ids.get(b.link):S.links.find(x=>x.id===b.link);if(!l)return false;if(b.type==='dfpair'||b.type==='pairs'||b.type==='capfib')return l.ready<=S.day&&!(l.cut>S.day);return l.ready<=S.day&&!(l.cut>S.day)&&!(l.eqDown>S.day);}
+function soldSlots(l,u){return u?u.sold.get(l.id)||0:S.biz.filter(b=>b.type==='wwave'&&b.link===l.id).reduce((a,b)=>a+(b.slots||0),0);}
 // Spare capacity other carriers can rent on a dark fiber (#51): free channels for alien waves, and on your own build
 // a spare pair in the trench. Random offers and broker listings follow the same rules and the same prices.
-const freeCh=l=>chMax(l)-(l.ch||[]).length-soldSlots(l),pairFree=l=>!!l.own&&S.biz.filter(b=>b.type==='dfpair'&&b.link===l.id).length<2&&!S.biz.some(b=>b.type==='pairs'&&b.link===l.id);
+const freeCh=(l,u)=>chMax(l)-(l.ch||[]).length-soldSlots(l,u),pairFree=(l,u)=>!!l.own&&(u?u.dfp.get(l.id)||0:S.biz.filter(b=>b.type==='dfpair'&&b.link===l.id).length)<2&&!(u?u.pairs.has(l.id):S.biz.some(b=>(b.type==='pairs'||b.type==='capfib')&&b.link===l.id));
 const wwWhat=(l,n)=>trn('requirements.n_400g_alien_wave_on_your',n,{a:CITY[l.a].name,b:CITY[l.b].name});
 function fiberOffer(t,l,nm,cut=1){
   if(t==='wwave'){const slots=1+Math.floor(Math.random()*Math.min(4,freeCh(l)));

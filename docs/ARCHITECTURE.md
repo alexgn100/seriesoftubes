@@ -56,7 +56,7 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | Path | What it is |
 | --- | --- |
 | `src/i18n/en.js` | English: label → text, one entry per line, sorted; inlined into the page by `<!-- @include i18n -->` |
-| `site/i18n/it.js`, `pt.js`, `de.js`, `fr.js` | Translations: label → text, the same layout; loaded only for that language |
+| `site/i18n/it.js`, `pt.js`, `fr.js`, `es.js`, `de.js` | Translations: label → text, the same layout; loaded only for that language |
 | `server/sync.js` | Cloud sync server: accounts (username + scrypt password), one save per account with a revision number. Node built-ins only; `docker-compose.yml` runs it behind nginx at `/api/` |
 | `site/sw.js` | Service worker: network-first for pages, stale-while-revalidate for assets. Cache name is stamped with the version |
 | `site/site.webmanifest`, icons, `404.html`, `CNAME`, `robots.txt`, `sitemap.xml`, `llms.txt` | PWA and GitHub Pages files, copied as they are |
@@ -107,8 +107,10 @@ never freezes the game.
 ## compute(): the traffic model
 
 1. Builds a graph from your live links: parallel links between the same two cities
-   merge into one edge with summed capacity. Link metrics set weights; Dijkstra gives
-   shortest paths from each POP.
+   merge into one edge with summed capacity. The routing metric belongs to the city pair
+   (`S.pairMet`) and sets the edge's weight; Dijkstra gives shortest paths from each POP.
+   Links on standby (`l.standby`) add their capacity to the edge, but when loads are
+   handed back to links the active ones fill first and standby links take the rest.
 2. Builds the exit list `E`: embedded caches (rank 0), PNIs (1), IX ports (2),
    transit (3). Each exit has a capacity, the networks it can reach (`ok(net)`) and an
    egress preference (`high`, `normal`, `low` = backup only).

@@ -62,13 +62,12 @@ test('the game starts in English unless the player or the browser asks for anoth
   assert.equal(load({ navigatorLanguage: 'it-IT' }).ev('SOT_LANG'), 'it', 'an Italian browser asks for Italian');
   assert.equal(load({ navigatorLanguage: 'pt-BR' }).ev('SOT_LANG'), 'pt', 'a Brazilian browser asks for Portuguese');
   assert.equal(load({ navigatorLanguage: 'fr-FR' }).ev('SOT_LANG'), 'fr', 'a French browser asks for French');
+  assert.equal(load({ navigatorLanguage: 'es-ES' }).ev('SOT_LANG'), 'es', 'a Spanish browser asks for Spanish');
+  assert.equal(load({ navigatorLanguage: 'de-DE' }).ev('SOT_LANG'), 'de', 'a German browser asks for German');
+  assert.equal(load({ navigatorLanguage: 'de-CH' }).ev('SOT_LANG'), 'de', 'so does a Swiss German one');
   const it = load({ lang: 'it' });
   assert.equal(it.ev('LANG'), 'it');
   assert.equal(it.ev('document.documentElement.lang'), 'it');
-  assert.equal(load({ navigatorLanguage: 'de-DE' }).ev('SOT_LANG'), 'de', 'a German browser asks for German');
-  const de = load({ lang: 'de' });
-  assert.equal(de.ev('LANG'), 'de');
-  assert.equal(de.ev('document.documentElement.lang'), 'de');
   assert.equal(load({ navigatorLanguage: 'it-IT', storage: { 'sot-lang': 'en' } }).ev('LANG'), 'en', 'a saved choice wins');
   assert.equal(load({ storage: { 'sot-lang': 'xx' } }).ev('LANG'), 'en', 'unknown languages fall back to English');
   const offline = load({ storage: { 'sot-lang': 'it' } });
@@ -111,12 +110,11 @@ test('the static markup is translated by label', () => {
   assert.equal(ev("document.querySelector('[data-act=help]').getAttribute('aria-label')"), ev("tr('common.how_to_play')"));
 });
 
-test('the language buttons on the title screen work before any game exists', () => {
+test('the language dropdown on the title screen works before any game exists', () => {
   const { ev } = load();
-  ev("[...document.querySelectorAll('#modalCard [data-act=langSet]')].find(b=>b.textContent==='Italiano').click()");
+  assert.equal(ev('S'), null);
+  ev("const s=document.querySelector('#modalCard select#langTitle');s.value='it';s.dispatchEvent(new Event('change',{bubbles:true}))");
   assert.equal(ev("localStorage.getItem('sot-lang')"), 'it');
-  ev("[...document.querySelectorAll('#modalCard [data-act=langSet]')].find(b=>b.textContent==='Deutsch').click()");
-  assert.equal(ev("localStorage.getItem('sot-lang')"), 'de');
 });
 
 test('picking a language saves the choice and the game, then reloads', () => {
@@ -138,7 +136,7 @@ test('a scenario started in English shows its Italian name after switching', () 
   assert.ok(ev("document.getElementById('hAsn').textContent").includes(name));
 });
 
-for (const lang of ['en', 'it', 'pt', 'de', 'fr']) {
+for (const lang of ['en', 'it', 'pt', 'fr', 'es', 'de']) {
   test(`${lang}: every screen, failure and event renders without errors or unfilled placeholders`, () => {
     const { ev, errors } = load(lang === 'en' ? {} : { lang });
     seed(ev, 3);
@@ -146,14 +144,24 @@ for (const lang of ['en', 'it', 'pt', 'de', 'fr']) {
       assert.match(ev("document.getElementById('modalCard').textContent"), /Come si gioca/);
       assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Cassa · Banca');
     }
-    if (lang === 'de') {
-      assert.match(ev("document.getElementById('modalCard').textContent"), /So wird gespielt/);
-      assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Kasse · Bank');
-    }
     if (lang === 'fr') {
       assert.match(ev("document.getElementById('modalCard').textContent"), /Comment jouer/);
       // short enough to stay on one line in the phone's top bar (Caisse · Banque wrapped and cut off the monthly line)
       assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Cash · Banque');
+    }
+    if (lang === 'es') {
+      assert.match(ev("document.getElementById('modalCard').textContent"), /Cómo jugar/);
+      assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Caja · Banco');
+    }
+    if (lang === 'de') {
+      assert.match(ev("document.getElementById('modalCard').textContent"), /Spielanleitung/);
+      // the link card to the real "How the Internet Works" site used to be hard-coded English
+      assert.match(ev("document.getElementById('modalCard').textContent"), /Wie funktioniert das Internet\?/);
+      assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Kasse · Bank');
+      // networking jargon stays English in German (Peering, Dark Fiber); plain "fiber" is Glasfaser
+      assert.equal(ev("tr('common.peering')"), 'Peering');
+      assert.equal(ev("tr('common.dark_fiber')"), 'Dark Fiber');
+      assert.equal(ev("tr('common.terrestrial_fiber')"), 'Terrestrische Glasfaser');
     }
     const { thrown, leaks } = tour(ev);
     assert.ok(ev('(S.stats.f||{}).anchor'), 'Baltic and Red Sea anchors count for the badge in every language');

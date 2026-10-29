@@ -3,7 +3,7 @@ Object.assign(ACT,{
  setRoute:({id,m})=>{if(!own(RT,m))return;const b=S.biz.find(x=>x.id===id);if(b){b.route=m;sfx('click');after();}},
  route:({r})=>{UI.route=r;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  addParallel:({id})=>{const l=S.links.find(x=>x.id===id);if(l)openLinkModal(l.a,l.b);},
- addRouter:({city})=>{const p=S.pops[city];if(!p||(p.routers||1)>=RMAX)return;if(!spend(routerCost(p.rgen||0)))return;p.routers=(p.routers||1)+1;floater(CITY[city].x,CITY[city].y-30,tr('common.router_added'),'#FF4F9A');after();},
+ addRouter:({city})=>{const p=S.pops[city];if(!p||(p.routers||1)>=RMAX)return;if(!spend(routerCost(p.rgen||0,p.routers||1)))return;p.routers=(p.routers||1)+1;floater(CITY[city].x,CITY[city].y-30,tr('common.router_added'),'#FF4F9A');after();},
  models:()=>{UI.models=!UI.models;renderPanel();},
  rmRouter:({city})=>{const p=S.pops[city];if(!p||(p.routers||1)<=1)return;if(portsUsed(city)>portsMax(city,undefined,p.routers-1)){toast(tr('routing_and_routers.unplug_something_first_used_ports',{used:fmtPorts(portsUsed(city)),max:portsMax(city,undefined,p.routers-1)}),'bad');sfx('err');return;}p.routers--;{const back=tradeIn(p.rgen||0,1);if(back>0){S.cash+=back;toast(tr('routing_and_routers.sold_a_model_on_ebuy_price',{model:esc(RG[p.rgen||0].n),price:fmt$(back)}),'good');}}after();},
  upRouter:({city,g})=>{const p=S.pops[city];if(!p)return;g=g===undefined?mainRG(RG[p.rgen||0].cls+1):+g;if(!RG[g]||g===(p.rgen||0))return;{const why=modelFits(city,g);if(why){toast(tr('routing_and_routers.the_model_won_t_fit_why',{model:esc(RG[g].n),why:esc(why)}),'bad');sfx('err');return;}}if(RG[g].lvl>lvl()){toast(tr('routing_and_routers.model_unlocks_at_customer_level_lv',{model:esc(RG[g].n),lv:RG[g].lvl}),'bad');sfx('err');return;}

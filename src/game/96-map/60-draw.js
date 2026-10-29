@@ -1,4 +1,5 @@
-function draw(now){
+function draw(now){DFC=new Map();try{drawFrame(now);}finally{DFC=null;}}
+function drawFrame(now){
   if(!ctx)return;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   // sea
@@ -24,23 +25,24 @@ function draw(now){
   // cable systems
   drawCables(ks);
   // links
-  const far=lodFar(),PI=pairIdx();
-  for(const grp of linkGroups()){const l=grp[0],many=grp.length>1,up=many?grp.filter(x=>!linkDown(x)):null;
-    const gm=linkGeom(l,PI.get(edgeKey(l))),cap=many?up.reduce((a,x)=>a+capOf(x),0):capOf(l),load=many?grp.reduce((a,x)=>a+(R.load[x.id]||0),0):(R.load[l.id]||0),u=cap?load/cap:0,df=l.kind==='df',bld=df&&l.ready>day,cut=!bld&&(many?!up.length:linkDown(l))&&!(df&&!(l.ch||[]).length),dark=df&&!bld&&!(l.ch||[]).length,vx=l.kind==='vxc';
-    const sel=UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id);
+  const far=lodFar(),PI=pairIdx(),LG=linkGroups(),GM=LG.map(g=>linkGeom(g[0],PI.get(edgeKey(g[0])))),busy=linesOnScreen(GM,ks)>MAP_BUSY;
+  for(let gi=0;gi<LG.length;gi++){const grp=LG[gi],l=grp[0],many=grp.length>1,up=many?grp.filter(x=>!linkDown(x)):null;
+    const gm=GM[gi],cap=many?up.reduce((a,x)=>a+capOf(x),0):capOf(l),load=many?grp.reduce((a,x)=>a+(R.load[x.id]||0),0):(R.load[l.id]||0),u=cap?load/cap:0,df=l.kind==='df',bld=df&&l.ready>day,cut=!bld&&(many?!up.length:linkDown(l))&&!(df&&!(l.ch||[]).length),dark=df&&!bld&&!(l.ch||[]).length,vx=l.kind==='vxc',idle=!cut&&!bld&&load<1e-3&&(many?up.length>0&&up.every(x=>x.standby):!!l.standby);
+    const sel=UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id);let lab=null;
     const w=(vx?2.2:(2.5+Math.max(...grp.map(tierW))*1.8+(many?Math.min(1.5,(grp.length-1)*0.5):0)))*sc*(far?0.5:1),np=gm.pts.length;
     if(SX.length<np){SX=new Float64Array(np*2);SY=new Float64Array(np*2);}
     for(const k of ks){
       // Screen points as toS() gives them, kept in SX/SY.
-      let mn=Infinity,mx=-Infinity;for(let i=0;i<np;i++){const p=gm.pts[i],x=(p[0]+k*W-cam.x)*cam.z+CW/2;SX[i]=x;SY[i]=(p[1]-cam.y)*cam.z+CH/2;if(x<mn)mn=x;if(x>mx)mx=x;}
-      if(mx<-40||mn>CW+40)continue;
+      let mn=Infinity,mx=-Infinity,mny=Infinity,mxy=-Infinity;for(let i=0;i<np;i++){const p=gm.pts[i],x=(p[0]+k*W-cam.x)*cam.z+CW/2,y=(p[1]-cam.y)*cam.z+CH/2;SX[i]=x;SY[i]=y;if(x<mn)mn=x;if(x>mx)mx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;}
+      // Off screen (with room for the widest line and the markers at its middle): nothing of it would show.
+      if(mx<-40||mn>CW+40||mxy<-40||mny>CH+40)continue;
       const path=()=>{ctx.beginPath();ctx.moveTo(SX[0],SY[0]);for(let i=1;i<np;i++)ctx.lineTo(SX[i],SY[i]);};
       ctx.lineCap='round';ctx.lineJoin='round';
       if(sel){ctx.strokeStyle='rgba(255,79,154,.35)';ctx.lineWidth=w+14;path();ctx.stroke();}
-      ctx.strokeStyle='#1E2640';ctx.lineWidth=w+4;ctx.setLineDash(cut?[8,8]:vx?[2,7]:bld?[10,8]:[]);path();ctx.stroke();
-      ctx.strokeStyle=bld?'#C9B27C':dark?'#5D6788':cut?'#FF4D5E':vx?FAB[l.prov].col:l.sub?(u>0.001?utilCol(u):'#7FD8EE'):utilCol(u);ctx.lineWidth=w;ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle='#1E2640';ctx.lineWidth=w+4;ctx.setLineDash(cut?[8,8]:vx?[2,7]:bld?[10,8]:idle?[4,6]:[]);path();ctx.stroke();
+      ctx.strokeStyle=bld?'#C9B27C':dark?'#5D6788':cut?'#FF4D5E':idle?'#9AA3BE':vx?FAB[l.prov].col:l.sub?(u>0.001?utilCol(u):'#7FD8EE'):utilCol(u);ctx.lineWidth=w;ctx.stroke();ctx.setLineDash([]);
       // Still the same path: strokes keep it, so the dotted fiber line goes on top without building it again.
-      if(df&&!bld&&!dark){ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=Math.max(1,w*0.25);ctx.setLineDash([1,6]);ctx.stroke();ctx.setLineDash([]);}
+      if(df&&!bld&&!dark&&!busy){ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=Math.max(1,w*0.25);ctx.setLineDash([1,6]);ctx.stroke();ctx.setLineDash([]);}
       const at=t=>polyAtXY(SX,SY,gm.cum,t);
       if(!cut&&load>0.01){const n=clamp(Math.round(2+u*10),2,12)>>(far?1:0)||1,len=gm.len*z,spd=90;
         ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=far?1:1.5;
@@ -48,7 +50,7 @@ function draw(now){
       const [mx2,my]=at(.5);const mxx=mx2;
       if(bld){if(far){ctx.fillStyle='#FF8A3D';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,4,0,7);ctx.fill();ctx.stroke();}else drawCone(mxx,my,now);}
       else if(cut&&!vx){if(far){ctx.fillStyle='#FF4D5E';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='900 8px Nunito, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',mxx,my+0.5);}else drawBackhoe(mxx,my,now,l.sub);}
-      else if(z>0.9||sel){const t=many?groupLabel(grp,up):capName(l);ctx.font='800 11px "Baloo 2", sans-serif';let tw=LINKW.get(t);if(tw===undefined)LINKW.set(t,tw=ctx.measureText(t).width+10);ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(mxx-tw/2,my-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,mxx,my+1);}
+      else if(sel||(z>0.9&&!busy)){const t=lab||(lab=many?groupLabel(grp,up):capName(l));ctx.font='800 11px "Baloo 2", sans-serif';let tw=LINKW.get(t);if(tw===undefined)LINKW.set(t,tw=ctx.measureText(t).width+10);ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(mxx-tw/2,my-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,mxx,my+1);}
     }
   }
   // drag preview
@@ -88,6 +90,15 @@ function draw(now){
   for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1){FLOATS.splice(i,1);continue;}
     for(const k of ks){const [sx,sy]=toS(f.x,f.y,k);ctx.globalAlpha=1-a*a;ctx.font='800 17px "Baloo 2", sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(f.text,sx,sy-a*40);ctx.fillStyle=f.col;ctx.fillText(f.text,sx,sy-a*40);ctx.globalAlpha=1;}}
 }
+/* A map with more than MAP_BUSY lines on screen (huge late-game networks) is a tangle where nobody reads thousands of
+   overlapping labels or fiber dots, and painting them took about half of every frame. They come back once fewer lines
+   show, zooming in for instance; the selected link keeps its label. */
+const MAP_BUSY=1000;
+// How many lines draw() would paint: one per group and world copy whose box is on screen (the same margin as draw()).
+function linesOnScreen(GM,ks){let n=0;for(const gm of GM){const b=gm.box||(gm.box=ptsBox(gm.pts));
+  for(const k of ks){const x0=(b[0]+k*W-cam.x)*cam.z+CW/2,x1=(b[2]+k*W-cam.x)*cam.z+CW/2,y0=(b[1]-cam.y)*cam.z+CH/2,y1=(b[3]-cam.y)*cam.z+CH/2;
+    if(!(x1<-40||x0>CW+40||y1<-40||y0>CH+40))n++;}}return n;}
+function ptsBox(pts){let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;for(const p of pts){if(p[0]<a)a=p[0];if(p[1]<b)b=p[1];if(p[0]>c)c=p[0];if(p[1]>d)d=p[1];}return [a,b,c,d];}
 function drawCone(x,y,now){const b=Math.sin(now/300)*1.5;ctx.save();ctx.translate(x,y-12+b);ctx.strokeStyle='#1E2640';ctx.lineWidth=2;ctx.fillStyle='#FF8A3D';ctx.beginPath();ctx.moveTo(-7,9);ctx.lineTo(0,-10);ctx.lineTo(7,9);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(-4,-1,8,3);ctx.fillStyle='#1E2640';rr(-10,8,20,4,2);ctx.fill();ctx.restore();}
 // Static land + cable map, rendered once per zoom bucket into an offscreen canvas.
 function paintWorld(c,z,withCables){const LANDP=lodFar()?LANDP_FAR:LANDP_ALL;

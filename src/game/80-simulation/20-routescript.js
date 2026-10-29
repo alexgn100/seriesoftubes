@@ -46,7 +46,7 @@ const PREPEND_F=[0,0.35,0.6,0.75];
 function teOptimize(){const L=[tr('routescript.suggested_by_the_optimizer_from_live'),'spill at 85%'];
   // Protecting customers costs a second routing pass: only worth it where IP customers would get unhappy (under 95% served).
   if(S.biz.some(b=>!BIZ_T[b.type].l2&&!BIZ_T[b.type].fiber&&!BIZ_T[b.type].event&&sfOf(R,b.city)<0.95))L.push('protect customers');
-  const ups=[...new Set(S.transit.map(t=>t.net))].map(n=>({n,p:Math.min(...S.transit.filter(t=>t.net===n).map(t=>NET[n].price*regionMult(t.city)))})).sort((a,b)=>a.p-b.p);
+  const ups=[...new Set(S.transit.map(t=>t.net))].map(n=>({n,p:Math.min(...S.transit.filter(t=>t.net===n).map(t=>NET[n].price*netMult(NET[n],t.city)))})).sort((a,b)=>a.p-b.p);
   if(ups.length>1){L.push('prefer transit '+NET[ups[0].n].name.toLowerCase());L.push('avoid transit '+NET[ups[ups.length-1].n].name.toLowerCase());}
   const tips=[];
   for(const n of NETS){const g=(R.netEg[n.id]||{}).t||0;if(g<1)continue;// The exchange where it is a member and you have no port yet, in a city where you have a POP.
@@ -56,7 +56,7 @@ function teOptimize(){const L=[tr('routescript.suggested_by_the_optimizer_from_l
   tips.sort((a,b)=>b[0]-a[0]).slice(0,5).forEach(x=>L.push(x[1]));
   return L.join('\n');}
 // Ready-made RouteScripts, filled in from the live network. Players load them from the help; the AI button picks them too.
-const teUps=()=>[...new Set(S.transit.map(t=>t.net))].map(n=>({n,p:Math.min(...S.transit.filter(t=>t.net===n).map(t=>NET[n].price*regionMult(t.city)))})).sort((a,b)=>a.p-b.p);
+const teUps=()=>[...new Set(S.transit.map(t=>t.net))].map(n=>({n,p:Math.min(...S.transit.filter(t=>t.net===n).map(t=>NET[n].price*netMult(NET[n],t.city)))})).sort((a,b)=>a.p-b.p);
 const teNm=n=>NET[n].name.toLowerCase(),teAtk=()=>!!(S.ev.ddos&&S.ev.ddos.until>S.day);
 const teSad=()=>S.biz.some(b=>!BIZ_T[b.type].l2&&!BIZ_T[b.type].fiber&&!BIZ_T[b.type].event&&sfOf(R,b.city)<0.95);
 const TE_RECIPES=[

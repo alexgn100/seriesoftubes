@@ -52,3 +52,13 @@ test('the penalty is on a curve, and traffic that needs no transit is never pena
   assert.equal(ev("sfOf(R,'lon')"), ev("clamp(R.citySrv.lon/R.cityDem.lon,0,1)"));
   assert.deepEqual(errors, []);
 });
+
+test('the slow-city warning box does not restyle the yellow progress bars', () => {
+  const { ev, errors } = load();
+  // .bar.warn is the yellow bar; the latency box once used a plain .warn class and padded every yellow bar
+  const st = JSON.parse(ev(`(()=>{const b=document.createElement('div');b.className='bar warn';const w=document.createElement('div');w.className='latwarn';document.body.append(b,w);
+    const a=getComputedStyle(b),c=getComputedStyle(w);return JSON.stringify({bar:a.paddingTop+a.paddingLeft,box:c.paddingTop});})()`));
+  assert.ok(!st.bar || st.bar === '0px0px', `yellow bars have no padding (${st.bar})`);
+  assert.equal(st.box, '8px', 'the warning box keeps its own');
+  assert.deepEqual(errors, []);
+});

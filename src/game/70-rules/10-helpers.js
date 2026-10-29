@@ -6,6 +6,9 @@ const pct=x=>Math.round(x*100)+'%';
 const reachPct=x=>x>0.999?'100%':x>=0.99?(Math.floor(x*1000)/10).toFixed(1)+'%':pct(x);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
+// Names already given to customers, each once: only whether a name is in the list counts. Once every name had been
+// used, the same names were added again every day (half a million entries, half of a late-game save).
+const useName=n=>{if(!S.usedNames.includes(n))S.usedNames.push(n);};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function dateStr(d){const y=1+Math.floor(d/360),m=Math.floor(d/30)%12,dd=d%30+1;return tr('helpers.y_y_mon_d',{y,mon:MONTHS[m],d:dd});}
 function wrapDx(a,b){let dx=b-a;if(dx>W/2)dx-=W;if(dx<-W/2)dx+=W;return dx;}

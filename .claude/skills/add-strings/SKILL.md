@@ -6,8 +6,8 @@ description: Add or change player-facing text in Series of Tubes: labels in the 
 # Adding or changing player-facing text
 
 Text is keyed by **label** ([docs/adr/0003-translations-by-label.md](../../../docs/adr/0003-translations-by-label.md)).
-The code says `tr('pnis.delivery_2_to_6_weeks')`; the English is in `src/i18n/en.js`; Italian, Portuguese,
-German and French are `site/i18n/it.js`, `pt.js`, `de.js`, `fr.js`. Every label the code uses needs English, and every
+The code says `tr('pnis.delivery_2_to_6_weeks')`; the English is in `src/i18n/en.js`; Italian, Portuguese
+and French are `site/i18n/it.js`, `pt.js`, `fr.js`. Every label the code uses needs English, and every
 language needs every label.
 
 ## In the code
@@ -70,11 +70,12 @@ into an Italian joke when one fits; otherwise keep the pun name and translate th
 
 ## German style
 
-Natural, friendly German, informal "du". Keep the networking terms German engineers say in
-English (Peering, Transit, Router, POP, PNI, LAG, Dark Fiber, Wave, Backbone, Eyeballs), with
-German articles and compounds ("die Wave", "Transit-Rechnung"). Tabs keep their English names
-("Tab Infra", "Tab Deals"). Money stays as the game prints it (`$20k`); percentages get a space
-(`30 %`). Keep pun names; translate the joke around them.
+Natural, friendly German, informal "du". Networking terms that German engineers say in English stay
+English (Peering, Transit, Dark Fiber, Wave, Port, Router, POP, IX, Exchange, Backbone, Link, Traffic,
+Route Server, Line System, LAG, PNI, Fabric, Scrubbing), but plain "fiber" is "Glasfaser",
+"fiber pair" is "Faserpaar" and "eyeballs" are always "Privatkunden". "/mo" is "/Monat", "{n}d" is
+"{n} T.", money keeps the game's `$100k` style, quotes are „…“. Translate puns into a German joke
+when one fits; otherwise keep the pun name.
 
 ## Check
 

@@ -54,7 +54,11 @@ const subMaxTier=km=>{let t=0;LT.forEach((T,i)=>{if(!subWaveWhy(i,km,true))t=i;}
 // Cached per optic, span and cable state: subsea, and which submarine upgrades are in service (#78).
 const OPTG={};const optG=(o,l)=>{const km=spanKm(l),fl=l.sub?1+(subUpgradeReady(l,'terminal')?2:0)+(subUpgradeReady(l,'engineering')?4:0):0,c=OPTG[o]||(OPTG[o]=[]),m=c[fl]||(c[fl]=new Map());let g=m.get(km);if(g===undefined){const x=optMode(o,l);m.set(km,g=x?x.g:0);}return g;};
 const regenNeed=(o,l)=>Math.max(0,Math.ceil(l.km/OPT[o].reach)-1);
-const dfCap=l=>{if(l.ready>S.day||l.eqDown>S.day)return 0;const ch=l.ch||[];let g=0;for(const c of ch)g+=optG(c,l);const f=l.chFail&&l.chFail.until>S.day?l.chFail:null;if(f){const fo=f.o&&ch.includes(f.o)?f.o:ch.slice().sort((a,b)=>optG(a,l)-optG(b,l))[0];if(fo)g-=optG(fo,l);}return Math.max(0,g);};
+// The map asks for every fiber's capacity several times per frame (width, colour, label, up or down), each time over
+// all its channels. Nothing changes while a frame is drawn, so draw() keeps the answers in DFC for that frame.
+let DFC=null;
+const dfCap=l=>{if(!DFC)return dfCap0(l);let g=DFC.get(l);if(g===undefined)DFC.set(l,g=dfCap0(l));return g;};
+const dfCap0=l=>{if(l.ready>S.day||l.eqDown>S.day)return 0;const ch=l.ch||[];let g=0;for(const c of ch)g+=optG(c,l);const f=l.chFail&&l.chFail.until>S.day?l.chFail:null;if(f){const fo=f.o&&ch.includes(f.o)?f.o:ch.slice().sort((a,b)=>optG(a,l)-optG(b,l))[0];if(fo)g-=optG(fo,l);}return Math.max(0,g);};
 const capOf=l=>(l.kind==='vxc'?VXC[l.vt].g:l.kind==='df'?dfCap(l):LT[l.tier].g)*(l.deg>S.day?0.5:1)*(l.loss&&l.loss.until>S.day?l.loss.f:1);
 // A sick LAG (LACP trouble) keeps only part of its capacity until the incident clears.
 const lagF=o=>o&&o.lacp&&o.lacp.until>S.day?o.lacp.f:1,ixLagF=x=>lagF(S.ev&&S.ev.ixlacp&&{lacp:S.ev.ixlacp[x]});
