@@ -2,12 +2,11 @@
    gives the same world. Free play keeps using the browser's Math.random. */
 const _rand=Math.random;
 Math.random=function(){if(S&&typeof S.rng==='number'){let t=(S.rng=(S.rng+0x6D2B79F5)|0);t=Math.imul(t^t>>>15,1|t);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}return _rand();};
-function isoWeek(dt){const d=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));const n=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-n);const y0=new Date(Date.UTC(d.getUTCFullYear(),0,1));return {y:d.getUTCFullYear(),w:Math.ceil(((d-y0)/864e5+1)/7)};}
 const hopG=l=>l.kind==='vxc'?(VXC[l.vt]||VXC[0]).g:l.kind==='df'?Math.max(0,...(l.ch||[]).map(c=>optG(c,l))):LT[l.tier].g;
 function fastPath(a,b,g){if(!S.pops[a]||!S.pops[b])return false;const adj={};for(const l of S.links){if(linkDown(l)||hopG(l)<g)continue;(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}const seen=new Set([a]),q=[a];while(q.length){const u=q.shift();if(u===b)return true;for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return false;}
 function pathExists(a,b){if(!S.pops[a]||!S.pops[b])return false;const adj={};for(const l of S.links){if(linkDown(l))continue;(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}const seen=new Set([a]),q=[a];while(q.length){const u=q.shift();if(u===b)return true;for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return false;}
 // Looked up rather than read from the save, so it follows a language switch mid-scenario.
-const scnName=()=>S.scn.id==='weekly'?tr('scenarios.weekly_key',{key:S.scn.key}):SCN.find(x=>x.id===S.scn.id)?.n||S.scn.name;
+const scnName=()=>S.scn.wk?wsTxt(S.scn.wk.name):S.scn.id==='weekly'?tr('scenarios.weekly_key',{key:S.scn.key}):SCN.find(x=>x.id===S.scn.id)?.n||S.scn.name;
 const AU_BB=['syd','mel','bne','adl','per'],auExits=()=>new Set(S.links.filter(l=>l.sub&&!!CITY[l.a].au!==!!CITY[l.b].au&&!(l.ready>S.day)).map(l=>l.cable||l.id)).size;
 const brIxN=()=>CITIES.filter(c=>c.br&&S.ixp[c.id]!==undefined).length;
 const SCN=[
@@ -27,7 +26,8 @@ const SCN=[
 ];
 const WEEK_CITIES=['fra','ams','lon','nyc','ash','sjc','sin','tok','syd','sao','jnb','bom','waw','ist','scl','hkg'];
 const WEEK_MODS=[{id:'pricey',n:tr('scenarios.transit_costs_30_more')},{id:'chaos',n:tr('scenarios.twice_the_failures')},{id:'poor',n:tr('scenarios.start_with_only_100k')},{id:'boom',n:tr('scenarios.eyeballs_grow_50_faster')},{id:'dk',n:tr('scenarios.every_ix_is_run_by_de')},{id:'sharks',n:tr('scenarios.shark_season_subsea_cuts_twice_as')}];
-function weekly(){const {y,w}=isoWeek(new Date());let r=(y*100+w)*2654435761>>>0;const nx=()=>{r=(r*1103515245+12345)>>>0;return r/4294967296;};const city=WEEK_CITIES[Math.floor(nx()*WEEK_CITIES.length)];const mods=[];while(mods.length<2){const m=WEEK_MODS[Math.floor(nx()*WEEK_MODS.length)];if(!mods.includes(m))mods.push(m);}return {id:'weekly',key:`${y}-W${String(w).padStart(2,'0')}`,seed:y*100+w,city,mods,days:365};}
+// The in-browser weekly, when no published scenario came: same weeks as the published one (Sunday 06:00 Berlin).
+function weekly(){const [y,w]=pzWeekKey(new Date()).split('-W').map(Number);let r=(y*100+w)*2654435761>>>0;const nx=()=>{r=(r*1103515245+12345)>>>0;return r/4294967296;};const city=WEEK_CITIES[Math.floor(nx()*WEEK_CITIES.length)];const mods=[];while(mods.length<2){const m=WEEK_MODS[Math.floor(nx()*WEEK_MODS.length)];if(!mods.includes(m))mods.push(m);}return {id:'weekly',key:`${y}-W${String(w).padStart(2,'0')}`,seed:y*100+w,city,mods,days:365};}
 const scnRule=k=>!!(S&&S.scn&&S.scn.rules&&S.scn.rules[k]);
 function scnHof(){try{return JSON.parse(localStorage.getItem('sot-scn')||'{}')||{};}catch(e){return {};}}
 function beginGame(nm,city,o={}){if(needPitch()&&!UI.pitched){UI.pendGame=[nm,city,o];openModal(pitchHtml(true));return;}if(pzOn())pzLeave();slotLeave();slotNew();newGame(nm,city);S.mode=o.mode||'normal';

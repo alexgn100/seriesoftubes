@@ -10,7 +10,10 @@ Object.assign(ACT,{
  puzzleDoor:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||randomNetworkName()).slice(0,24);if(typeof ACT.puzzleMenu==='function')ACT.puzzleMenu();else toast(tr('title.puzzles_are_coming_soon'),'goal');},
  scenarios:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||(S&&S.name)||randomNetworkName()).slice(0,24);scenarioModal();},
  startScn:({id})=>{const sc=SCN.find(x=>x.id===id);if(!sc)return;beginGame(UI.nm||(S&&S.name)||randomNetworkName(),sc.city,{scn:sc});},
- startWeekly:()=>{const wk=weekly();beginGame(UI.nm||(S&&S.name)||randomNetworkName(),wk.city,{scn:wk,seed:wk.seed});},
+ // The published weekly scenario when it came, else the in-browser one.
+ wsShare:()=>{if(!S||!S.scn||!S.scn.wk||!S.scn.done)return;const t=wsShareText(),copied=()=>toast(tr('puzzles.copied_paste_it_anywhere',{t:esc(t)}),'good');
+   if(navigator.share&&isPhone()){navigator.share({text:t}).catch(()=>{});return;}try{navigator.clipboard.writeText(t).then(copied,()=>toast(esc(t),''));}catch(e){toast(esc(t),'');}track('wkscn_share');},
+ startWeekly:()=>{const nm=UI.nm||(S&&S.name)||randomNetworkName();if(wsBegin(wsDef(),nm))return;const o=wsLoad();o.go[pzWeekKey(new Date())]=1;wsStore(o);const wk=weekly();beginGame(UI.nm||(S&&S.name)||randomNetworkName(),wk.city,{scn:wk,seed:wk.seed});},
  pickStart:({city})=>{if(!homeOk(city))return;UI.startCity=city;const s=$('homeSel');if(s)s.value=city;const w=$('homeWhat');if(w)w.innerHTML=homeWhat();},
  pickHome:({v})=>{if(v)ACT.pickStart({city:v});else ACT.pickStart({city:'fra'});},
  // Delete this window's network and go back to the title (the other networks stay).
