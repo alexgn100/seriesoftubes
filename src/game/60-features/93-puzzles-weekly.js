@@ -41,7 +41,8 @@ function pzWkTxt(o,list){if(!pzObj(o)||typeof o.l!=='string'||!list.includes(o.l
   for(const k of need){const t=PZ_WK_P[k],v=own(p,k)?p[k]:undefined;
     if(t==='c'&&pzCityOk(v))out[k]=v;else if(t==='r'&&typeof v==='string'&&own(WAVE_NAME,v))out[k]=v;else if(t==='n'&&Number.isInteger(v)&&v>0&&v<1000)out[k]=v;else return null;}
   return {l:o.l,p:out};}
-const PZ_WK_FIELDS=['v','key','theme','cities','src','dem','via','avoid','budget','twist','name','joke','ref'];
+// rev: the file's revision, from 2 when a release's new prices made the week regenerate (scripts/weekly-puzzle.js).
+const PZ_WK_FIELDS=['v','key','theme','cities','src','dem','via','avoid','budget','twist','name','joke','ref','rev'];
 // Schema 2 (puzzles with traffic): `src` the content origins, `dem` the flows ({t:'eye',a,g} eyeballs in a; {t:'l2',a,b,g,ms}
 // a circuit, ms its latency cap; be:true best effort), `cities` exactly the cities they touch. Older files are refused.
 const PZ_WK_V=2;
@@ -61,7 +62,8 @@ function pzWkValid(j,key){if(!pzObj(j)||Object.keys(j).some(k=>!PZ_WK_FIELDS.inc
   const all=[...cities,...via,...avoid];if(new Set(all).size!==all.length)return null;
   if(!Number.isInteger(j.budget)||j.budget<50000||j.budget>2e7)return null;
   const tw=j.twist==null?{}:j.twist;if(!pzObj(tw)||Object.keys(tw).some(k=>!['ring','noSub'].includes(k)))return null;
-  const d={id:'weekly',key,theme:j.theme,cities,src,dem,via,avoid,budget:j.budget,noSub:false,ring:false};
+  if(j.rev!==undefined&&!(Number.isInteger(j.rev)&&j.rev>=2&&j.rev<=999))return null;
+  const d={id:'weekly',key,theme:j.theme,cities,src,dem,via,avoid,budget:j.budget,noSub:false,ring:false,rev:j.rev||1};
   if(own(tw,'ring')){if(tw.ring!==true)return null;d.ring=true;}
   if(own(tw,'noSub')){if(tw.noSub!==true)return null;d.noSub=true;}
   d.wn=pzWkTxt(j.name,T.names);d.wj=pzWkTxt(j.joke,T.jokes);if(!d.wn||!d.wj)return null;
@@ -83,4 +85,4 @@ function pzWkRefresh(){const el=$('pzWk');if(el)el.outerHTML=pzWkRow();}
 function pzWkNext(now){const key=pzWeekKey(now),t=pzWeekStart(pzKeyAdd(key,1))-now,m=Math.max(1,Math.ceil(t/60e3)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);
   return d?tr('puzzles.next_weekly_in_d_h',{d,h}):tr('puzzles.next_weekly_in_h_m',{h,m:m%60});}
 // The Puzzles door says so when this week's puzzle has not been played yet.
-function pzWkNew(){try{return !pzLoad().wk[pzWeekKey(new Date())];}catch(e){return false;}}
+function pzWkNew(){try{const k=pzWeekKey(new Date()),w=UI.pzWk;return !pzWkRec(pzLoad(),w&&w.key===k&&w.def?w.def:{key:k});}catch(e){return false;}}

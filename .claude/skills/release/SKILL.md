@@ -21,6 +21,13 @@ version for a weekly puzzle. To publish or fix one by hand: `node scripts/weekly
 `gh workflow run release.yml --ref <live tag> -f tag=<live tag> -f weekly=true`). A release includes every weekly
 file on `main` when it builds.
 
+**Prices change, weeks follow.** `--check` re-solves every week not over yet with the game it runs; a week whose
+budget no longer verifies is regenerated deterministically (the same puzzle with a new budget if that works, else a
+fresh one for the same key) with `rev` + 1, which resets players' stars for that week only. Past weeks are left alone
+unless the game rejects them. `release.yml` runs it before the tests on every deploy and fails only if a week cannot be
+regenerated. A change to prices, cables or cities fails `npm test` until you run `node scripts/weekly-puzzle.js --check`
+and commit the regenerated files with it.
+
 ## Only release when Frederic says so
 
 Never bump the version on your own. Finished work is committed and pushed with its

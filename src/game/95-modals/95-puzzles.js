@@ -116,7 +116,7 @@ function pzResults(e,prev){const P=S.pz,nx=P.id==='weekly'?null:pzNextDef(),left
   if(e.stars>=3&&prev<3)setTimeout(()=>sfx('fanfare'),(3-prev)*450+250);}
 // ---------- the list ----------
 // The weekly row: the published puzzle once it has come (or the seeded one), its countdown and the streak.
-function pzWkRow(){const p=pzLoad(),w=pzWkDef(),wr=p.wk[w.key],st=p.streak,streak=st.last===w.key||st.last===pzPrevKey(w.key)?st.n:0,T=PZ_WK_THEMES[w.theme],load=pzWkLoading(),tg=pzDemTag(w);
+function pzWkRow(){const p=pzLoad(),w=pzWkDef(),wr=pzWkRec(p,w),st=p.streak,streak=st.last===w.key||st.last===pzPrevKey(w.key)?st.n:0,T=PZ_WK_THEMES[w.theme],load=pzWkLoading(),tg=pzDemTag(w);
   return `<div class="scn wk" id="pzWk"><div class="grow"><div class="eyebrow">📅 ${tr('puzzles.weekly_puzzle_key',{key:esc(w.key)})}${wr?'':` <span class="pznew">${tr('puzzles.new_this_sunday')}</span>`}</div>
   <div class="nm">${load?tr('puzzles.loading_this_week_s_puzzle'):`${T?T.i+' ':''}${esc(pzName(w))}`} ${wr?`<span class="pzst">${pzStarStr(wr.st)}</span>`:''}</div>${w.wj?`<div class="meta">${esc(pzTxt(w.wj))}</div>`:''}
   <div class="meta">${pzCities(w).map(c=>esc(CITY[c].name)).join(' · ')} · ${tr('puzzles.budget_x',{x:fmt$(w.budget)})}${tg.length?' · <b>'+tg.join(' · ')+'</b>':''}${wr&&wr.sp!=null?' · '+tr('puzzles.best_x',{x:fmt$(wr.sp)}):''}</div>

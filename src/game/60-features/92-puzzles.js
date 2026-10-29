@@ -20,7 +20,7 @@ const pzCities=d=>[...new Set([...(d.src||[]),...d.dem.flatMap(f=>f.t==='l2'?[f.
 // `set` is the puzzle set the stars belong to: the set with traffic (2) started again, and the stars won before hang
 // framed on the wall (`old`), with a note shown once (`noted`). Weekly results and the streak carry on.
 function pzClean(j){const o={set:PZ_SET,s:{},wk:{},streak:{last:null,n:0,best:0},old:null,noted:1};if(!j||typeof j!=='object')return o;
-  const rec=r=>r&&typeof r==='object'?{st:int(r.st,0,3,0),sp:r.sp==null||!isFinite(+r.sp)||+r.sp<0?null:Math.round(+r.sp)}:null;
+  const rec=r=>{if(!r||typeof r!=='object')return null;const o={st:int(r.st,0,3,0),sp:r.sp==null||!isFinite(+r.sp)||+r.sp<0?null:Math.round(+r.sp)},rv=int(r.rv,1,999,1);if(rv>1)o.rv=rv;return o;};
   const cur=j.set===PZ_SET;
   if(j.s&&typeof j.s==='object'){if(cur){for(const k of Object.keys(j.s)){const r=rec(j.s[k]);if(pzDef(k)&&r)o.s[k]=r;}}
     else{let n=0;for(const k of Object.keys(j.s).slice(0,200)){const r=rec(j.s[k]);if(r&&/^[a-z0-9]{1,20}$/.test(k))n+=r.st;}if(n){o.old=n;o.noted=0;}}}
@@ -28,6 +28,8 @@ function pzClean(j){const o={set:PZ_SET,s:{},wk:{},streak:{last:null,n:0,best:0}
   if(j.wk&&typeof j.wk==='object')for(const k of Object.keys(j.wk)){const r=rec(j.wk[k]);if(/^\d{4}-W\d{2}$/.test(k)&&r)o.wk[k]=r;}
   const st=j.streak;if(st&&typeof st==='object'){o.streak.last=typeof st.last==='string'&&/^\d{4}-W\d{2}$/.test(st.last)?st.last:null;o.streak.n=int(st.n,0,9999,0);o.streak.best=int(st.best,0,9999,0);}
   return o;}
+// A weekly's stars belong to the revision they were earned on: a week regenerated for new prices starts again.
+const pzWkRec=(p,d)=>{const r=p.wk[d.key];return r&&(r.rv||1)===(d.rev||1)?r:null;};
 function pzLoad(){try{return pzClean(JSON.parse(localStorage.getItem(PZ_KEY)||'{}'));}catch(e){return pzClean(null);}}
 function pzStore(p){try{localStorage.setItem(PZ_KEY,JSON.stringify(p));}catch(e){}}
 const pzStarsTotal=p=>PZ.reduce((a,x)=>a+((p.s[x.id]||{}).st|0),0);
@@ -119,7 +121,7 @@ function pzFlush(){save(true);UI.pzKeep=S;}
 function pzBegin(def){if(!def)return;
   const go=()=>{const cs=pzCities(def);newGame(pzName(def),cs[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
     S.pz={id:def.id,key:def.key||null,cities:cs,src:(def.src||[]).slice(),dem:def.dem.map(f=>({t:f.t,a:f.a,b:f.t==='l2'?f.b:null,g:f.g,ms:f.ms||0,be:!!f.be})),
-      via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,wn:def.wn||null,wj:def.wj||null,theme:def.theme||null};
+      via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,wn:def.wn||null,wj:def.wj||null,theme:def.theme||null,rev:def.rev||1};
     pzDemand();
     UI.pzHist=[];UI.pzTop=0;UI.pzEv=null;UI.speed=0;UI.resumeSpeed=null;UI.started=true;UI.sel=null;UI.leftOpen=false;UI.confirm=null;UI._pzh=null;
     $('dash').hidden=true;$('bankBox').hidden=true;closeModal();pzToastsClear();document.body.classList.add('pz');
@@ -147,8 +149,8 @@ function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI
 // Every solved state is recorded, so a cheaper build at the same stars counts too.
 function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzResults(e,prev);return e;}
 // The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
-function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=bag[k]||{st:0,sp:null};
+function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=(P.id==='weekly'?pzWkRec(p,P):bag[k])||{st:0,sp:null};
   if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;
-  r.sp=e.spend;r.st=e.stars;bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
+  r.sp=e.spend;r.st=e.stars;if(P.id==='weekly'&&P.rev>1)r.rv=P.rev;else delete r.rv;bag[k]=r;if(P.id==='weekly')pzStreak(p,P.key);pzStore(p);}
 // The next puzzle in the list whose pack is open.
 function pzNextDef(){const p=pzLoad(),i=PZ.findIndex(x=>x.id===S.pz.id);for(let j=i+1;j<PZ.length;j++)if(pzPackOpen(PZ[j].pack,p))return PZ[j];return null;}

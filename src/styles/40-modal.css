@@ -97,6 +97,8 @@ label.f+select.pick{width:100%}
 .tbl td.r,.tbl th.r{text-align:right}
 .mix{display:flex;height:10px;width:100px;border:1.5px solid var(--ink);border-radius:5px;overflow:hidden;background:var(--paper)}
 .mix i{display:block;height:100%}
+/* The NOC's traffic table has a row per network: classes, not inline styles, keep its hundreds of rows cheap to parse. */
+.nmc{display:inline-flex;align-items:center;gap:6px}.dlost{color:var(--bad)}.b.pall{display:block;margin-top:5px}
 .tscroll{overflow-x:auto}
 #modal{position:fixed;inset:0;background:rgba(30,38,64,.45);display:grid;place-items:center;z-index:20;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
 #modal .card{width:min(560px,100%);max-height:calc(100% - 20px);overflow:auto;padding:20px 22px}

@@ -7,7 +7,8 @@
 //   node scripts/weekly-puzzle.js                    the week starting on the coming (or current) Sunday 06:00 Berlin, if missing
 //   node scripts/weekly-puzzle.js --key 2026-W45     that week (--force replaces an existing file)
 //   node scripts/weekly-puzzle.js --next 3           this week and the next two
-//   node scripts/weekly-puzzle.js --check            validate every file (and re-verify the stars of weeks not over yet)
+//   node scripts/weekly-puzzle.js --check            regenerate weeks not over yet whose budget this game no longer verifies
+//                                                    (see refresh()), then validate every file; fails only if that fails
 //   --page FILE                                      play another build of the game (the live release), see the workflow
 //   --dir DIR                                        where the files live (default site/puzzles/weekly)
 //
@@ -293,6 +294,9 @@ function verify(g, W, j, key, known) {
   return { ok: true, sol, s1, s3 };
 }
 
+// Three stars need the smart design: the budget sits just above the cheapest N-1 build found, sized for its traffic.
+const budgetOf = (sol) => Math.max(50000, ceil10k(sol.three.cost * 1.05));
+
 function generate(g, key, dir) {
   const { ev } = g, W = world(ev);
   if (ev(`pzWeekStart('${key}')`) == null) throw new Error(`${key} is not a week`);
@@ -318,7 +322,7 @@ function generate(g, key, dir) {
       const def = JSON.parse(ev(`JSON.stringify(pzWkValid(${JSON.stringify(fileOf(key, c.P, 1e6, c.w, { one: { cost: 0 }, three: { cost: 0 } }))},'${key}'))`));
       const sol = def && sized(g, W, c.P, def);
       if (!sol) { console.warn(`${key}: rejected a ${theme} puzzle: no build carries its traffic`); continue; }
-      const j = fileOf(key, c.P, Math.max(50000, ceil10k(sol.three.cost * 1.05)), c.w, sol), v = verify(g, W, j, key, sol);
+      const j = fileOf(key, c.P, budgetOf(sol), c.w, sol), v = verify(g, W, j, key, sol);
       if (v.ok) return j;
       console.warn(`${key}: rejected a ${theme} puzzle: ${v.why}`);
     }
@@ -342,16 +346,54 @@ function check(g, dir, now = Date.now()) {
   }
   return bad;
 }
+/* --check, first part: a release can change prices, cables or cities under weeks that are already published. Every
+   week not over yet is re-solved with this game; when its budget no longer verifies it is regenerated, deterministically:
+   the same puzzle (theme, cities, twist, name) with a new budget when that still works, else a fresh puzzle for the
+   same key. Its rev goes up, so players' stars for that week (and only that week) start again; new references alone
+   keep the rev. Past weeks can no longer be played, so they keep their stars and are only replaced when the game
+   rejects them outright. Returns what changed and what could not be fixed. */
+function refresh(g, dir, now = Date.now()) {
+  const { ev } = g, W = world(ev), fixed = [], bad = [];
+  for (const k of list(dir)) {
+    const f = path.join(dir, k + '.json');
+    let j = null; try { j = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { /* regenerated below */ }
+    const valid = !!j && ev(`!!pzWkValid(${JSON.stringify(j)},'${k}')`), live = ev(`pzWeekStart('${k}')`) + 7 * 864e5 > now;
+    if (valid && !live) continue;
+    const v = valid ? verify(g, W, j, k) : null;
+    if (v && v.ok) {
+      if (j.ref && j.ref.one === v.sol.one.cost && j.ref.three === v.sol.three.cost) continue;
+      j.ref = { one: v.sol.one.cost, three: v.sol.three.cost }; writeWeek(dir, j); fixed.push(`${k}: new references`); continue;
+    }
+    const rev = (j && Number.isInteger(j.rev) && j.rev >= 2 ? j.rev : 1) + 1;
+    let n = null;
+    if (valid) {
+      const def = JSON.parse(ev(`JSON.stringify(pzWkValid(${JSON.stringify(j)},'${k}'))`));
+      const sol = sized(g, W, shape(def), def);
+      if (sol) {
+        const c = Object.assign({}, j, { budget: budgetOf(sol), ref: { one: sol.one.cost, three: sol.three.cost }, rev });
+        if (verify(g, W, c, k, sol).ok) n = c;
+      }
+    }
+    if (!n) { try { n = Object.assign(generate(g, k, dir), { rev }); } catch (e) { bad.push(`${k}: could not regenerate (${e.message})`); continue; } }
+    writeWeek(dir, n); fixed.push(`${k}: regenerated as rev ${rev}${n.theme === (j && j.theme) && JSON.stringify(n.cities) === JSON.stringify(j.cities) ? ', same puzzle, new budget ' + n.budget : ', a new ' + n.theme + ' puzzle'}`);
+  }
+  let idx = null; try { idx = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); } catch (e) { /* rewritten */ }
+  if (list(dir).length && (!idx || idx.v !== SCHEMA || JSON.stringify(idx.weeks) !== JSON.stringify(list(dir)))) { writeIndex(dir); fixed.push('index.json rewritten'); }
+  return { fixed, bad };
+}
 const writeIndex = (dir) => fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({ v: SCHEMA, weeks: list(dir) }) + '\n');
 const writeWeek = (dir, j) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, j.key + '.json'), JSON.stringify(j) + '\n'); writeIndex(dir); };
 
-module.exports = { game, generate, check, solve, world, writeWeek, writeIndex, list };
+module.exports = { game, generate, check, refresh, solve, world, writeWeek, writeIndex, list };
 
 if (require.main === module) {
   const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
   const dir = path.resolve(ROOT, opt('--dir', 'site/puzzles/weekly')), g = game(opt('--page') && path.resolve(opt('--page')));
   if (args.includes('--check')) {
-    const bad = check(g, dir);
+    // Fix what a release's new prices broke, then check everything; only what could not be fixed fails.
+    const r = refresh(g, dir);
+    for (const x of r.fixed) console.log(`fixed: ${x}`);
+    const bad = [...r.bad, ...check(g, dir)];
     for (const b of bad) console.error(`error: ${b}`);
     console.log(bad.length ? `${bad.length} problem(s)` : `${list(dir).length} weekly puzzle(s) OK`);
     process.exit(bad.length ? 1 : 0);
