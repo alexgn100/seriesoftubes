@@ -24,51 +24,42 @@ const HARMLESS=[
 function lagsN(){const o=[];for(const t of S.transit)if((t.n||1)>=2&&!(t.down>S.day))o.push({k:'t',id:t.id,o:t,n:t.n,lab:tr('incidents_and_ddos.name_transit_lag_in_city',{name:NET[t.net].name,city:CITY[t.city].name})});
   for(const p of S.pni)if((p.n||1)>=2)o.push({k:'p',id:p.id,o:p,n:p.n,lab:tr('incidents_and_ddos.pni_lag_with_name_in_city',{name:NET[p.net].name,city:CITY[p.city].name})});
   for(const x in S.ixp){const n=(S.ixn||{})[x]||1;if(n>=2&&!S.myIx[x])o.push({k:'ix',id:x,n,lab:ixNamesCity(x)?tr('incidents_and_ddos.ix_lag',{ix:ixName(x)}):tr('incidents_and_ddos.ix_lag_in_city',{ix:ixName(x),city:CITY[ixCity(x)].name})});}return o;}
-// Where the junk comes in: one of the city's live uplinks, or just "the edge" if it has none yet.
-// The primary slot remains compatible with older saves; every system uses the full live set.
+// Several attacks can be live at once: the primary slot keeps older saves compatible, the rest overlap it.
 function ddosAll(s=S,live=true){return [s.ev.ddos,...(s.ev.ddosMore||[])].filter(a=>a&&(!live||a.until>s.day));}
 const ddosFind=id=>ddosAll().find(a=>id===undefined||a.id===id);
 function ddosDrop(a){const left=ddosAll(S,false).filter(x=>x!==a);S.ev.ddos=left[0]||null;S.ev.ddosMore=left.slice(1);}
 function ddosExpire(){for(const a of ddosAll(S,false))if(a.until<=S.day||!S.pops[a.city]){ddosDone(a);ddosDrop(a);}}
-function ddosEntries(){const ports=Object.values(R.ingressPorts||{}).filter(p=>p.cap>0),busy=ports.some(p=>p.traffic>1e-6),weight=p=>busy?p.traffic:p.cap,total=ports.reduce((n,p)=>n+weight(p),0);
-  return total>0?ports.filter(p=>weight(p)>0).map(p=>({k:p.k,id:p.id,city:p.city,lab:p.lab,share:weight(p)/total})):[];}
-function ddosSlices(a){if(!a.entries?.length)return [a];const groups={};
-  for(const en of a.entries){const c=S.pops[en.city]?en.city:a.city;(groups[c]||(groups[c]=[])).push(en);}
-  return Object.entries(groups).map(([city,entries])=>({...a,parent:a,city,entries,gbps:a.gbps*entries.reduce((n,en)=>n+en.share,0)}));}
-const ddosCities=a=>[...new Set([a.city,...(a.entries||[]).map(en=>en.city)])].filter(c=>S.pops[c]);
-const ddosHasIx=a=>ddosCities(a).some(hasIxAt);
-const ddosSf=a=>Math.min(1,...ddosCities(a).map(c=>sfOf(R,c)));
-function ddosReport(a){const ms=(R.ddos||[]).filter(m=>m.attack===a||m.attack.parent===a);if(!ms.length)return ddosMitigation(a);
-  const parts={};for(const m of ms)for(const x of m.sp?.parts||[]){const q=parts[x.city]||(parts[x.city]={city:x.city,tier:x.tier,a:0,cleaned:0});q.a+=x.a;q.cleaned+=x.cleaned;}
-  return {attack:a,blackhole:ms.some(m=>m.blackhole),upstream:ms.some(m=>m.upstream),reaching:ms.reduce((n,m)=>n+m.reaching,0),flowspec:ms.reduce((n,m)=>n+m.flowspec,0),fsMissing:ms.some(m=>m.fsMissing),filtered:ms.reduce((n,m)=>n+m.filtered,0),sp:Object.keys(parts).length?{parts:Object.values(parts)}:null,near:ms.find(m=>m.near)?.near||null,leak:ms.reduce((n,m)=>n+m.leak,0)};}
+// An attack is held or lost at its victim: the junk lands there, and other POPs' bad days are not the attacker's doing.
+// A city with nobody to serve holds only if its tools soak up the flood (or there is nothing to judge but that).
+const ddosSf=a=>((R.cityDem||{})[a.city]||0)>1e-6||!a.gbps?sfOf(R,a.city):clamp(1-ddosReport(a).leak/a.gbps,0,1);
+function ddosReport(a){return (R.ddos||[]).find(m=>m.attack===a)||ddosMitigation(a);}
+// Where the junk comes in: one of the city's live uplinks, or just "the edge" if it has none yet.
 function ddosEntry(c){const o=[];
   for(const t of S.transit)if(t.city===c&&!(t.down>S.day))o.push({k:'t',id:t.id,lab:tr('common.net_transit',{net:NET[t.net].name})});
   for(const x of ixIdsIn(c))if(S.ixp[x]!==undefined)o.push({k:'ix',id:x,lab:tr('common.ix_peering',{ix:ixName(x)})});
   for(const p of S.pni)if(p.city===c)o.push({k:'p',id:p.id,lab:tr('common.pni_with_net',{net:NET[p.net].name})});
   return o.length?pick(o):{k:'edge',lab:''};}
-// Flowspec capability at each ingress POP: 0 none, 1 basic, 2 full.
+// Flowspec capability of a POP's router: 0 none, 1 basic, 2 full.
 const fsAt=c=>{const p=S.pops[c];return p?(RG[p.rgen||0].fs||0):0;};
 // Scrubbing removes attack traffic up to the center's capacity; overflow leaks. On-demand
 // does nothing for the first couple of days while traffic is being diverted.
 function scrubEngaged(atk){return hasScrub()&&(S.scrubMode==='always'||(S.day-(atk.start??S.day))>=SCRUB_DELAY);}
 // Several centers (#117): the flood goes to the nearest working one, and what it cannot take spills to the next.
 // A center in another city only helps if the backbone can carry the flood there; routing works that out.
-const scrubFar=c=>ddosAll().some(a=>ddosCities(a).includes(c))&&(R.haul||[]).find(q=>q.city===c&&q.ms!==null&&q.ms>=SCRUB_FAR_MS)||null;
+const scrubFar=c=>{for(const a of ddosAll())if(a.city===c){const q=(R.haul||[]).find(q=>q.attack===a.id&&q.city===c&&q.ms!==null&&q.ms>=SCRUB_FAR_MS);if(q)return q;}return null;};
 function scrubPlan(atk,g=atk.gbps||0,room={},take=null){if(!scrubEngaged(atk))return null;const c=atk.city;const parts=[];
   for(const x of S.scrubs.filter(x=>popUp(x.city)&&(x.city===c||pathExists(c,x.city))).sort((a,b)=>(a.city===c?0:kmBetween(c,a.city))-(b.city===c?0:kmBetween(c,b.city)))){if(g<=0)break;const cap=SCRUB_TIERS[x.tier||0].g,a=Math.min(g,room[x.city]??cap);if(a<=0)continue;const cleaned=take?take(x,a):a;room[x.city]=(room[x.city]??cap)-cleaned;parts.push({city:x.city,tier:x.tier||0,a,cleaned});g-=cleaned;}
   return parts.length?{parts,leak:g}:null;}
-// One accounting pipeline for routing and the NOC: upstream -> edge -> scrubbing -> leakage.
-function ddosMitigation(a,room={},blackhole=a.bh,plan=true){const entries=a.entries?.length?a.entries:[{...(a.entry||{}),share:1}],total=entries.reduce((n,en)=>n+en.share,0),ingress=[];
-  let upstream=false,reaching=0,g=0,flowspec=0,fsMissing=false;
-  for(const en of entries){const t=en.k==='t'?S.transit.find(x=>x.id===en.id):null,p=en.k==='p'?S.pni.find(x=>x.id===en.id):null,clean=!!(t&&t.clean);
-    upstream=upstream||clean;let part=blackhole?0:a.gbps*en.share/total*(clean?0.1:1);reaching+=part;
-    if(DDOS_VEC[a.vec]?.fs){const cap=fsAt(S.pops[en.city]?en.city:a.city),before=part;part*=FS_RES[cap];flowspec+=before-part;if(cap===0&&before>0)fsMissing=true;}
-    if(a.ixbh&&hasIxAt(a.city))part*=0.5;
-    if(p&&p.sacrif)part=Math.min(part,liveCap(pniG(p),p.city,p.site,p.n)*0.9);
-    if(teRules()?.blackhole&&!blackhole)part=0;
-    g+=part;ingress.push({entry:en,g:part});}
+// One accounting pipeline for routing and the NOC: upstream -> edge -> scrubbing -> leakage. The junk comes in on one
+// port of the victim (a.entry) and is filtered by the victim's own router.
+function ddosMitigation(a,room={},blackhole=a.bh,plan=true){const en=a.entry||{},t=en.k==='t'?S.transit.find(x=>x.id===en.id):null,p=en.k==='p'?S.pni.find(x=>x.id===en.id):null,upstream=!!(t&&t.clean);
+  const reaching=blackhole?0:a.gbps*(upstream?0.1:1);let g=reaching,flowspec=0;
+  if(DDOS_VEC[a.vec]?.fs){g*=FS_RES[fsAt(a.city)];flowspec=reaching-g;}
+  if(a.ixbh&&hasIxAt(a.city))g*=0.5;
+  if(p&&p.sacrif)g=Math.min(g,liveCap(pniG(p),p.city,p.site,p.n)*0.9);
+  if(teRules()?.blackhole&&!blackhole)g=0;
   const filtered=reaching-g,sp=plan&&g>0?scrubPlan(a,g,room):null;
-  return {attack:a,blackhole,upstream,reaching,flowspec,fsMissing,filtered,ingress,sp,leak:sp?sp.leak:g};}
+  return {attack:a,blackhole,upstream,reaching,flowspec,filtered,sp,leak:sp?sp.leak:g};}
 // The NOC's live attack view: what is hitting you, what each tool would do about it right now, and the buttons.
 function ddosPanel(){return S?ddosAll().filter(a=>S.pops[a.city]).map(ddosOne).join(''):'';}
 function ddosOne(a){
@@ -79,7 +70,6 @@ function ddosOne(a){
     :m.upstream?'✓ '+tr('incidents_and_ddos.after_upstream_scrubbing_g',{g:fmtG(m.reaching)}):'';
   const fsLine=!V.fs?'— '+tr('incidents_and_ddos.flowspec_cannot_catch_vec',{vec:esc(V.n)})
     :m.flowspec<=1e-6?'— '+tr('incidents_and_ddos.no_flowspec_filtering_ingress')
-    :m.fsMissing?'~ '+tr('incidents_and_ddos.flowspec_dropping_g_some_ingress',{g:fmtG(m.flowspec)})
     :'✓ '+tr('incidents_and_ddos.flowspec_dropping_g',{g:fmtG(m.flowspec)});
   const used=c=>(R.ddos||[m]).reduce((n,q)=>n+(q.sp?.parts||[]).filter(x=>x.city===c).reduce((t,x)=>t+x.cleaned,0),0);
   const scrOne=x=>{const T=SCRUB_TIERS[x.tier],q=hl(x),total=used(x.city);
@@ -101,6 +91,6 @@ function ddosOne(a){
     <div class="meta">${scrLine}</div>
     ${haulLine?`<div class="meta">${haulLine}</div>`:''}
     <div class="meta">${m.leak>1e-6?'~ '+tr('incidents_and_ddos.g_is_leaking_through',{g:fmtG(m.leak)}):'✓ '+tr('incidents_and_ddos.attack_fully_mitigated')}</div>`}
-    <div class="btns">${m.blackhole?btn(tr('common.stop_blackholing'),'unrtbh',{id:a.id},'ghost sm'):btn(tr('incidents_and_ddos.blackhole_the_target_rtbh'),'rtbh',{id:a.id},'red sm')}${ddosHasIx(a)&&!m.blackhole?btn(a.ixbh?tr('incidents_and_ddos.ix_blackhole_on'):tr('incidents_and_ddos.ix_blackhole_half_honour_it'),'ixbh',{id:a.id},a.ixbh?'green sm':'sm'):''}${btn(tr('incidents_and_ddos.hackback_3000tm_20k'),'hackback',{id:a.id},'sm',S.cash<20000)}</div>
+    <div class="btns">${m.blackhole?btn(tr('common.stop_blackholing'),'unrtbh',{id:a.id},'ghost sm'):btn(tr('incidents_and_ddos.blackhole_the_target_rtbh'),'rtbh',{id:a.id},'red sm')}${hasIxAt(a.city)&&!m.blackhole?btn(a.ixbh?tr('incidents_and_ddos.ix_blackhole_on'):tr('incidents_and_ddos.ix_blackhole_half_honour_it'),'ixbh',{id:a.id},a.ixbh?'green sm':'sm'):''}${btn(tr('incidents_and_ddos.hackback_3000tm_20k'),'hackback',{id:a.id},'sm',S.cash<20000)}</div>
     <p class="meta">${tr('incidents_and_ddos.rtbh_is_free_and_instant_but')}</p></div>`;
   return h;}

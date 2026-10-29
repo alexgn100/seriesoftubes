@@ -41,7 +41,7 @@ function compute(){
   // ok() cannot change during one compute, so ask each exit once per network, not once per flow and rank.
   // okBy[net] lists the exits that reach it in E's order, like E.filter(e=>e.ok(net)).
   const okBy={};for(const id of NET_IDS)okBy[id]=[];
-  R2.ingressPorts={};const ekN={};for(const e of E){e.ek=e.k+':'+e.id;if(e.k!=='c'){const p=R2.ingressPorts[e.ek]||(R2.ingressPorts[e.ek]={k:e.k,id:e.id,city:e.city,lab:e.lab,cap:0,traffic:0});p.cap+=e.cap;}ekN[e.ek]=(ekN[e.ek]||0)+1;}
+  const ekN={};for(const e of E){e.ek=e.k+':'+e.id;ekN[e.ek]=(ekN[e.ek]||0)+1;}
   // dup: shares its key with another exit (a hand-edited save), so R.egDesc shows whichever pushed last.
   for(const e of E){e.desc={lab:e.lab,city:e.city,k:e.k};e.dup=ekN[e.ek]>1;e.told=false;e.hp=e.pref==='high'?0:1;e.ci=CIDX[e.city];e.cn=cnCity(e.city);e.vis=0;for(const n of e.nets||NET_IDS){const L=okBy[n];if(L&&L[L.length-1]!==e&&e.ok(n))L.push(e);}}
   for(const n of NETS){R2.reachable[n.id]=okBy[n.id].some(e=>e.rank>0);if(R2.reachable[n.id])R2.reach+=NSH[n.id];if(okBy[n.id].some(e=>e.rank>0&&e.k!=='t')){R2.nt[n.id]=1;R2.reachNT+=NSH[n.id];
@@ -55,7 +55,8 @@ function compute(){
   // Customer demand per city, added up in S.biz order (what filtering S.biz for each city would give).
   const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&(!T.event||eventLive(b))){const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
   // Traffic shares by network index, and their sums, for each share table (and with Russia's throttle).
-  const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local'),scrubRoom={},atkBy={},junkGroups=[],bhCities=new Set(ddosAll().filter(a=>a.bh).map(a=>a.city));R2.haul=[];R2.ddos=[];for(const a of ddosAll())for(const part of ddosSlices(a))(atkBy[part.city]||(atkBy[part.city]=[])).push(part);
+  const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local'),scrubRoom={},junkGroups=[],bhCities=new Set(ddosAll().filter(a=>a.bh).map(a=>a.city));R2.haul=[];R2.ddos=[];
+  const VIC={};for(const a of ddosAll())(VIC[a.city]||(VIC[a.city]=[])).push(a);
   for(const c of Object.keys(S.pops)){
     const p=S.pops[c],ci=CIDX[c],cn=cnCity(c),SH=cn?NSH_CN:ruCity(c)?NSH_RU:CITY[c].kr&&S.krExit?NSH_KRX:NSH;const eye=(p.bb?p.bb.d:0)*viral*(cn&&ev.golden>day?1.4:1);const biz=bizBw[c]??0;const d0=eye+biz;
     // Goggle video is throttled in Russia (#70): people there get half of it, so they ask for half. It is not
@@ -67,13 +68,12 @@ function compute(){
     // A shaped attack: `rtbh` is the player pulling the plug on the victim IP (junk gone, customer dark too);
     // `edge` is the crude RouteScript `blackhole ddos` filter (junk gone, 10% of real traffic with it). Flowspec
     // (a standing licence) and a scrubbing center each knock the flood down before it reaches the sim.
-    const attacks=atkBy[c]||[],rtbh=bhCities.has(c),edge=!!(attacks.length&&TRX&&TRX.blackhole&&!rtbh);
-    let dd=0;
-    for(const atk of attacks){const m=ddosMitigation(atk,{},bhCities.has((atk.parent||atk).city),false);R2.ddos.push(m);dd+=m.leak;
-      const group={m,flows:[]};junkGroups.push(group);
-      if(atk.entries?.length){for(const q of m.ingress){const f=flow(c,ci,cn,0,q.g,false,true);f.pin=q.entry.k+':'+q.entry.id;group.flows.push({f,share:m.leak>0?q.g/m.leak:0});}}
-      else for(let j=0;j<NN;j++)group.flows.push({f:flow(c,ci,cn,j,m.leak*NSH[NETS[j].id],false,true),share:NSH[NETS[j].id]});}
-    if(!popUp(c)){for(const m of R2.ddos.filter(m=>m.attack.city===c))m.offline=true;continue;}
+    const attacks=VIC[c]||[],rtbh=bhCities.has(c),edge=!!(attacks.length&&TRX&&TRX.blackhole&&!rtbh);
+    // The junk heads for the victim over its usual exits, spread like its traffic. How much is left after the edge
+    // tools and scrubbing is only known once hauls to remote centers are routed, so the flows are sized after that.
+    for(const atk of attacks){const m=ddosMitigation(atk,{},rtbh,false),group={m,flows:[]};R2.ddos.push(m);junkGroups.push(group);if(!popUp(c)){m.offline=true;continue;}
+      for(let j=0;j<NN;j++)group.flows.push({f:flow(c,ci,cn,j,0,false,true),share:NSH[NETS[j].id]});}
+    if(!popUp(c))continue;
     const bh=rtbh||edge;
     if(edge)R2.teBlack+=attacks.reduce((n,a)=>n+a.gbps,0)+d*0.1;if(rtbh)R2.teBlack+=attacks.reduce((n,a)=>n+a.gbps,0)+d;
     R2.cityBlocked=R2.cityBlocked||{};
@@ -144,14 +144,14 @@ function compute(){
   for(const m of R2.ddos){const atk=m.attack,A=atk.city,Ai=CIDX[A];
     m.sp=!m.offline&&m.leak>0?scrubPlan(atk,m.leak,scrubRoom,(x,want)=>{const B=x.city,Bi=CIDX[B];if(A===B)return want;let h=0,ms=null;
       if(popUp(A)&&popUp(B)&&SPD[A]&&SPD[A][Bi]<Infinity){const {path,ni}=walkI(SPP[A],Ai,Bi);let room=Infinity;for(const l of path)room=Math.min(room,l.res);for(const i of ni)if(HAS[i])room=Math.min(room,NRES[i]);
-        const v=R2.cityDem[A]*0.1*want/Math.max(m.leak,1)/atkBy[A].length,total=want+v,take=Math.max(0,Math.min(total,room));h=total>0?want*take/total:0;ms=path.reduce((n,e)=>n+e.lat,0)*2;
+        const v=R2.cityDem[A]*0.1*want/Math.max(m.leak,1)/VIC[A].length,total=want+v,take=Math.max(0,Math.min(total,room));h=total>0?want*take/total:0;ms=path.reduce((n,e)=>n+e.lat,0)*2;
         // Sources sharing a center need separate labels in link breakdowns and map highlights.
         const ek='scrub:'+A+'>'+B;R2.egDesc[ek]={lab:labOf(N_('compute.attack_hauled_to_scrubbing_in_city'),'city',CITY[B].name),city:A,k:'l2'};
         for(const i of ni)if(HAS[i])nodeTake(i,take);for(const l of path){l.res-=take;l.ld+=take;carry(l,ek,NN,Ai,take);}}
       R2.haul.push({city:A,to:B,tier:x.tier||0,a:want,h,ms,attack:atk.id});return h;}):null;
     if(m.sp){m.leak=m.sp.leak;
-      // The card describes the victim's nearest center, separately from distributed ingress hauling above.
-      const c=(atk.parent||atk).city;let near=scrubNear.get(c);if(near===undefined){near=null;
+      // The card describes the victim's nearest center.
+      const c=atk.city;let near=scrubNear.get(c);if(near===undefined){near=null;
         for(const x of S.scrubs)if(popUp(x.city)&&SPD[c]&&SPD[c][CIDX[x.city]]<Infinity){const ms=c===x.city?0:walkI(SPP[c],CIDX[c],CIDX[x.city]).path.reduce((n,e)=>n+e.lat,0);if(!near||ms<near.ms)near={city:x.city,ms};}
         scrubNear.set(c,near);}m.near=near;}}
   for(const group of junkGroups)for(const q of group.flows)q.f.rem=group.m.offline?0:group.m.leak*q.share;
@@ -161,7 +161,6 @@ function compute(){
     const {D,P}=dijkstra(adj,src,wW,(v,e)=>e.res<=1e-3||(HAS[v]&&NRES[v]<=1e-3),dst);
     if(D[dst]===Infinity||D[dst]>2*base+60){teCache.set(key,false);return null;}
     const Q=walkI(P,src,dst);teCache.set(key,Q);return Q;};
-  const ingressE={};for(const e of E)(ingressE[e.ek]||(ingressE[e.ek]=[])).push(e);
   /* A network in a peer's customer cone, reached through that peer (#85): after every network you peer with directly
      (its AS path is one hop longer) and before transit. */
   const base=(e,n)=>e.pref==='low'?4:e.rank>0&&e.rank<3&&coneOf(e,n)?CONE_RANK:e.rank;
@@ -179,8 +178,6 @@ function compute(){
   const byRank={},RSET=new Set();for(const id of NET_IDS){const m=byRank[id]={};for(const e of okBy[id]){const r=TR?eff(e,id):base(e,id);RSET.add(r);(m[r]||(m[r]=[])).push(e);}
     for(const r in m){const L=m[r],key=L.map(e=>e.xi).join(','),o=LIST.get(key);if(o){m[r]=o;continue;}
       let V=L;if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);V={cs};}else idx(L);LIST.set(key,V);m[r]=V;}}
-  // Attack flows pinned to their entry port route at its plain rank, which RouteScript may have left with no list.
-  for(const f of flows)if(f.pin)for(const e of ingressE[f.pin]||[])RSET.add(base(e));
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
   // An exit the flow can still try: not visited yet, not full when the flow started, and reachable from the POP.
@@ -196,7 +193,7 @@ function compute(){
     const ek=e.ek,nr=f.nr,ci=f.ci;if(!e.told||e.dup){R2.egDesc[ek]=e.desc;e.told=true;}
     for(const l of path){l.res-=amt;l.ld+=amt;carry(l,ek,nr,ci,amt);}
     e.used+=amt;f.rem-=amt;
-    if(!f.junk){if(e.k!=='c')R2.ingressPorts[ek].traffic+=amt;let ok=amt;const cf=f.cn,ce=e.cn,cn=f.ncn;
+    if(!f.junk){let ok=amt;const cf=f.cn,ce=e.cn,cn=f.ncn;
       if(cf!==ce||(cf&&!cn)||(!cf&&cn&&e.k==='t')){const prem=(e.k==='t'&&e.prem)||(e.k==='p'&&e.pnc)||path.some(x=>x.links&&x.links.some(y=>y.premium));const loss=prem?0.03:(ev.gfw>day?0.35:0.2);R2.gfwLost+=amt*loss;R2.gfwCross+=amt;ok=amt*(1-loss);}
       SRV[f.ci]+=ok;R2.served+=ok;if(f.bz)R2.bizSrv[f.c]+=ok;if(e.rank<=2)R2.peered+=ok;if(e.k==='t'){const m=R2.tNet[e.id]||(R2.tNet[e.id]={});m[f.n]=(m[f.n]||0)+ok;
         // Backhaul to transit: users notice the round trip to the exit. Up to 20 ms (about 1,500 km) is free, then
@@ -229,7 +226,6 @@ function compute(){
     for(let fi=0,FN=flows.length;fi<FN;fi++){f=flows[fi];
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
       Dv=SDi[f.ci];Pv=SPi[f.ci];PP=walked[f.ci]||(walked[f.ci]=[]);vis++;
-      if(f.pin){for(const e of ingressE[f.pin]||[])if(base(e)===rank&&e.used<e.cap&&Dv[e.ci]<Infinity)send(e,f.rem);continue;}
       let lst=byRank[f.n][rank];if(!lst)continue;if(lst.cs){lst=lst.cs[COMP[f.ci]];if(!lst)continue;}
       /* Groups are tried nearest first, preferred exits before the rest, in the order a stable sort of the usable
          exits gives. Exits only fill up once tried, so the usable ones stay the same until then. Nearly every flow

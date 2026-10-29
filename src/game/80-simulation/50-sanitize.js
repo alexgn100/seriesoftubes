@@ -65,10 +65,11 @@ function sanitize(s){
   s.scrubMode=s.scrubMode==='ondemand'?'ondemand':'always';
   // Keep the legacy primary attack so old saves and imports remain compatible; additional floods overlap it.
   const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
-    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+7);
-    if(Array.isArray(a.entries)){a.entries=a.entries.filter(en=>en&&['t','ix','p'].includes(en.k)&&isCity(en.city)&&typeof en.id==='string'&&Number.isFinite(+en.share)&&+en.share>0).slice(0,3000).map(en=>({k:en.k,id:en.id.slice(0,40),city:en.city,lab:String(en.lab||'').slice(0,60),share:+en.share}));const sum=a.entries.reduce((n,en)=>n+en.share,0);if(Number.isFinite(sum)&&sum>0)for(const en of a.entries)en.share/=sum;else delete a.entries;}else delete a.entries;
+    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+Math.ceil(7*SPICY_LONG));
+    delete a.entries; // 2.0 betas spread attacks over every ingress port; they arrive on one again
+    if(a.who!==undefined&&!FLOOD_WHO.includes(a.who))delete a.who; // a label from the list, never text from the file
     a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
-    if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
+    if(!a.entry||typeof a.entry!=='object'||!['t','ix','p','edge'].includes(a.entry.k))a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
   const attacks=[s.ev.ddos,...(Array.isArray(s.ev.ddosMore)?s.ev.ddosMore:[])].map(repairAttack).filter(Boolean).slice(0,14);
   if(attacks.length)s.ev.ddos=attacks[0];else delete s.ev.ddos;s.ev.ddosMore=attacks.slice(1);
   s.ddosStarts=(Array.isArray(s.ddosStarts)?s.ddosStarts:attacks.map(a=>a.start)).filter(d=>typeof d==='number'||typeof d==='string').map(Number).filter(d=>Number.isFinite(d)&&d>s.day-7&&d<=s.day).sort((a,b)=>a-b).slice(-14);
@@ -77,8 +78,11 @@ function sanitize(s){
   for(const k of Object.keys(s.ach))s.ach[k]=num(s.ach[k],0);
   {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=typeof p[k]==='string'&&own(BVAR,p[k])?p[k]:'oncall';}
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
-  // The rules (2.0): a save without them is the classic game, On-call (or a sandbox or puzzle, if it was one). Locked after the start.
-  {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{},p=s.mode==='sandbox'?'sandbox':s.mode==='puzzle'?'puzzle':own(PRESETS,r.preset)?r.preset:'oncall';s.rules=makeRules(p,own(PRESETS,r.preset)?r:{});}
+  /* The rules (2.0) follow from the mode, as the doors set them, and nothing else: a save without them is the classic
+     game, On-call. Scenarios and the weekly run on On-call; a sandbox keeps only its chaos; a Normal game one of the
+     three Normal presets, unchanged (its validated mods kept). So an edited or imported save cannot stop the clock or print money. */
+  {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{};
+   const m={mods:r.mods};s.rules=s.scn&&typeof s.scn==='object'?makeRules('oncall',m):s.mode==='sandbox'?makeRules('sandbox',{...m,chaos:r.chaos}):makeRules(NORMAL_PRESETS.includes(r.preset)?r.preset:'oncall',m);}
   if(s.te){if(typeof s.te!=='object')s.te=null;else{s.te.on=!!s.te.on;s.te.script=typeof s.te.script==='string'?s.te.script.slice(0,4000):'';}}
   return s;}
 function migrate(s){sanitize(s);

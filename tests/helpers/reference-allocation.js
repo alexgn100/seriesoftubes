@@ -5,8 +5,8 @@ module.exports = `
     for(f of flows){
       if(f.rem<=1e-6||(rank===0&&!f.cache)||(pass&&!pass(f)))continue;
       Dv=SDi[f.ci];Pv=SPi[f.ci];PP=walked[f.ci]||(walked[f.ci]=[]);vis++;
-      const candidates=E.filter(e=>e.used<e.cap&&(f.pin?e.ek===f.pin:e.ok(f.n))&&
-        (f.pin?base(e):TR?eff(e,f.n):base(e,f.n))===rank&&Dv[CIDX[e.city]]<Infinity)
+      const candidates=E.filter(e=>e.used<e.cap&&e.ok(f.n)&&
+        (TR?eff(e,f.n):base(e,f.n))===rank&&Dv[CIDX[e.city]]<Infinity)
         .sort((a,b)=>(a.pref==='high'?0:1)-(b.pref==='high'?0:1)||Dv[CIDX[a.city]]-Dv[CIDX[b.city]]);
       for(let i=0;i<candidates.length&&f.rem>1e-6;){
         let j=i+1;while(j<candidates.length&&(candidates[j].pref==='high')===(candidates[i].pref==='high')&&
