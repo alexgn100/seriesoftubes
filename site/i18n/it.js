@@ -2659,6 +2659,7 @@
 "progress.under_attack_now":"Sotto attacco ora",
 "progress.your_score_peak_traffic":"Il tuo punteggio: picco di traffico",
 "progress.your_traffic_to_and_from_asia":"Il tuo traffico da e per l’Asia",
+"reach_and_subsea.makes_no_difference_on_this_cable":"Su questo cavo non cambia nulla",
 "reach_and_subsea.premium_submarine_terminals":"Terminali sottomarini avanzati",
 "release_notes.and_n_more_change":{"one":"…e {n} altra modifica","other":"…e altre {n} modifiche"},
 "release_notes.read_the_full_notes_on_github":"Leggi le note complete su GitHub",

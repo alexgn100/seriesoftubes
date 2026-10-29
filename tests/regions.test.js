@@ -898,10 +898,11 @@ test('submarine terminal and engineering upgrades commission independently and c
 test('new subsea builds include chosen transmission packages in the quote and saved order', () => {
   const { ev, dom, errors } = load();
   try {
-    ev("ACT.start({});S.cash=1e9;S.lvl=4;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'lon'});ACT.buildPop({city:'nyc'});UI.lmode='df';UI.dfSrc='cable';openLinkModal('lon','nyc')");
-    const baseline = JSON.parse(ev("JSON.stringify(seaQuote('lon','nyc'))"));
+    ev("ACT.start({});S.cash=1e9;S.lvl=4;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'sin'});ACT.buildPop({city:'lax'});UI.lmode='df';UI.dfSrc='cable';openLinkModal('sin','lax')");
+    // Across the Pacific, where the two packages together lift it from 400G to 800G (#198).
+    const baseline = JSON.parse(ev("JSON.stringify(seaQuote('sin','lax'))"));
     ev("document.querySelector('#modalCard [data-act=seaPackage][data-args*=terminal]').click();document.querySelector('#modalCard [data-act=seaPackage][data-args*=engineering]').click()");
-    const quote = JSON.parse(ev("JSON.stringify(seaQuote('lon','nyc','standard',{terminal:true,engineering:true}))"));
+    const quote = JSON.parse(ev("JSON.stringify(seaQuote('sin','lax','standard',{terminal:true,engineering:true}))"));
     assert.equal(quote.days, baseline.days + 210);
     assert.equal(quote.cost, baseline.cost + 5000000 + 12000000 + baseline.km * 1000);
     assert.equal(quote.ms, baseline.ms);
@@ -972,9 +973,12 @@ test('own subsea cables after #78: refunds of what was paid, upgrades a route ne
   const syd = JSON.parse(ev("JSON.stringify(S.links.at(-1))"));
   assert.equal(syd.b, 'syd'); assert.equal(syd.subterminal, syd.ready);
   ev('S.day=S.links.at(-1).ready'); assert.equal(ev("optG('tp16',S.links.at(-1))"), 400, 'lit across 18,387 km');
-  // upgrades bought later count toward the price; sanitize keeps a sane price and drops junk
+  // engineering adds nothing once the terminals light it (#198); upgrades bought later count toward the price
   ev("S.links.at(-1).subengineering=undefined;ACT.subUpgrade({id:S.links.at(-1).id,k:'engineering'})");
+  assert.equal(ev('S.links.at(-1).paid'), syd.paid);
+  ev("S.links.at(-1).subterminal=undefined;ACT.subUpgrade({id:S.links.at(-1).id,k:'engineering'})");
   assert.ok(ev('S.links.at(-1).paid') > syd.paid);
+  // sanitize keeps a sane price and drops junk
   ev("S.links.at(-1).paid='lots';S.links[0].paid=-5;S=sanitize(S)");
   assert.equal(ev('S.links.at(-1).paid'), undefined); assert.equal(ev('S.links[0].paid'), undefined);
   // advice about upgrades only on cables you own

@@ -183,6 +183,10 @@ function seaQuote(a,b,design='standard',upgrades={}){
   const ms=linkLat({a,b,kind:'df',own:true,sub:true,km,seaDesign:design});
   return {km,cost,days,ms,pts:route?.pts,shore:route?.shore,cor:!!cor&&route===cor};
 }
+// The picked upgrades that change something on a cable this long (#198): a pick can stop helping when the design
+// or the other pick changes. When each makes the other redundant, keep the cheaper terminals.
+const seaUps=km=>{const up={terminal:!!UI.seaterminal,engineering:!!UI.seaengineering};
+  for(const k of ['engineering','terminal'])if(up[k]&&!subHelps(km,k,up[subOther(k)]))up[k]=false;return up;};
 // Some pairs share a landmass and still have cables between them (Marseille–Singapore, Cairo–Palermo) (#67).
 const seaCab=(a,b)=>isSub(a,b)||(landing(a)&&landing(b)&&cablesFor(a,b).length>0);
 // What you get back for giving up your own subsea cable (#88): what you paid for it (design and upgrades included)
@@ -200,10 +204,10 @@ function ownCabWhy(a,b){if(!seaCab(a,b))return tr('own_cable.this_route_is_on_la
   return '';}
 function ownCabTeaser(a,b){const why=ownCabWhy(a,b);return `<div class="btns" style="margin-top:8px">${btn(S.won?tr('modals.lay_your_own_subsea_cable'):tr('modals.your_own_subsea_cable_tier_1'),'ownCab',{},S.won&&!why?'pink':'ghost',!!why)}</div>${why&&S.won?`<p class="note" ${seaSurveyAttr(a,b)}>${esc(why)}</p>`:''}`;}
 function ownCabBody(a,b,pop){const why=ownCabWhy(a,b);if(why)return `<p class="lead" style="margin-top:10px" ${seaSurveyAttr(a,b)}>${esc(why)}</p>${btn(tr('common.back'),'dfSrc',{v:'lease'},'ghost sm')}`;
-  const design=own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard',upgrades={terminal:!!UI.seaterminal,engineering:!!UI.seaengineering},q=seaQuote(a,b,design,upgrades),{km,cost,days}=q,lack=seaLack(km,upgrades),mo=ownCabMo(km),wt=subMaxTier(km),w=Math.round(waveMo(km,true,wt)*waveMarket(a,b,true).m),save=10*w*LT[4].g/LT[wt].g-mo,pay=save>0?Math.ceil(cost/save):0;
+  const design=own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard',upgrades=seaUps(seaQuote(a,b,design).km),q=seaQuote(a,b,design,upgrades),{km,cost,days}=q,lack=seaLack(km,upgrades),mo=ownCabMo(km),wt=subMaxTier(km),w=Math.round(waveMo(km,true,wt)*waveMarket(a,b,true).m),save=10*w*LT[4].g/LT[wt].g-mo,pay=save>0?Math.ceil(cost/save):0;
   return `<p class="lead" style="margin-top:8px">${tr('own_cable.your_very_own_subsea_cable_a')}</p>
   <h4 class="sub4">${tr('common.cable_design')}</h4><div class="starts one">${Object.entries(SEA_DESIGNS).map(([v,D])=>{const o=seaQuote(a,b,v,upgrades);return `<button class="start ${design===v?'on':''}" data-act="seaDesign" data-args='{"v":"${v}"}'><b>${tr(D.n)}</b><span>${tr('common.ms_ms_one_way',{ms:o.ms.toFixed(1)})} · ${fmt$(o.cost+pop)} · ${tr('own_cable.about_n_days',{n:o.days})}</span></button>`;}).join('')}</div>
-  <h4 class="sub4">${tr('common.submarine_transmission')}</h4>${Object.entries(SUB_UPGRADES).map(([k,U])=>btn(`${tr(U.n)} <small>${upgrades[k]?'✓ · ':''}${fmt$(subUpgradeCost({km},k))} · ${tr('own_cable.n_days',{n:U.days})}</small>`,'seaPackage',{k},upgrades[k]?'green sm':'ghost sm')).join('')}
+  <h4 class="sub4">${tr('common.submarine_transmission')}</h4>${Object.entries(SUB_UPGRADES).map(([k,U])=>btn(`${tr(U.n)} <small>${upgrades[k]?'✓ · ':''}${fmt$(subUpgradeCost({km},k))} · ${tr('own_cable.n_days',{n:U.days})}</small>`,'seaPackage',{k},upgrades[k]?'green sm':'ghost sm',!upgrades[k]&&!subHelps(km,k,upgrades[subOther(k)]))).join('')}
   ${lack.length?`<p class="why">${lack[0]==='design'?tr('own_cable.this_design_s_route_is_km',{km:km.toLocaleString()}):tr('own_cable.km_km_is_too_far_for',{km:km.toLocaleString(),what:lack.length>1?tr('own_cable.a_and_b',{a:tr(SUB_UPGRADES[lack[0]].n),b:tr(SUB_UPGRADES[lack[1]].n)}):tr(SUB_UPGRADES[lack[0]].n)})}</p>`:`<p class="note">${tr('common.up_to_g_per_channel',{g:fmtG(submarineRate({a,b,km,kind:'df',own:true,sub:true,subterminal:upgrades.terminal?S.day:undefined,subengineering:upgrades.engineering?S.day:undefined}))})} · ${tr('common.better_terminals_and_optical_tuning')}</p>`}
   <div class="kv"><span>${tr('common.estimated_latency')}</span><b>${tr('common.ms_ms_one_way',{ms:q.ms.toFixed(1)})}</b></div>
   <div class="kv"><span>${tr('common.route')}</span><b>${tr('own_cable.km_km_of_seabed',{km:km.toLocaleString()})}</b></div>

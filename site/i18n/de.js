@@ -2661,6 +2661,7 @@
 "progress.under_attack_now":"Gerade unter Beschuss",
 "progress.your_score_peak_traffic":"Dein Ergebnis: Spitzen-Traffic",
 "progress.your_traffic_to_and_from_asia":"Dein Traffic von und nach Asien",
+"reach_and_subsea.makes_no_difference_on_this_cable":"Bringt auf diesem Kabel nichts",
 "reach_and_subsea.premium_submarine_terminals":"Premium-Seekabel-Terminals",
 "release_notes.and_n_more_change":{"one":"… und {n} weitere Änderung","other":"… und {n} weitere Änderungen"},
 "release_notes.read_the_full_notes_on_github":"Alle Hinweise auf GitHub lesen",
