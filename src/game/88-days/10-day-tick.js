@@ -71,6 +71,7 @@ function dayTick(){
   checkGoals();
   scnTick(d);
   confTick(d);
+  specDay(d);
   // money trouble
   if(S.cash<0){S.neg++;if(S.neg===1)toast(tr('day_tick.you_are_in_the_red_cancel'),'bad');}
   else S.neg=0;
@@ -89,7 +90,10 @@ function spawnOffer(){
   // Countries with thousands of ASNs (Brazil's provedores, US regionals) are full of small ISPs shopping for transit.
   const dense=mine.filter(c=>(CITY_PDB[c]||[])[2]>=2000);if(lv>=2&&dense.length)types.push('isp');
   const fabC=mine.filter(c=>FABS.some(f=>f.cities.includes(c)));if(lv>=2&&fabC.length){types.push('fabip','fabip');if(mine.length>=2)types.push('fabl2');}
+  // What your network can already serve calls too, at a lower weight and the smallest size (#187).
+  const sp=spots(),spT=[...new Set(sp.map(s=>s.t))],bq=charter()==='boutique';for(const x of spT){types.push(x);if(x==='hft'&&bq)types.push(x,x);}if(bq&&lv>=2)types.push('hft','hft');
   const t=pick(types),T=BIZ_T[t];
+  if(T.lv>lv&&spT.includes(t)){spawnSpot(t,pick(sp.filter(s=>s.t===t)));return;}
   if(T.event||T.sdwan||T.fiber||T.mega){spawnSpecial(t);return;}
   if(T.nni){const city=pick(fabC),prov=pick(FABS.filter(f=>f.cities.includes(city))).id,bw=pick(T.opts),others=mine.filter(c=>c!==city),city2=T.l2&&others.length?pick(others):null;if(T.l2&&!city2)return;
     const base=pick(BIZ_N.filter(n=>!S.usedNames.includes(n)).concat(BIZ_N)).replace(/ (Inc\.|Co\.|Ltd)$/,'');const name=tr('day_tick.name_via_fab',{name:base,fab:FAB[prov].name});useName(base);
@@ -104,7 +108,7 @@ function spawnOffer(){
   if(t==='provedor')city=pick(br);
   if(t==='isp'&&dense.length&&Math.random()<0.5)city=pick(dense);
   if(t==='hft'){const fin=['nyc','chi','lon','fra','tok','sin','hkg','ams','ash'],mf=mine.filter(c=>fin.includes(c));city=mf.length?pick(mf):pick(mine);city2=pick(fin.filter(c=>c!==city));}
-  let rate=T.l2?Math.round((150+kmBetween(city,city2)*0.08)*T.km):T.rate;
+  let rate=T.l2?Math.round((150+kmBetween(city,city2)*0.08)*T.km*(T.lat?latPay():1)):T.rate;
   if(CITY[city].au&&!T.l2&&!T.fiber&&!T.event){rate=Math.round(rate*AU_ARPU);bw=Math.min(bw,pick(T.opts.slice(0,2)));}
   if(T.div&&!reqCan('diverse',{city,city2}))return;
   const reqs=T.div?['diverse']:T.lat?['lat']:[];if((t==='hyper'||t==='ai'||t==='gpu')&&Math.random()<0.4)reqs.push('metro');const pool=Object.keys(REQS).filter(k=>!reqs.includes(k)&&!REQS[k].only&&(!REQS[k].l2||T.l2)&&(!REQS[k].ip||!T.l2)&&reqCan(k,{city,city2}));
