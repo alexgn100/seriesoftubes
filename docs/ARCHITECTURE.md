@@ -78,7 +78,7 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 
 - **`S`**: the whole saved game (one JSON object). Cash, day, POPs, links, transit,
   IX ports, PNIs, caches, customers (`biz`), offers, incidents (`inc`), live events
-  (`ev`), stats, settings. Saved to `localStorage` key `sot-save-v1`.
+  (`ev`), stats, settings. Saved to `localStorage` key `sot-save-v1:<slot>` (one per network, see below).
 - **`R`**: results of the last `compute()`: per-link load, per-exit use, served and
   demanded traffic, reach, costs and revenue. Never saved; always rebuilt.
 - **`UI`**: view state (selection, open tabs, speed, confirmations). Not game state.
@@ -146,9 +146,19 @@ Served share per city (`sfOf`) drives eyeball revenue and customer mood.
 
 ## Saves, imports and migration
 
-- `save()` writes `S` to localStorage every few seconds and after actions.
+- `save()` writes `S` to localStorage every few seconds and after actions, into this window's slot
+  (`UI.slot`, `src/game/91-slots.js`): `sot-save-v1:<id>`, plain JSON or `gz:`-compressed above a million
+  characters, with a stamp `sv:{seq,at}` appended. Then the index `sot-slots` (name, ASN, preset, day, tier,
+  cash, last played, size, seq) is updated; the title screen lists networks from the index alone.
+- Each tab keeps its slot in `sessionStorage['sot-slot']`. One window per slot: a Web Lock
+  (`sot-slot:<id>`) where supported, plus a heartbeat `sot-open:<id>`; BroadcastChannel `sot-slots` asks
+  another window to hand over, and the `storage` event stops a window whose slot was saved newer elsewhere
+  (higher seq) or deleted. A window never writes a slot whose index seq is newer than its own.
+- The single save of older versions (`sot-save-v1`) is copied to slot `main` and read back before the
+  index lists it; the old key is removed only by that slot's next successful save.
 - `boot()` loads the save through `migrate()` → `sanitize()`. If loading throws, the
-  damaged save is kept under `sot-save-broken` and the player starts fresh.
+  slot is kept and marked damaged in the index (it can still be exported or deleted).
+- Puzzles never write a slot; while one runs, `save()` writes the network set aside (`UI.pzKeep`).
 - `sanitize(s)` is the gate for all untrusted state (saves and imported files): it
   drops unknown ids, clamps numbers, repairs references and fills defaults. Every new
   field in `S` needs a line there.
