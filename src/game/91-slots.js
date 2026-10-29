@@ -29,6 +29,8 @@ function slotFromKey(id){const raw=slotRaw(id)||'';if(raw.startsWith(GZ))return 
 /* The list of networks. scan also looks at the keys themselves (cheap: no save is read unless its entry is missing):
    a save whose index write failed is added back, an entry whose save is gone is dropped. A damaged index is rebuilt. */
 function slotIdx(scan){const raw=lsGet(SLOT_IX);let list=null;
+  // The same text as last time (every autosave): no need to parse and check it again.
+  if(!scan&&raw!=null&&raw===SLOT.ixRaw)return SLOT.ixList.map(e=>({...e}));
   if(raw!=null)try{const j=JSON.parse(raw);if(j&&Array.isArray(j.slots))list=j.slots.map(slotClean).filter(Boolean);}catch(e){}
   const bad=raw!=null&&!list;if(!list)list=[];{const seen=new Set();list=list.filter(e=>!seen.has(e.id)&&seen.add(e.id));}
   if(scan||bad){const ks=slotKeys(),keys=new Set(ks);let ch=bad;const n=list.length;
@@ -36,8 +38,9 @@ function slotIdx(scan){const raw=lsGet(SLOT_IX);let list=null;
     list=list.filter(e=>keys.has(e.id));if(list.length!==n)ch=true;
     for(const id of keys)if(!list.some(e=>e.id===id)){list.push(slotFromKey(id));ch=true;}
     if(ch)slotIdxPut(list);if(list.some(e=>e.gz&&!e.name&&!e.broken))slotFix(list);}
+  else if(raw!=null&&list.length){SLOT.ixRaw=raw;SLOT.ixList=list.map(e=>({...e}));}
   return list;}
-function slotIdxPut(list){try{localStorage.setItem(SLOT_IX,JSON.stringify({v:1,slots:list}));return true;}catch(e){return false;}}
+function slotIdxPut(list){const t=JSON.stringify({v:1,slots:list});try{localStorage.setItem(SLOT_IX,t);SLOT.ixRaw=t;SLOT.ixList=list.map(e=>({...e}));return true;}catch(e){SLOT.ixRaw=null;return false;}}
 function slotFix(list){for(const e of list)if(e.gz&&!e.name&&!e.broken&&!SLOT['fix'+e.id]){SLOT['fix'+e.id]=1;const raw=slotRaw(e.id);
   gunzip(raw).then(t=>{const s=JSON.parse(t);return s&&s.v===1?slotMeta(s,null):null;},()=>null).then(m=>{const l=slotIdx(),x=l.find(y=>y.id===e.id);if(!x)return;
     if(m)Object.assign(x,slotClean({...x,...m}));else x.broken=true;slotIdxPut(l);slotRefresh();});}}
