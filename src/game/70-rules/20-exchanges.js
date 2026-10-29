@@ -25,7 +25,7 @@ function ixCap(c){return ixLagF(c)*(S.myIx[c]?myFab(c).g*(myIxLive(c)?1:0):liveC
 function ixSessions(c){
   const s=new Set(); if(S.ixp[c]===undefined)return s;
   for(const id of ixMembers(c)){const n=NET[id];
-    if(S.peers[id+'@'+c]&&!snub(id,c)&&!(isRemote(c)&&noRemote(id))&&!mpDown(id,c))s.add(id);
+    if(S.peers[id+'@'+c]&&!snub(id,c)&&!(isRemote(c)&&noRemote(id)))s.add(id);
     else if(S.rs[c]&&n.pol==='open'&&ppol()==='open')s.add(id);
     else if(S.myIx[c]&&(n.pol==='open'||n.pol==='selective'))s.add(id);}
   return s;

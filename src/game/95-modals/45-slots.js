@@ -1,6 +1,6 @@
 /* "Your networks" on the title screen: drawn from the index alone, so it stays instant however big the saves are. */
 function slotAgo(t){const m=Math.max(0,Math.round((Date.now()-t)/60000));
-  return m<1?tr('slots.just_now'):m<60?trn('notifications.n_min_ago',m):m<1440?trn('slots.n_h_ago',Math.round(m/60)):trn('peering_inbox.n_day_ago',Math.round(m/1440));}
+  return m<1?tr('slots.just_now'):m<60?trn('notifications.n_min_ago',m):m<1440?trn('slots.n_h_ago',Math.round(m/60)):trn('slots.n_day_ago',Math.round(m/1440));}
 const slotIcon=e=>e.broken?'🩹':e.mode==='scenario'?'🏆':e.mode==='sandbox'?'🏖️':(PRESETS[e.preset]||PRESETS.oncall).i;
 // The network to continue: the most recent one that is not open in another window (or damaged).
 function slotTop(list){return slotByAt(list).find(e=>!e.broken&&!slotBusy(e.id))||null;}

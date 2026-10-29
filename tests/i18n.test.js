@@ -82,8 +82,8 @@ test('missing translations fall back to the English, with placeholders filled', 
   assert.equal(ev("tr('test.no_such_label {n}',{n:3})"), 'test.no_such_label 3', 'an unknown label comes back as it is');
   assert.equal(ev("trn('test.cats',1)"), '1 cat');
   assert.equal(ev("trn('test.cats',2)"), '2 cats');
-  assert.equal(ev("trn('peering_inbox.n_day_ago',1)"), '1 giorno fa');
-  assert.equal(ev("trn('peering_inbox.n_day_ago',3)"), '3 giorni fa');
+  assert.equal(ev("trn('slots.n_day_ago',1)"), '1 giorno fa');
+  assert.equal(ev("trn('slots.n_day_ago',3)"), '3 giorni fa');
 });
 
 test('text that old saves stored in English is still translated', () => {
