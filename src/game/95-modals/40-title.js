@@ -12,7 +12,7 @@ const homeWhat=()=>START5.includes(UI.startCity)?esc(START_D()[UI.startCity]):`$
 function showTitle(){
   const list=slotIdx(true),top=slotTop(list),many=list.length>1||(list.length===1&&list[0]!==top);
   if(UI.nm==null)UI.nm=randomNetworkName();
-  openModal(`<div class="tlang">${langPick('langTitle')}</div><div class="title-art"><svg width="74" height="74" viewBox="0 0 74 74" aria-hidden="true"><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#1E2640" stroke-width="16" stroke-linecap="round"/><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#FFD23F" stroke-width="9" stroke-linecap="round"/><circle cx="58" cy="16" r="11" fill="#FF4F9A" stroke="#1E2640" stroke-width="4"/><circle cx="21" cy="44" r="3" fill="#fff"/><circle cx="30" cy="27" r="3" fill="#fff"/></svg>
+  openModal(`<div class="tlang"><label class="sr-only" for="langTitle">${tr('common.language')}</label>${langPick('langTitle')}</div><div class="title-art"><svg width="74" height="74" viewBox="0 0 74 74" aria-hidden="true"><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#1E2640" stroke-width="16" stroke-linecap="round"/><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#FFD23F" stroke-width="9" stroke-linecap="round"/><circle cx="58" cy="16" r="11" fill="#FF4F9A" stroke="#1E2640" stroke-width="4"/><circle cx="21" cy="44" r="3" fill="#fff"/><circle cx="30" cy="27" r="3" fill="#fff"/></svg>
   <h1>Series<br>of <span>Tubes</span></h1></div>
   <p class="tagline">${tr('title.build_an_internet_lay_fiber_between')}</p>${isPhone()?installRow():''}
   ${top?`<div class="btns" style="margin-bottom:6px">${btn(tr('title.continue_name_date',{name:esc(top.name||tr('common.unnamed_network')),date:dateStr(top.day)}),'cont',{id:top.id},'pink big')}</div>`:''}

@@ -155,8 +155,9 @@ for (const lang of ['en', 'it', 'pt', 'fr', 'es', 'de']) {
     }
     if (lang === 'de') {
       assert.match(ev("document.getElementById('modalCard').textContent"), /Spielanleitung/);
-      // the link card to the real "How the Internet Works" site used to be hard-coded English
-      assert.match(ev("document.getElementById('modalCard').textContent"), /Wie funktioniert das Internet\?/);
+      // the link card to the real "How the Internet Works" site used to be hard-coded English; it lives in How to play
+      assert.match(ev("(()=>{showHelp&&showHelp();return document.getElementById('modalCard').textContent})()"), /Wie funktioniert das Internet\?/);
+      ev("showTitle()");
       assert.equal(ev("document.querySelector('#hud [data-act=bank] .lbl').textContent"), 'Kasse · Bank');
       // networking jargon stays English in German (Peering, Dark Fiber); plain "fiber" is Glasfaser
       assert.equal(ev("tr('common.peering')"), 'Peering');
