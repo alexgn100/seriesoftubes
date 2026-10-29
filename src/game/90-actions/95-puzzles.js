@@ -7,6 +7,7 @@ Object.assign(ACT,{
  puzzleMenu:()=>{if(S&&UI.started&&!pzOn())UI.nm=S.name;pzMenu();},
  pzStart:({id})=>{const d=pzDef(id);if(!d||!pzPackOpen(d.pack))return;pzBegin(d);},
  pzWeekly:()=>{if(pzWkLoading())return;pzBegin(pzWkDef());},
+ pzFinish:()=>{if(!pzOn())return;const e=pzEval();if(e.stars)pzResults(e,e.stars);},
  pzRetry:()=>{if(!pzOn())return;pzBegin(S.pz.id==='weekly'?pzWkDef():pzDef(S.pz.id));},
  pzLeave:()=>{if(pzOn())pzLeave();},
  pzPop:({city})=>{if(!pzOn()||S.pops[city]||!['goal','via','off'].includes(pzKind(city)))return;pzSnap();S.pops[city]=pzNewPop(city);sfx('build');haptic(10);floater(CITY[city].x,CITY[city].y-30,tr('common.new_pop'),'#FF4F9A');pzAfter();},

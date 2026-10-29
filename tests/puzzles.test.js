@@ -314,8 +314,12 @@ test('results card: stars, the next puzzle, a retry, a share line and stars left
   const { ev, errors } = load();
   ev("localStorage.removeItem('sot-puzzles');pzBegin(pzDef('eurotrip'))");
   build(ev, REF.eurotrip.one);
+  assert.ok(ev("$('modal').hidden||!document.querySelector('#modalCard .pzres')"), 'two stars: no results card, play goes on');
+  assert.match(ev("document.getElementById('toasts').textContent"), /One backhoe away/, 'a cheer with the next step instead');
+  assert.ok(ev("!!document.querySelector('[data-act=pzFinish]')"), 'and a Finish button on the card');
+  ev("document.querySelector('[data-act=pzFinish]').click()");
   let card = ev("document.getElementById('modalCard').textContent");
-  assert.match(card, /Puzzle solved/);
+  assert.match(card, /Your stars so far/);
   assert.equal(evalP(ev).stars, 2, 'delivered, and the budget star is on the house');
   assert.match(card, /One backhoe away/);
   assert.match(card, /13 ⭐ left in this pack/);

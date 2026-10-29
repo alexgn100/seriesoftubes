@@ -29,7 +29,7 @@ function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hi
   const w=e.worst;
   h+=!e.goal?`<div class="pzn1">🛡 ${tr('puzzles.n_1_deliver_everything_first')}</div>`:e.n1?`<div class="pzn1 on">🛡 ${tr('puzzles.survives_any_single_cut_under_load')}</div>`
     :`<div class="pzn1 bad">⚠️ ${tr('puzzles.a_cut_on_where_drops_g',{where:pzUnitName(w.u),g:fmtG(w.g)})}<br><small>${w.lost.map(x=>esc(pzFlowName(P.dem[x.i]))).join(', ')}</small></div>`;
-  h+=`<div class="btns">${btn('↶ '+tr('puzzles.undo'),'pzUndo',{},'ghost sm',!(UI.pzHist&&UI.pzHist.length))}${btn(tr('puzzles.reset'),'pzReset',{},'ghost sm',!S.links.length&&!Object.keys(S.pops).length)}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'ghost sm')}</div>`;
+  h+=`<div class="btns">${btn('↶ '+tr('puzzles.undo'),'pzUndo',{},'ghost sm',!(UI.pzHist&&UI.pzHist.length))}${btn(tr('puzzles.reset'),'pzReset',{},'ghost sm',!S.links.length&&!Object.keys(S.pops).length)}${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'ghost sm')}</div>`;
   if(h!==UI._pzh){UI._pzh=h;morph(el,h);}}
 // Trenches on a pair get numbers, cables their names, so parallel links say where they run.
 function pzTrench(l){if(l.cable)return esc(CAB[l.cable].name);const us=[...new Set(pairLinks(l.a,l.b).filter(x=>!x.cable).map(pzUnit))];return tr('puzzles.trench_n',{n:us.indexOf(pzUnit(l))+1});}
@@ -106,7 +106,7 @@ function pzConfetti(){if(!animOn())return '';const cols=['#FF4F9A','#FFD23F','#2
 function pzResults(e,prev){const P=S.pz,nx=P.id==='weekly'?null:pzNextDef(),left=pzPackLeft(P),done=e.stars>=3;
   const row=(ok,l,v)=>`<div class="kv"><span>${ok?'⭐':'☆'} ${l}</span><b>${v}</b></div>`;
   const stars=[0,1,2].map(i=>`<span class="pzbig${i<e.stars?' on':''}${i>=prev&&i<e.stars?' pop':''}" style="--d:${Math.max(0,i-prev)*0.45}s">⭐</span>`).join('');
-  openModal(`<div class="pzres">${e.stars>=3?pzConfetti():''}<div style="display:flex;align-items:center"><div class="grow"><div class="eyebrow">${tr('puzzles.puzzle_solved')}</div><h2 style="font-size:28px">${esc(pzName(pzDef(P.id)||P))}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>
+  openModal(`<div class="pzres">${e.stars>=3?pzConfetti():''}<div style="display:flex;align-items:center"><div class="grow"><div class="eyebrow">${done?tr('puzzles.puzzle_solved'):tr('puzzles.your_stars_so_far')}</div><h2 style="font-size:28px">${esc(pzName(pzDef(P.id)||P))}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>
   <div class="pzstars">${stars}</div><p class="tagline" style="text-align:center">${pzLine(e)}</p>${left==null?'':`<p class="pzleft">${left?trn('puzzles.n_stars_left_in_this_pack',left):tr('puzzles.every_star_in_this_pack_is')}</p>`}
   ${row(true,tr('puzzles.delivered'),tr('puzzles.every_bit_arrives'))}${row(e.cheap,tr('puzzles.budget'),P.budget?tr('puzzles.spent_x_of_y',{x:fmt$(e.spend),y:fmt$(P.budget)}):tr('puzzles.on_the_house'))}${row(e.n1,'N-1',e.n1?tr('puzzles.survives_any_single_cut_under_load'):tr('puzzles.a_cut_on_where_drops_g',{where:pzUnitName(e.worst.u),g:fmtG(e.worst.g)}))}
   <div class="btns cta${done?' pzdone':''}" style="margin-top:12px">${nx?btn(tr('puzzles.next_puzzle')+(done?' →':''),'pzStart',{id:nx.id},'pink big pznext'):btn(tr('puzzles.more_puzzles'),'puzzleMenu',{},'pink big pznext')}${!done?btn(tr('puzzles.retry_for_3_stars'),'pzRetry',{},''):''}${btn(tr('common.share_2cd9'),'pzShare',{},done?'ghost':'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div></div>`);
@@ -114,6 +114,7 @@ function pzResults(e,prev){const P=S.pz,nx=P.id==='weekly'?null:pzNextDef(),left
   if(done){const b=document.querySelector('#modalCard .pznext');if(b)try{b.focus({preventScroll:true});}catch(_){}}
   for(let i=prev;i<e.stars;i++)setTimeout(()=>{sfx('star');haptic(15);},Math.max(0,i-prev)*450+150);
   if(e.stars>=3&&prev<3)setTimeout(()=>sfx('fanfare'),(3-prev)*450+250);}
+function pzCheer(e,prev){toast(`${'⭐'.repeat(e.stars)}${'☆'.repeat(3-e.stars)}<br>${pzLine(e)}`,'goal');for(let i=prev;i<e.stars;i++)setTimeout(()=>{sfx('star');haptic(15);},(i-prev)*450+150);}
 // ---------- the list ----------
 // The weekly row: the published puzzle once it has come (or the seeded one), its countdown and the streak.
 function pzWkRow(){const p=pzLoad(),w=pzWkDef(),wr=pzWkRec(p,w),st=p.streak,streak=st.last===w.key||st.last===pzPrevKey(w.key)?st.n:0,T=PZ_WK_THEMES[w.theme],load=pzWkLoading(),tg=pzDemTag(w);
@@ -127,7 +128,7 @@ function pzMenu(){pzWkEnsure();const p=pzLoad(),tot=pzStarsTotal(p),max=PZ.lengt
   // Once, after the puzzles got traffic: the old stars are kept on the wall, the new set starts at zero.
   if(p.old&&!p.noted){h+=`<div class="pznote">🖼️ ${tr('puzzles.puzzles_got_traffic_note',{n:p.old})}</div>`;p.noted=1;pzStore(p);}
   h+=`<div class="pzprog"><div class="kv"><span>${tr('puzzles.your_stars')}</span><b>⭐ ${tot} / ${max}</b></div><div class="bar me"><i style="width:${(tot/max*100).toFixed(1)}%"></i></div>${nxP?`<div class="meta">${tr('puzzles.next_pack_unlocks_at_n',{n:nxP.need,pack:esc(nxP.n)})}</div>`:''}${p.old?`<div class="meta">🖼️ ${tr('puzzles.framed_n_stars_from_the_old',{n:p.old})}</div>`:''}</div>`;
-  if(pzOn())h+=`<div class="btns" style="margin:8px 0">${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
+  if(pzOn())h+=`<div class="btns" style="margin:8px 0">${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
   h+=pzWkRow();
   for(const pk of PZ_PACKS){const open=tot>=pk.need,got=PZ.filter(x=>x.pack===pk.id).reduce((a,x)=>a+((p.s[x.id]||{}).st|0),0),n=PZ.filter(x=>x.pack===pk.id).length;
     h+=`<h3 class="pzpack">${open?'':'🔒 '}${esc(pk.n)} <span class="meta">⭐ ${got}/${n*3}</span></h3><p class="meta" style="margin:0 0 2px">${open?esc(pk.d):tr('puzzles.unlocks_at_n_stars',{n:pk.need})}</p>`;

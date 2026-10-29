@@ -145,9 +145,11 @@ function pzCam(){const cs=[...S.pz.cities,...S.pz.via].map(c=>CITY[c]),x0=cs[0].
 function pzSnap(){const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},r:S.biz.map(b=>b.route)}));if(h.length>60)h.shift();}
 function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI.sel.id))||(UI.sel.type==='city'&&!pzKind(UI.sel.id))))UI.sel=null;
   compute();renderAll();pzCheck();}
-// Stars count the moment they are earned: a better result than this attempt has had opens the results card.
+// Stars count the moment they are earned.
 // Every solved state is recorded, so a cheaper build at the same stars counts too.
-function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;pzResults(e,prev);return e;}
+// A new star below three is a cheer and a nudge, and play goes on; the results card opens at three stars, or when the
+// player says they are done (the card's Finish button).
+function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;if(e.stars>=3)pzResults(e,prev);else{pzCheer(e,prev);renderAll();}return e;}
 // The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
 function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=(P.id==='weekly'?pzWkRec(p,P):bag[k])||{st:0,sp:null};
   if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;
