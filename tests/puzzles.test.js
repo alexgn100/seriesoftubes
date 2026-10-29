@@ -488,7 +488,7 @@ test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
   ev("ACT.pzPop({city:'lon'})");
   const st = () => ev("JSON.stringify({p:S.pops,l:S.links.length,c:S.cash,m:S.mode,te:!!S.te,ops:S.ops,sc:S.scrubs.length,dash:$('dash').hidden,bank:$('bankBox').hidden,left:$('left').hidden,modal:$('modal').hidden,cam:[cam.x,cam.y]})");
   const s0 = st();
-  for (const a of ["opsOpen({})", "inbox({})", "leftTab({t:'noc'})", "focusCity({city:'par'})", "fixInc({id:'x'})", "custGo({id:'x'})", "bank({})", "dash({})",
+  for (const a of ["opsOpen({})", "peerPol({p:'closed'})", "leftTab({t:'noc'})", "focusCity({city:'par'})", "fixInc({id:'x'})", "custGo({id:'x'})", "bank({})", "dash({})",
     "exportSave({})", "launchBB({city:'lon'})", "ad({city:'lon'})", "addRouter({city:'lon'})", "upRouter({city:'lon'})", "addSite({city:'lon'})", "buyTE({})",
     "buildScrub({city:'lon',tier:0})", "buildPop({city:'par'})", "buyTransit({city:'lon',net:'cog',tier:1})", "scenarios({})", "share({})", "importGo({})", "cont({})", "start({})", "newgame({})"]) {
     ev('ACT.' + a);

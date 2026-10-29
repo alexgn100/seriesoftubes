@@ -36,8 +36,8 @@ function tour(ev) {
     ['routers', "selectCity('fra');ACT.tab({t:'links'});ACT.models()"], ['vxc', "openVxcModal({from:'fra',to:'ams'});closeModal()"],
     ['tutorial', 'S.tut=0;renderCoach();S.tut=3;renderCoach();S.tut=null;renderCoach()'], ['win', 'showWin()']]) step(label, src);
   const failSrc = ev('fireFailure.toString()');
-  for (const t of ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'maxpfx', 'prepend', 'rpki', 'amp', 'roadmff', 'optic', 'ac', 'cut', 'crash', 'power', 'transit', 'ixloop', 'leak', 'ddos']) {
-    const kind = ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'maxpfx', 'prepend', 'rpki', 'roadmff', 'ac'].includes(t) ? 'funny' : t;
+  for (const t of ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'prepend', 'rpki', 'amp', 'roadmff', 'optic', 'ac', 'cut', 'crash', 'power', 'transit', 'ixloop', 'leak', 'ddos']) {
+    const kind = ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'prepend', 'rpki', 'roadmff', 'ac'].includes(t) ? 'funny' : t;
     const patched = failSrc.replace(/^function fireFailure/, 'function')
       .replace('let tot=opts.reduce', `if(!opts.some(o=>o[0]==='${kind}'))return;opts.splice(0,opts.length,['${kind}',1]);let tot=opts.reduce`)
       .replace('type=pick(f);}', `type=f.includes('${t}')?'${t}':pick(f);}`);
@@ -82,8 +82,8 @@ test('missing translations fall back to the English, with placeholders filled', 
   assert.equal(ev("tr('test.no_such_label {n}',{n:3})"), 'test.no_such_label 3', 'an unknown label comes back as it is');
   assert.equal(ev("trn('test.cats',1)"), '1 cat');
   assert.equal(ev("trn('test.cats',2)"), '2 cats');
-  assert.equal(ev("trn('peering_inbox.n_day_ago',1)"), '1 giorno fa');
-  assert.equal(ev("trn('peering_inbox.n_day_ago',3)"), '3 giorni fa');
+  assert.equal(ev("trn('slots.n_day_ago',1)"), '1 giorno fa');
+  assert.equal(ev("trn('slots.n_day_ago',3)"), '3 giorni fa');
 });
 
 test('text that old saves stored in English is still translated', () => {

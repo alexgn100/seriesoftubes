@@ -31,7 +31,7 @@ function renderLeft(){checkLayer();
   renderTabbar();
   if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
   const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
-  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',`${tr('common.networks')}${ibxOpen()?`<span class="cnt${ibxUrgent()?' red':''}">${ibxOpen()}</span>`:''}`]];
+  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',tr('common.networks')]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
   let h='';
   if(UI.left==='goals'){
@@ -72,7 +72,7 @@ function renderLeft(){checkLayer();
     if(!S.inc.length&&!hot.length&&!hotR.length&&!slow.length)h+=`<p class="empty">${tr('hud_and_panels.all_systems_green_enjoy_it_while')}</p>`;
     h+=`<div class="kv" style="margin-top:8px"><span>${tr('hud_and_panels.incidents_so_far')}</span><b>${S.stats.incidents}</b></div><div class="kv"><span>${tr('hud_and_panels.survived_with_no_impact')}</span><b>${S.stats.survived}</b></div>`;
   }else{
-    if(rule('inbox')&&(Object.keys(S.ixp).length||ibxOpen()||(S.inbox&&S.inbox.bot))){const n=ibxOpen(),u=ibxUrgent();h+=`<div class="ibx ibxcard"><div class="nm">📬 ${tr('common.peering_inbox')} ${n?`<span class="cnt${u?' red':''}">${n}</span>`:''}</div><div class="meta">${S.inbox&&S.inbox.bot?tr('hud_and_panels.large_peering_model_is_on_it'):u?trn('hud_and_panels.n_session_is_down_on_its',u):n?trn('hud_and_panels.n_message_waiting_for_an_answer',n):tr('common.inbox_zero')}</div><div class="btns">${btn(tr('common.open_inbox'),'inbox',{},'sm')}</div></div>`;}
+    if(Object.keys(S.ixp).length||ppol()!=='open')h+=pdeskCard();
     h+=`<p class="lead">${tr('hud_and_panels.every_network_on_the_map_traffic')}</p>`;
     {const nc=conns().length;if(nc)h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.all_connections_n',{n:nc}),'connOpen',{},'pink sm')}</div>`;}
     const where=netWhereIdx(),tl=NETS.filter(n=>n.tail),tlOn=tl.filter(n=>where(n.id).some(x=>x[2]==='ix')).length;

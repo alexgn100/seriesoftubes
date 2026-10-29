@@ -23,7 +23,7 @@ function utilitiesModal(city,message){if(!S)return;const cities=Object.keys(S.po
     <section><h3>${tr('utilities.ix_peering')}</h3><p class="lead">${tr('utilities.peering_note')}</p>
     <div class="btns">${btn(tr('utilities.join_route_servers',{n:rs}),'utilityRouteServers',{city},'pink',!rs)}${btn(tr('utilities.request_all',{n}),'utilityPeers',{city},'',!n)}</div>
     <p class="meta">${tr('utilities.route_server_note')}</p>
-    ${ppol()!=='open'?`<p class="why">${tr('link_panels.off_while_your_peering_policy_is',{pol:tr(PPOL_N[ppol()])})}</p>${btn(tr('common.peering_policy'),'inbox',{},'ghost sm')}`:''}
+    ${ppol()!=='open'?`<p class="why">${tr('link_panels.off_while_your_peering_policy_is',{pol:tr(PPOL_N[ppol()])})}</p>${btn(tr('common.peering_policy'),'leftTab',{t:'nets'},'ghost sm')}`:''}
     ${rows.map(r=>`<details><summary>${esc(ixName(r.ix))} · ${tr('utilities.peer_counts',{ready:r.requests.length,existing:r.existing,blocked:r.blocked.length})}</summary>
       ${r.blocked.map(b=>`<p class="meta"><b>${esc(NET[b.id].name)}</b>: ${esc(b.why)}</p>`).join('')}</details>`).join('')}</section>
     ${cities.length?`<section><label for="utilityCity">${tr('common.your_pop')}</label><div class="btns"><select id="utilityCity" style="max-width:100%">${cities.map(c=>`<option value="${c}"${c===city?' selected':''}>${esc(CITY[c].name)}</option>`).join('')}</select>${btn(tr('utilities.view_pop'),'utilityPick',{},'sm')}</div></section>${utilityKitHtml(city,true)}`:''}`);

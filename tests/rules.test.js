@@ -159,11 +159,10 @@ test('quick lead times: PNIs, dark fiber and own builds arrive in days (#151)', 
   assert.deepEqual(errors, []);
 });
 
-test('Change Freeze: no peering inbox, no hardware market, no sold-out routes', () => {
+test('Change Freeze: no hardware market, no sold-out routes', () => {
   const { ev, errors } = load();
   start(ev, { mode: 'normal', preset: 'freeze' });
-  ev("S.cash=1e9;ACT.buyIx({city:'fra',tier:1,signed:true});for(let i=0;i<60;i++)inboxDay(S.day+i)");
-  assert.equal(ev('S.inbox.items.length+S.inbox.seq'), 0, 'no mail');
+  ev("S.cash=1e9;ACT.buyIx({city:'fra',tier:1,signed:true})");
   ev('S.day=2000');
   assert.equal(ev("hwMul('rt')"), 1, 'no inflation');
   assert.equal(ev("hwCard()"), '');

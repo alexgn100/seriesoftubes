@@ -3,15 +3,15 @@
    these rules, not separate code: Normal comes as Change Freeze, On-call (the classic game) and BGP at 3 a.m.;
    Sandbox and Puzzles are presets too. Saves without rules load as On-call, so nothing changes for them.
    Scenarios and the weekly challenge run on On-call plus their own S.scn.rules (scnRule()). */
-const RULE_DEF={clock:true,chaos:'normal',lead:'real',market:true,inbox:true,money:'normal',gates:'ladder',mods:[]};
-const RULE_OK={clock:[true,false],chaos:['none','calm','normal','spicy'],lead:['real','quick'],market:[true,false],inbox:[true,false],money:['normal','infinite'],gates:['ladder','open']};
+const RULE_DEF={clock:true,chaos:'normal',lead:'real',market:true,money:'normal',gates:'ladder',mods:[]};
+const RULE_OK={clock:[true,false],chaos:['none','calm','normal','spicy'],lead:['real','quick'],market:[true,false],money:['normal','infinite'],gates:['ladder','open']};
 // i: icon, n: name, d: the one-line joke, x: what is different, in small print.
 const PRESETS={
- freeze:{i:'🧊',n:tr('rules.change_freeze'),d:tr('rules.nobody_touches_prod_even_the_backhoes'),x:tr('rules.a_third_of_the_outages_no_ddos'),clock:true,chaos:'calm',lead:'quick',market:false,inbox:false,money:'normal',gates:'ladder'},
- oncall:{i:'📟',n:tr('rules.on_call'),d:tr('rules.the_real_thing_your_pager_has'),x:tr('rules.real_lead_times_real_outages_a'),clock:true,chaos:'normal',lead:'real',market:true,inbox:true,money:'normal',gates:'ladder'},
- bgp:{i:'🔥',n:tr('rules.bgp_at_3_a_m'),d:tr('rules.everything_is_on_fire_and_it'),x:tr('rules.more_and_longer_outages_more_ddos'),clock:true,chaos:'spicy',lead:'real',market:true,inbox:true,money:'normal',gates:'ladder'},
- sandbox:{i:'🏖️',n:tr('common.sandbox'),d:tr('rules.a_billion_dollars_every_unlock_your'),x:tr('rules.infinite_money_everything_unlocked_quick'),clock:true,chaos:'none',lead:'quick',market:true,inbox:true,money:'infinite',gates:'open'},
- puzzle:{i:'🧩',n:tr('rules.puzzle'),d:tr('rules.one_small_network_one_tricky_goal'),x:tr('rules.no_clock_no_bills_nothing_breaks'),clock:false,chaos:'none',lead:'quick',market:false,inbox:false,money:'normal',gates:'open'},
+ freeze:{i:'🧊',n:tr('rules.change_freeze'),d:tr('rules.nobody_touches_prod_even_the_backhoes'),x:tr('rules.a_third_of_the_outages_no_ddos_pnis'),clock:true,chaos:'calm',lead:'quick',market:false,money:'normal',gates:'ladder'},
+ oncall:{i:'📟',n:tr('rules.on_call'),d:tr('rules.the_real_thing_your_pager_has'),x:tr('rules.real_lead_times_real_outages_a_real'),clock:true,chaos:'normal',lead:'real',market:true,money:'normal',gates:'ladder'},
+ bgp:{i:'🔥',n:tr('rules.bgp_at_3_a_m'),d:tr('rules.everything_is_on_fire_and_it'),x:tr('rules.more_and_longer_outages_more_ddos'),clock:true,chaos:'spicy',lead:'real',market:true,money:'normal',gates:'ladder'},
+ sandbox:{i:'🏖️',n:tr('common.sandbox'),d:tr('rules.a_billion_dollars_every_unlock_your'),x:tr('rules.infinite_money_everything_unlocked_quick'),clock:true,chaos:'none',lead:'quick',market:true,money:'infinite',gates:'open'},
+ puzzle:{i:'🧩',n:tr('rules.puzzle'),d:tr('rules.one_small_network_one_tricky_goal'),x:tr('rules.no_clock_no_bills_nothing_breaks'),clock:false,chaos:'none',lead:'quick',market:false,money:'normal',gates:'open'},
 };
 const NORMAL_PRESETS=['freeze','oncall','bgp'];
 // How often things break, against the classic game. Spicy outages also last half as long again.
@@ -42,7 +42,7 @@ function stretchInc(i){if(rule('chaos')!=='spicy'||!i||!(i.until>S.day)||i.start
   else if(['crash','power','oops','cleaner','maint','shutdown'].includes(T))f(S.pops[r],'down');
   else if(T==='ring')f(S.pops[r],'ringcut');else if(T==='ac')f(S.pops[r],'hot');
   else if(T==='transit'||T==='prepend')f(S.transit.find(t=>t.id===r),'down');
-  else if((T==='ixloop'||T==='maxpfx')&&E.ixdown)f(E.ixdown,r);else if(T==='fabric'&&E.fab)f(E.fab,r);
+  else if(T==='ixloop'&&E.ixdown)f(E.ixdown,r);else if(T==='fabric'&&E.fab)f(E.fab,r);
   else if(T==='lacp'){const [k,...x]=String(r).split(':'),id=x.join(':');f(k==='ix'?E.ixlacp&&E.ixlacp[id]:(k==='t'?S.transit:S.pni).find(o=>o.id===id)?.lacp,'until');}
   else if(T==='rpki'||T==='hijack')f(E.rpki,'until');else if(T==='leak'||T==='pmtud')f(E[T],'until');else if(T==='krroute'||T==='depeer')f(E,T);
   else if(T==='ddos')f(ddosAll(S,false).find(a=>a.id===i.atk),'until');}

@@ -22,13 +22,7 @@ Object.assign(ACT,{
  pniChase:({id})=>{const p=S.pni.find(x=>x.id===id);if(!p||(pniOn(p)&&!p.up))return;const r=Math.random();
    if(r<0.15){if(p.up)p.up.ready=Math.max(S.day+1,p.up.ready-30);else p.ready=Math.max(S.day+1,p.ready-30);toast(tr('sites_peering_caches.your_account_manager_found_the_order'),'good');}
    else toast(pick([tr('sites_peering_caches.it_is_with_the_provisioning_team'),tr('sites_peering_caches.we_are_waiting_on_the_colo'),tr('sites_peering_caches.your_ticket_was_merged_into_another'),tr('sites_peering_caches.could_you_resend_the_loa_you'),tr('sites_peering_caches.your_account_manager_is_on_paternity')]));after();},
- inbox:()=>{inboxModal();},
- inboxAct:({id,a})=>{if(!['accept','decline','raise','keep'].includes(a))return;ibxAnswer(+id,a);after();inboxModal();},
- inboxPol:({p})=>{if(!PPOL.includes(p))return;ibx().pol=p;after();inboxModal();},
- inboxRaiseAll:()=>{const I=ibx(),mp=I.items.filter(x=>x.k==='mp');if(!mp.length)return;const leaks=mp.filter(x=>x.leak).length;for(const x of mp)ibxAnswer(x.id,'raise',true);
-   toast(leaks?trn('sites_peering_caches.raised_n_max_prefix_limits_one',leaks,{n:mp.length,k:leaks}):tr('sites_peering_caches.raised_n_max_prefix_limits_all',{n:mp.length}),leaks?'bad':'good');after();inboxModal();},
- inboxAll:({a})=>{if(a!=='accept'&&a!=='decline')return;const I=ibx();for(const x of I.items.filter(x=>x.k==='req'))ibxAnswer(x.id,a,true);after();inboxModal();},
- inboxBot:({on})=>{const I=ibx();if(+on){if(I.bot||!spend(AI_MO))return;I.bot=true;ibxLog(N_('sites_peering_caches.hello_i_am_large_peering_model'),{});toast(tr('sites_peering_caches.large_peering_model_is_hired_your',{price:fmt$(20e6)}),'good');}else{I.bot=false;toast(tr('sites_peering_caches.the_ai_is_gone_it_left'));}after();inboxModal();},
+ peerPol:({p})=>{if(!PPOL.includes(p))return;S.ppol=p;after();},
  cancelPni:({id,ok})=>{if(!ok&&UI.confirm!==id){UI.confirm=id;renderPanel();return;}S.pni=S.pni.filter(p=>p.id!==id);UI.confirm=null;after();},
  cache:({city,net})=>{const n=NET[net];if(!n||!n.cache||!S.pops[city])return;if((R.demTo[net]||0)<n.cache.min){toast(tr('sites_peering_caches.net_says_not_yet_send_them',{net:esc(n.name),min:n.cache.min}),'bad');sfx('err');return;}if(!portGate(city,1))return;
    {const hv=S.caches.filter(x=>x.city===city&&x.net===net),nb=hv.filter(x=>x.site==='b').length;S.caches.push({id:uid(),city,net,site:S.pops[city].site2&&nb<hv.length-nb?'b':'a'});}toast(tr('sites_peering_caches.cache_installed_in_city_net_shipped',{cache:esc(n.cache.name),city:CITY[city].name,net:esc(n.name),mo:fmt$(CACHE_MO)}),'good');sfx('build');after();},
