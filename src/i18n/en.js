@@ -2013,6 +2013,7 @@
 "hud_and_panels.lv_n":"Lv {n}",
 "hud_and_panels.n_incident":{"one":"{n} incident","other":"{n} incidents"},
 "hud_and_panels.n_message_waiting_for_an_answer":{"one":"{n} message waiting for an answer.","other":"{n} messages waiting for an answer."},
+"hud_and_panels.n_more_networks":{"one":"+{n} more network","other":"+{n} more networks"},
 "hud_and_panels.n_networks_d_days_left":"{n} networks · {d} days left",
 "hud_and_panels.n_new_notification":{"one":"{n} new notification","other":"{n} new notifications"},
 "hud_and_panels.n_rules_live":"{n} rules live",

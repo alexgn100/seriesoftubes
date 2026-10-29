@@ -30,7 +30,7 @@ const ACT={
  tab:({t})=>{UI.tab=t;UI.confirm=null;renderPanel();},
  leftTab:({t})=>{UI.left=t;UI.leftOpen=true;renderLeft();},
  netFocus:({id})=>{if(!NET[id])return;$('dash').hidden=true;UI.netFocus=id;UI.nf='all';UI.left='nets';UI.leftOpen=true;UI.sel=null;renderPanel();renderLeft();const b=$('leftBody');if(b)b.scrollTop=0;},
- netFilter:({f})=>{UI.nf=f==='out'?'out':'all';UI.netFocus=null;$('dash').hidden=true;UI.left='nets';UI.leftOpen=true;UI.sel=null;renderPanel();renderLeft();const b=$('leftBody');if(b)b.scrollTop=0;},
+ netFilter:({f})=>{UI.nf=f==='out'?'out':'all';listReset('nets');UI.netFocus=null;$('dash').hidden=true;UI.left='nets';UI.leftOpen=true;UI.sel=null;renderPanel();renderLeft();const b=$('leftBody');if(b)b.scrollTop=0;},
  meetGo:({city})=>{if(!isCity(city))return;$('dash').hidden=true;ACT.focusCity({city});if(S.pops[city]){UI.tab='peer';renderPanel();}},
  toggleLeft:()=>{UI.leftOpen=!UI.leftOpen;renderLeft();},
  phoneTab:({t})=>{if(!['goals','deals','noc','nets'].includes(t))return;if($('modal').classList.contains('link-check'))closeModal();haptic(8);if(UI.leftOpen&&UI.left===t&&!UI.sel){UI.leftOpen=false;}else{UI.left=t;UI.leftOpen=true;UI.sel=null;renderPanel();}$('left').classList.remove('full');renderLeft();},

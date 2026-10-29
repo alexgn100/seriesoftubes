@@ -79,8 +79,11 @@ function renderLeft(){checkLayer();
     const foc=UI.netFocus&&NET[UI.netFocus]?NET[UI.netFocus]:null,out=!foc&&UI.nf==='out',lostN=ntLost().length;
     h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('common.all_networks'),'netFilter',{f:'all'},!foc&&!out?'sm':'ghost sm')}${btn(tr('hud_and_panels.out_of_reach_without_transit_n',{n:lostN}),'netFilter',{f:'out'},out?'sm':'ghost sm')}</div>`;
     if(out&&!lostN)h+=`<p class="empty">${tr('hud_and_panels.nothing_every_network_is_reachable')}</p>`;
-    for(const n of foc?[foc]:out?ntLost():NETS){if(n.tail&&!UI.tailOpen&&!foc&&!out)continue;
+    // Shown 100 at a time like the dashboard lists: every country's own eyeballs made this list long (2.0).
+    const nl=(foc?[foc]:out?ntLost():NETS).filter(n=>!n.tail||UI.tailOpen||foc||out);
+    for(const n of nl.slice(0,listN('nets'))){
       h+=`<div class="row">${logo(n)}<div class="grow"><div class="nm">${esc(n.name)} <span class="meta">AS${n.asn}</span></div><div class="meta"><span class="tag ${n.type}">${TYPE_L[n.type]}</span> <span class="tag ${n.pol}">${n.pol}</span> · ${tr('hud_and_panels.p_of_traffic',{p:(NSH[n.id]*100).toFixed(1)})}${n.price?` · ${tr('hud_and_panels.transit_price_gbps',{price:(n.price*S.priceMul).toFixed(2)})}`:''}</div><div class="meta">${esc(n.blurb)}</div>${netWhere(n,where)}${(foc||out)&&!R.nt[n.id]?`<p class="why">${esc(offTransitHint(n.id))}</p>`:''}${(foc||out)&&coneVia(n.id)&&(R.cone[n.id]||!R.nt[n.id])?`<p class="meta">${R.cone[n.id]?tr('hud_and_panels.reached_through_the_customer_cone_of',{net:esc((NET[R.cone[n.id]]||coneVia(n.id)).name)}):tr('hud_and_panels.buys_transit_from_net_peer_with',{net:esc(coneVia(n.id).name)})}</p>`:''}${foc||out&&!R.nt[n.id]?meetLine(n,foc?24:4):''}</div></div>`;}
+    h+=listMore('nets',nl.length,n=>trn('hud_and_panels.n_more_networks',n));
     if(!foc&&!out)h+=`<div class="row"><div class="grow"><div class="nm">${tr('hud_and_panels.the_long_tail')} <span class="meta">${tr('hud_and_panels.n_small_networks',{n:tl.length})}</span></div><div class="meta">${tr('hud_and_panels.p_of_traffic_between_them_scattered',{p:(tl.reduce((a,n)=>a+NSH[n.id],0)*100).toFixed(1),n:tlOn})}</div></div>${btn(UI.tailOpen?tr('common.hide'):tr('common.show'),'tailTog',{},'ghost sm')}</div>`;
   }
   if(h!==UI._lh){UI._lh=h;morph($('leftBody'),h);}

@@ -2014,6 +2014,7 @@
 "hud_and_panels.lv_n":"Lv {n}",
 "hud_and_panels.n_incident":{"one":"{n} Störung","other":"{n} Störungen"},
 "hud_and_panels.n_message_waiting_for_an_answer":{"one":"{n} Nachricht wartet auf eine Antwort.","other":"{n} Nachrichten warten auf eine Antwort."},
+"hud_and_panels.n_more_networks":{"one":"+{n} weiteres Netz","other":"+{n} weitere Netze"},
 "hud_and_panels.n_networks_d_days_left":"{n} Netze · noch {d} Tage",
 "hud_and_panels.n_new_notification":{"one":"{n} neue Benachrichtigung","other":"{n} neue Benachrichtigungen"},
 "hud_and_panels.n_rules_live":"{n} Regeln aktiv",

@@ -2012,6 +2012,7 @@
 "hud_and_panels.lv_n":"Niv. {n}",
 "hud_and_panels.n_incident":{"one":"{n} incident","other":"{n} incidents"},
 "hud_and_panels.n_message_waiting_for_an_answer":{"one":"{n} message attend une réponse.","other":"{n} messages attendent une réponse."},
+"hud_and_panels.n_more_networks":{"one":"+{n} autre réseau","other":"+{n} autres réseaux"},
 "hud_and_panels.n_networks_d_days_left":"{n} réseaux · {d} j restants",
 "hud_and_panels.n_new_notification":{"one":"{n} nouvelle notification","other":"{n} nouvelles notifications"},
 "hud_and_panels.n_rules_live":"{n} règles actives",
