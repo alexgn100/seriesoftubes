@@ -29,7 +29,7 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `30-networks/` | Other ASes (`NETS`), rival exchanges (`XIX`), the long tail, traffic shares (`NSH`) |
 | `40-progress/` | Customer types (`BIZ_T`), `LEVELS` and their requirements, `GOALS`; the per-save ruleset (`S.rules`, `rule()`, `PRESETS`, `chaosMul()`, `leadDays()`) |
 | `50-state.js` | The globals `S`, `R`, `UI`; `emptyR()` |
-| `60-features/` | Banks and loans, scenarios and the weekly challenge, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
+| `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
 | `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering inbox, peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
 | `80-simulation/` | Dijkstra, RouteScript, `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
 | `85-incidents/` | `addInc()`, DDoS and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()` |
@@ -72,6 +72,8 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | `.github/workflows/ci.yml` | Tests and build on every push and PR |
 | `.github/workflows/auto-release.yml` | On a `package.json` version bump on `main`: test, tag, GitHub release from the CHANGELOG, start the deploy |
 | `.github/workflows/release.yml` | Builds and deploys to GitHub Pages, the only workflow that can |
+| `.github/workflows/weekly-puzzle.yml` | Sunday 03:37 UTC: makes the week's puzzle, commits it to `main` (data only, no release) and starts `release.yml` for the live release tag with `weekly=true` |
+| `scripts/weekly-puzzle.js`, `site/puzzles/weekly/` | The weekly puzzle generator and its output, one `<key>.json` per week plus `index.json` (see below) |
 | `docs/adr/` | Decisions: GitHub Pages only (0001), one page assembled at build (0002), translations by label (0003) |
 
 ## Globals
@@ -146,6 +148,32 @@ Served share per city (`sfOf`) drives eyeball revenue and customer mood.
   patches only what changed. Buttons whose action changed are replaced, so taps stay safe (#44).
 - The map is a canvas drawn every frame by `draw()`. Zoomed out (`lodFar()`) it uses
   a simplified style; parallel waves are grouped by `linkGroups()`.
+
+## The weekly puzzle
+
+A puzzle week runs from Sunday 06:00 Berlin time to the next Sunday 06:00, and is named after the ISO week of
+its Monday (the week starting Sunday 1 November 2026 is `2026-W45`); `pzWeekKey()` and `pzWeekStart()` in
+`src/game/60-features/93-puzzles-weekly.js` handle summer time and the year boundary.
+
+Every Sunday `weekly-puzzle.yml` runs `scripts/weekly-puzzle.js`, which loads the real game headless, picks a
+theme the last three weeks did not have (region tour, ring, detour around a hub, ocean crossing, island hopping,
+latency sprint) and cities the last four weeks did not use, and searches for the cheapest build that connects
+them and the cheapest one that survives any single cut (a whole cable, or a trench). The budget sits just above
+that N-1 build and, where there is room, below the obvious "second path along every hop", so three stars take
+some thought. Both reference builds are then played through the game's own actions and must earn one and three
+stars, or the puzzle is thrown away. The file holds only ids, numbers and translation labels with their fill-ins
+(`{"v":1,"key","theme","cities","via","avoid","budget","twist","name":{"l","p"},"joke":{"l","p"},"ref"}`).
+`--check` re-validates every file the way the game does.
+
+The game fetches `puzzles/weekly/<key>.json` (relative, same origin) only when the Puzzles list opens, and checks
+it field by field (`pzWkValid()`): known fields, playable cities, labels from the theme's own list, sane numbers.
+When it is missing, offline or wrong, the seeded weekly (`pzWeekly()`) stands in, so the weekly puzzle always
+works. The service worker fetches these files network-first and keeps a copy for offline play.
+
+The weekly ships without a release: the workflow commits only `site/puzzles/weekly/` to `main` (no version bump,
+so `auto-release.yml` stays quiet) and starts `release.yml` from the live release's tag with `weekly=true`, which
+rebuilds that exact release with every weekly file from `main` and deploys it. Every release build takes the
+weekly files from `main` too, so no deploy ever drops a published week.
 
 ## Saves, imports and migration
 

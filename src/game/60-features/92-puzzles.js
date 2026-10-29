@@ -6,7 +6,7 @@ const PZ_KEY='sot-puzzles',PZ_YEAR=12;
 const pzOn=()=>!!(S&&S.mode==='puzzle'&&S.pz);
 const pzDef=id=>PZ.find(p=>p.id===id)||null;
 const pzKind=c=>!pzOn()?null:S.pz.cities.includes(c)?'goal':S.pz.via.includes(c)?'via':S.pz.avoid.includes(c)?'avoid':null;
-const pzName=d=>d.id==='weekly'?tr('puzzles.weekly_puzzle_key',{key:d.key}):d.n;
+const pzName=d=>d.id==='weekly'?(d.wn?pzTxt(d.wn):tr('puzzles.weekly_puzzle_key',{key:d.key})):d.n;
 const pzStarStr=n=>'⭐'.repeat(n)+'⬜'.repeat(3-n);
 // ---------- progress (localStorage, never trusted) ----------
 function pzClean(j){const o={s:{},wk:{},streak:{last:null,n:0,best:0}};if(!j||typeof j!=='object')return o;
@@ -64,9 +64,7 @@ function pzOneMore(e){const P=S.pz;if(e.stars!==2||!e.cheap||e.n1)return false;c
     if(e.spend+cost>P.budget)continue;const ls=[...S.links,{id:'pz?',a,b,cable:r.cab,trench:r.cab?'cab:'+r.cab:'pz?'}];if(P.ring&&!pzRingOk(ls))continue;
     if([...new Set(ls.map(pzUnit))].every(u=>{const g=pzComp(ls,u,cs0);return P.cities.every(c=>g.has(c));}))return true;}}
   return false;}
-// ---------- the weekly puzzle: the same for everyone, seeded by the ISO week like the weekly challenge ----------
-function pzWeekKey(dt){const {y,w}=isoWeek(dt);return `${y}-W${String(w).padStart(2,'0')}`;}
-function pzPrevKey(key){const m=/^(\d{4})-W(\d{2})$/.exec(key);if(!m)return null;return pzWeekKey(new Date(+m[1],0,4+(+m[2]-2)*7));}
+// ---------- the seeded weekly puzzle: the same for everyone, and the stand-in when the published one (93-puzzles-weekly.js) is not there ----------
 function pzWeekly(dt){const key=pzWeekKey(dt||new Date());let r=hstr('puzzle|'+key)||1;const nx=()=>{r=(Math.imul(r,1103515245)+12345)>>>0;return r/4294967296;};
   const pool=PZ_WEEK_POOLS[Math.floor(nx()*PZ_WEEK_POOLS.length)].slice(),n=4+Math.floor(nx()*2),cities=[];
   while(cities.length<n&&pool.length)cities.push(pool.splice(Math.floor(nx()*pool.length),1)[0]);
@@ -88,7 +86,7 @@ const pzToastsClear=()=>{$('toasts').textContent='';};
 function pzFlush(){save(true);UI.pzKeep=UI.gzBusy||saveFailing()?S:null;}
 function pzBegin(def){if(!def)return;
   const go=()=>{newGame(pzName(def),def.cities[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
-    S.pz={id:def.id,key:def.key||null,cities:def.cities.slice(),via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,minG:def.minG||0,lat:def.lat?def.lat.slice():null};
+    S.pz={id:def.id,key:def.key||null,cities:def.cities.slice(),via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,minG:def.minG||0,lat:def.lat?def.lat.slice():null,wn:def.wn||null,wj:def.wj||null,theme:def.theme||null};
     UI.pzHist=[];UI.pzTop=0;UI.speed=0;UI.resumeSpeed=null;UI.started=true;UI.sel=null;UI.leftOpen=false;UI.confirm=null;UI._pzh=null;
     $('dash').hidden=true;$('bankBox').hidden=true;closeModal();pzToastsClear();document.body.classList.add('pz');
     compute();pzCam();renderAll();track('puzzle_'+def.id);

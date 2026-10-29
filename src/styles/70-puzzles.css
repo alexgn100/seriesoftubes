@@ -47,3 +47,8 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
   body.pz #hint{bottom:12px !important;left:30% !important}
   body.pz #toasts{left:8px !important;transform:none !important;width:calc(48% - 16px) !important}
 }
+/* The weekly puzzle: a badge on the Puzzles door and in the list while this week's puzzle is unplayed. */
+.pznew{display:inline-block;font:900 10.5px/1.2 var(--body);font-style:normal;text-transform:uppercase;letter-spacing:.04em;background:var(--me);color:#fff;border:2px solid var(--ink);border-radius:999px;padding:1px 7px;white-space:nowrap;vertical-align:1px}
+.door .pznew{position:absolute;top:-9px;right:8px;transform:rotate(4deg);animation:pznew 2.4s ease-in-out infinite}
+@keyframes pznew{50%{transform:rotate(-3deg) scale(1.08)}}
+.scn.wk{flex-wrap:wrap}.scn.wk .grow{min-width:0;flex:1 1 200px}.pzcd{font-weight:800;color:var(--ink)}

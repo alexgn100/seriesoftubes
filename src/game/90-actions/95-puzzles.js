@@ -2,8 +2,8 @@ Object.assign(ACT,{
  // The puzzle list. The ruleset's title-screen door calls this.
  puzzleMenu:()=>{if(S&&UI.started&&!pzOn())UI.nm=S.name;pzMenu();},
  pzStart:({id})=>{const d=pzDef(id);if(!d||!pzPackOpen(d.pack))return;pzBegin(d);},
- pzWeekly:()=>pzBegin(pzWeekly()),
- pzRetry:()=>{if(!pzOn())return;pzBegin(S.pz.id==='weekly'?pzWeekly():pzDef(S.pz.id));},
+ pzWeekly:()=>{if(pzWkLoading())return;pzBegin(pzWkDef());},
+ pzRetry:()=>{if(!pzOn())return;pzBegin(S.pz.id==='weekly'?pzWkDef():pzDef(S.pz.id));},
  pzLeave:()=>{if(pzOn())pzLeave();},
  pzPop:({city})=>{if(!pzOn()||S.pops[city]||!['goal','via'].includes(pzKind(city)))return;pzSnap();S.pops[city]=pzNewPop();sfx('build');haptic(10);floater(CITY[city].x,CITY[city].y-30,tr('common.new_pop'),'#FF4F9A');pzAfter();},
  pzRmPop:({city})=>{if(!pzOn()||!S.pops[city])return;pzSnap();delete S.pops[city];S.links=S.links.filter(l=>l.a!==city&&l.b!==city);sfx('click');UI.sel=null;pzAfter();},
