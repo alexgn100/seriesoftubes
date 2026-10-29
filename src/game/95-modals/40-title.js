@@ -8,20 +8,20 @@ function homePick(){const cs=Object.keys(CITY).filter(homeOk),cur=START5.include
 // A dropdown can't wrap, so long names (Yuzhno-Sakhalinsk) get cut on phones: the line above it says the whole name.
 const homeWhat=()=>START5.includes(UI.startCity)?trn('title.n_more_cities_with_transit',Object.keys(CITY).filter(c=>homeOk(c)&&!START5.includes(c)).length):`${esc(CITY[UI.startCity].name)} · ${esc(REG[CITY[UI.startCity].reg])}`;
 function showTitle(){
-  const sv=loadSave();
+  const list=slotIdx(true),top=slotTop(list),many=list.length>1||(list.length===1&&list[0]!==top);
   if(UI.nm==null)UI.nm=randomNetworkName();
   const starts=[['fra',tr('title.crossroads_of_europe_de_kicks_ix')],['nyc',tr('title.huge_eyeball_market_pricey')],['sin',tr('title.asia_hub_great_peering_far_from')],['sao',tr('title.big_hungry_market_few_providers')],['syd',tr('title.hard_mode_pricey_everything')]];
   openModal(`<div class="title-art"><svg width="74" height="74" viewBox="0 0 74 74" aria-hidden="true"><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#1E2640" stroke-width="16" stroke-linecap="round"/><path d="M10 60V40c0-14 10-24 24-24h18" fill="none" stroke="#FFD23F" stroke-width="9" stroke-linecap="round"/><circle cx="58" cy="16" r="11" fill="#FF4F9A" stroke="#1E2640" stroke-width="4"/><circle cx="21" cy="44" r="3" fill="#fff"/><circle cx="30" cy="27" r="3" fill="#fff"/></svg>
   <h1>Series<br>of <span>Tubes</span></h1></div>
   <p class="tagline">${tr('title.build_an_internet_lay_fiber_between')}</p>${plugHtml(false)}${isPhone()?installRow():''}
-  ${sv?`<div class="btns" style="margin-bottom:6px">${btn(tr('title.continue_name_date',{name:esc(sv.name),date:dateStr(sv.day)}),'cont',{},'pink big')}</div>`:''}
+  ${top?`<div class="btns" style="margin-bottom:6px">${btn(tr('title.continue_name_date',{name:esc(top.name||tr('common.unnamed_network')),date:dateStr(top.day)}),'cont',{id:top.id},'pink big')}</div>`:''}
+  ${many?slotsHtml():''}
   ${doorsHtml()}
   <label class="f" for="nmIn">${tr('title.name_your_network')}</label><div class="network-name"><input class="t" id="nmIn" maxlength="24" value="${esc(UI.nm)}" autocomplete="off">${btn(tr('common.another_one'),'randomName',{},'ghost sm')}</div>
   <label class="f" id="homeLbl">${tr('title.pick_your_home_city')}</label><div class="starts homes">${starts.map(([c,d])=>`<button class="start ${UI.startCity===c?'on':''}" data-city="${c}" data-act="pickStart" data-args='{"city":"${c}"}'><b>${CITY[c].name}</b><span>${d}</span></button>`).join('')}<label class="start own ${START5.includes(UI.startCity)?'':'on'}" for="homeSel"><b>${tr('title.anywhere_else')}</b><span id="homeWhat">${homeWhat()}</span>${homePick()}</label></div>
   <label class="f" for="langTitle">${tr('common.language')}</label>${langPick('langTitle')}
-  <div class="btns cta tcta" style="margin-top:16px">${btn(sv?tr('common.start_a_new_network'):tr('common.start_building'),'start',{},'big')}${btn(tr('common.how_to_play'),'help',{},'ghost')}${btn(tr('common.import_a_save'),'importPick',{},'ghost')}${btn(tr('common.settings'),'settings',{},'ghost')}</div><p class="ver">v${APP_VERSION} · <a href="https://github.com/fjaeckel/seriesoftubes" target="_blank" rel="noopener">${tr('title.source_on_github')}</a> · <a href="${SIGNAL}" target="_blank" rel="noopener">${tr('title.chat_on_signal')}</a> · ${tr('title.cookieless_stats_no_tracking')}</p>`);
+  <div class="btns cta tcta" style="margin-top:16px">${btn(list.length?tr('common.start_a_new_network'):tr('common.start_building'),'start',{},'big')}${btn(tr('common.how_to_play'),'help',{},'ghost')}${btn(tr('common.import_a_save'),'importPick',{},'ghost')}${btn(tr('common.settings'),'settings',{},'ghost')}</div><p class="ver">v${APP_VERSION} · <a href="https://github.com/fjaeckel/seriesoftubes" target="_blank" rel="noopener">${tr('title.source_on_github')}</a> · <a href="${SIGNAL}" target="_blank" rel="noopener">${tr('title.chat_on_signal')}</a> · ${tr('title.cookieless_stats_no_tracking')}</p>`);
   $('nmIn').addEventListener('input',e=>{UI.nm=e.target.value;});
-  if(sv){S=migrate(sv);compute();}
 }
 // "What's new": shown once to returning players after an update, or on demand.
 function whatsNew(returning,force){

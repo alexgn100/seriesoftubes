@@ -122,7 +122,7 @@ test('picking a language saves the choice and the game, then reloads', () => {
   ev('ACT.start({});dayTick()');
   ev("ACT.langSet({v:'it'})");
   assert.equal(ev("localStorage.getItem('sot-lang')"), 'it');
-  assert.ok(ev("localStorage.getItem('sot-save-v1')"));
+  assert.ok(ev("slotRaw(UI.slot)"));
   ev("ACT.langSet({v:'klingon'})");
   assert.equal(ev("localStorage.getItem('sot-lang')"), 'it');
 });
@@ -130,7 +130,7 @@ test('picking a language saves the choice and the game, then reloads', () => {
 test('a scenario started in English shows its Italian name after switching', () => {
   const en = load();
   en.ev("ACT.startScn({id:'stg'});save()");
-  const { ev } = load({ lang: 'it', storage: { 'sot-save-v1': en.ev("localStorage.getItem('sot-save-v1')") } });
+  const { ev } = load({ lang: 'it', storage: { 'sot-save-v1': en.ev("slotRaw(UI.slot)") } });
   const name = ev("SCN.find(x=>x.id==='stg').n");
   assert.notEqual(name, en.ev("SCN.find(x=>x.id==='stg').n"));
   assert.ok(ev("document.getElementById('hAsn').textContent").includes(name));

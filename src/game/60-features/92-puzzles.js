@@ -81,9 +81,9 @@ function pzShareText(e){const P=S.pz;return tr('puzzles.share_line',{what:P.id==
 // ---------- entering and leaving ----------
 // Toasts from one world never carry over into the other (their buttons act on the S they came from).
 const pzToastsClear=()=>{$('toasts').textContent='';};
-// The running game gets its usual save first, so leaving the puzzle can load it back exactly as booting does. A huge
-// save is compressed in the background and may not have landed yet, so the game object is kept in memory too.
-function pzFlush(){save(true);UI.pzKeep=UI.gzBusy||saveFailing()?S:null;}
+// The running game gets its usual save first and is kept in memory, set aside: save() keeps writing it to its slot
+// (leaving the page mid-puzzle), and leaving the puzzle picks it up again.
+function pzFlush(){save(true);UI.pzKeep=S;}
 function pzBegin(def){if(!def)return;
   const go=()=>{newGame(pzName(def),def.cities[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
     S.pz={id:def.id,key:def.key||null,cities:def.cities.slice(),via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,minG:def.minG||0,lat:def.lat?def.lat.slice():null,wn:def.wn||null,wj:def.wj||null,theme:def.theme||null};
@@ -96,7 +96,9 @@ function pzBegin(def){if(!def)return;
   if(live)pzFlush();go();}
 function pzLeave(){const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
-    if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){S=null;UI.started=false;}}}
+    if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){console.error('[tubes] loading the network failed',e);S=null;UI.started=false;}}
+    // It cannot be loaded back: marked damaged (kept, so it can be exported), and the player is told.
+    if(UI.slot&&(sv||UI.loadBad)){slotBroke(UI.slot);return;}}
   renderAll();showTitle();}
 // The camera frames the puzzle's cities beside the puzzle card: left on wide screens, right on phones on their side, a bottom sheet on phones.
 function pzCam(){const cs=[...S.pz.cities,...S.pz.via].map(c=>CITY[c]),x0=cs[0].x;let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;

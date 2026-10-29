@@ -335,7 +335,7 @@ test('saves: old saves load with no intern and everything off, settings survive 
   assert.equal(ev('S.ops.intern'), null);
   assert.equal(ev('Object.values(S.ops.on).some(Boolean)'), false);
   hire(ev);
-  ev("on=1;S.ops.on.pni=true;S.ops.p.pni={g:50,tier:2,paid:true};S.ops.cap.pni=1e6;S.ops.skip.fra=['caches'];save();S=migrate(JSON.parse(localStorage.getItem('sot-save-v1')))");
+  ev("on=1;S.ops.on.pni=true;S.ops.p.pni={g:50,tier:2,paid:true};S.ops.cap.pni=1e6;S.ops.skip.fra=['caches'];save();S=migrate(JSON.parse(slotRaw(UI.slot)))");
   assert.equal(ev("S.ops.intern==='kevin'&&S.ops.on.pni&&S.ops.p.pni.tier===2&&S.ops.cap.pni===1e6&&S.ops.skip.fra[0]==='caches'"), true);
   ev(`S.ops={intern:'mallory',on:{transit:'yes',hack:true},p:{transit:{x:99,prov:'nobody'}},cap:{transit:-5},spent:{transit:'lots'},skip:{atlantis:['transit'],fra:['ix','transit']},
     log:[{d:1,i:'kevin',r:[['transit',2,['fra +1×100G','<img>']],['evil',1,[]]],f:99,c:'fra'},'junk'],floor:3,tpl:{bb:'no'}};S=migrate(S)`);

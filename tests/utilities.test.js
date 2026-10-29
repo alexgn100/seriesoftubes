@@ -23,7 +23,7 @@ test('redundancy kit matches normal purchases, including cash, monthly costs and
   const before = a.ev('JSON.stringify(S)');
   a.ev("ACT.utilityKit({city:'fra',cost:0})");
   assert.equal(a.ev('JSON.stringify(S)'), before, 'repeat does not buy more hardware');
-  a.ev("save();S=migrate(JSON.parse(localStorage.getItem('sot-save-v1')));compute()");
+  a.ev("save();S=migrate(JSON.parse(slotRaw(UI.slot)));compute()");
   assert.equal(a.ev('S.pops.fra.gen && S.pops.fra.site2 && S.pops.fra.routers===2'), true);
   assert.deepEqual(a.errors, []);
   assert.deepEqual(b.errors, []);

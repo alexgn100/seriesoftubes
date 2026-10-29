@@ -86,7 +86,7 @@ test('one-site requests add only A, then a new second site gets exactly its miss
   ev("ACT.utilityKit({city:'fra',cost:utilityKit('fra').cost});R.demTo=Object.fromEntries(NETS.filter(n=>n.cache).map(n=>[n.id,n.cache.min]));ACT.utilityCaches({city:'fra',quote:utilityCaches('fra').key})");
   assert.equal(ev('S.caches.length'), 10);
   assert.equal(ev("NETS.filter(n=>n.cache).every(n=>['a','b'].every(s=>S.caches.filter(c=>c.net===n.id&&c.site===s).length===1))"), true);
-  ev("save();S=migrate(JSON.parse(localStorage.getItem('sot-save-v1')));compute()");
+  ev("save();S=migrate(JSON.parse(slotRaw(UI.slot)));compute()");
   assert.equal(ev('S.caches.length'), 10);
   assert.equal(ev("S.caches.filter(c=>c.site==='b').length"), 5);
   assert.deepEqual(errors, []);

@@ -169,16 +169,18 @@ test('no clock in a puzzle: days never pass, nothing breaks, no bills', () => {
 
 test('the main save is byte-identical before and after playing and solving a puzzle', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true)");
-  const before = ev("localStorage.getItem('sot-save-v1')");
+  ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true);window.__slot=UI.slot");
+  let before = ev("slotRaw(UI.slot||window.__slot)");
   const name = ev('S.name'), day = ev('S.day');
   ev('ACT.puzzleMenu({})');
   assert.match(ev("document.getElementById('modalCard').textContent"), /Hello, World/);
   ev("ACT.pzStart({id:'hello'})");
   assert.equal(ev('S.mode'), 'puzzle');
+  before = ev("slotRaw(window.__slot)");// entering saves the network once more (a new stamp, the same game)
+  assert.equal(JSON.parse(before).name, name);
   build(ev, REF.hello.three);
   ev("save(true);for(let i=0;i<5;i++)frame(performance.now()+6000*i);window.dispatchEvent(new Event('pagehide'));ACT.exportSave({})");
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before, 'untouched while in the puzzle');
+  assert.equal(ev("slotRaw(UI.slot||window.__slot)"), before, 'untouched while in the puzzle');
   assert.equal(ev("JSON.parse(localStorage.getItem('sot-puzzles')).s.hello.st"), 3, 'the stars are kept');
   ev('ACT.pzLeave({})');
   assert.equal(ev('S.mode'), 'normal');
@@ -186,7 +188,7 @@ test('the main save is byte-identical before and after playing and solving a puz
   assert.equal(ev('S.day'), day);
   assert.ok(ev('!!S.pops.ams'));
   assert.equal(ev('UI.started'), true);
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before, 'and after');
+  assert.equal(ev("slotRaw(UI.slot||window.__slot)"), before, 'and after');
   assert.deepEqual(errors, []);
 });
 
@@ -198,7 +200,7 @@ test('leaving a puzzle with no game goes back to the title screen', () => {
   assert.equal(ev('S.mode'), 'puzzle');
   ev('ACT.pzLeave({})');
   assert.equal(ev('S'), null);
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), null, 'no main save appeared');
+  assert.equal(ev("slotIdx(true).length"), 0, 'no network was saved');
   assert.match(ev("document.getElementById('modalCard').textContent"), /Series/);
   assert.deepEqual(errors, []);
 });
@@ -354,8 +356,8 @@ test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
   ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});save(true)");
   ev("toast('main game news','bad',[{l:'Fix',act:'opsOpen',args:{}}]);save(true)");
   assert.ok(ev("document.querySelectorAll('#toasts .toast').length") > 0);
-  const before = ev("localStorage.getItem('sot-save-v1')");
-  ev("ACT.pzStart({id:'hello'})");
+  ev("window.__slot=UI.slot;ACT.pzStart({id:'hello'})");
+  const before = ev("slotRaw(__slot)");
   assert.equal(ev("[...document.querySelectorAll('#toasts .toast')].filter(t=>/main game news/.test(t.textContent)).length"), 0, 'main-game toasts are cleared');
   ev("ACT.pzPop({city:'lon'})");
   const st = () => ev("JSON.stringify({p:S.pops,l:S.links.length,c:S.cash,m:S.mode,te:!!S.te,ops:S.ops,sc:S.scrubs.length,dash:$('dash').hidden,bank:$('bankBox').hidden,left:$('left').hidden,modal:$('modal').hidden,cam:[cam.x,cam.y]})");
@@ -373,7 +375,7 @@ test('main-game toasts and leftover buttons do nothing in a puzzle', () => {
   ev("toast('puzzle news','good')");
   ev('ACT.pzLeave({})');
   assert.equal(ev("document.querySelectorAll('#toasts .toast').length"), 0, 'puzzle toasts do not follow you home');
-  assert.equal(ev("localStorage.getItem('sot-save-v1')"), before);
+  assert.equal(ev("slotRaw(__slot)"), before);
   // Back in the main game, the same actions work again.
   ev("ACT.addRouter({city:'ams'})");
   assert.equal(ev('S.pops.ams.routers'), 2);

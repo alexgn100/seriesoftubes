@@ -268,7 +268,7 @@ test('several exchanges per city: overlapping members, cheaper challengers, sepa
   const t = ev("document.getElementById('panelBody').textContent");
   assert.match(t, /3 exchanges compete/);
   assert.match(t, /NL-Nyx/);
-  ev("save();load2=JSON.parse(localStorage.getItem('sot-save-v1'));sanitize(load2)");
+  ev("save();load2=JSON.parse(slotRaw(UI.slot));sanitize(load2)");
   assert.equal(ev("load2.ixp['ams~2']"), 1, 'saves keep challenger ports');
   ev("ACT.cancelIx({city:'ams~2'});ACT.cancelIx({city:'ams~2'})");
   assert.equal(ev("S.ixp['ams~2']"), undefined);
@@ -1035,16 +1035,16 @@ test('an old save with Australian POPs is told once that Australia changed', () 
   const a = load();
   start(a.ev);
   a.ev("ACT.buildPop({city:'syd'});for(let d=0;d<3;d++)dayTick();delete S.auV;save()");
-  const sv = a.ev("localStorage.getItem('sot-save-v1')");
+  const sv = a.ev("slotRaw(UI.slot)");
   const { ev, errors } = load({ storage: { 'sot-save-v1': sv } });
   assert.match(ev("S.log.map(e=>e.t).join(' | ')"), /Australia got more Australian/);
   assert.equal(ev("S.auV"), 1);
   assert.equal(ev("S.auNews"), undefined, 'only once');
-  const again = load({ storage: { 'sot-save-v1': ev("save();localStorage.getItem('sot-save-v1')") } });
+  const again = load({ storage: { 'sot-save-v1': ev("save();slotRaw(UI.slot)") } });
   assert.equal(again.ev("S.log.filter(e=>/Australia got more Australian/.test(e.t)).length"), 1, 'not told twice');
   // a new game never sees it, and neither does a save without Australia
   const b = load(); start(b.ev); b.ev("for(let d=0;d<3;d++)dayTick();delete S.auV;save()");
-  const c = load({ storage: { 'sot-save-v1': b.ev("localStorage.getItem('sot-save-v1')") } });
+  const c = load({ storage: { 'sot-save-v1': b.ev("slotRaw(UI.slot)") } });
   assert.doesNotMatch(c.ev("S.log.map(e=>e.t).join(' | ')"), /Australia got more/);
   assert.deepEqual(errors, []);
 });
