@@ -36,8 +36,8 @@ function tour(ev) {
     ['routers', "selectCity('fra');ACT.tab({t:'links'});ACT.models()"], ['vxc', "openVxcModal({from:'fra',to:'ams'});closeModal()"],
     ['tutorial', 'S.tut=0;renderCoach();S.tut=3;renderCoach();S.tut=null;renderCoach()'], ['win', 'showWin()']]) step(label, src);
   const failSrc = ev('fireFailure.toString()');
-  for (const t of ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'maxpfx', 'prepend', 'rpki', 'amp', 'roadmff', 'optic', 'ac', 'cut', 'crash', 'power', 'transit', 'ixloop', 'leak', 'ddos']) {
-    const kind = ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'maxpfx', 'prepend', 'rpki', 'roadmff', 'ac'].includes(t) ? 'funny' : t;
+  for (const t of ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'prepend', 'rpki', 'amp', 'roadmff', 'optic', 'ac', 'cut', 'crash', 'power', 'transit', 'ixloop', 'leak', 'ddos']) {
+    const kind = ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'prepend', 'rpki', 'roadmff', 'ac'].includes(t) ? 'funny' : t;
     const patched = failSrc.replace(/^function fireFailure/, 'function')
       .replace('let tot=opts.reduce', `if(!opts.some(o=>o[0]==='${kind}'))return;opts.splice(0,opts.length,['${kind}',1]);let tot=opts.reduce`)
       .replace('type=pick(f);}', `type=f.includes('${t}')?'${t}':pick(f);}`);

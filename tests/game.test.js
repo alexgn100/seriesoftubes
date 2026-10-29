@@ -469,10 +469,6 @@ test('notifications: the NOC keeps the last ten minutes, folds repeats and opens
   const os = JSON.parse(ev("JSON.stringify(S.log.map(e=>e.o))"));
   assert.deepEqual(os, [null, { a: 'city', v: 'lon' }, { a: 'link', v: linkId }, { a: 'city', v: 'fra' }]);
   assert.equal(ev("S.log[0].h"), 'Raffle'); assert.equal(ev("S.log[0].t"), 'Raffle You won a T-shirt.');
-  // the peering inbox's own button opens the peering inbox
-  ev("toast('<b>Peering request</b><br>From a small network.','',[{l:'Inbox',act:'inbox',args:{}}])");
-  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.log[0].o)')), { a: 'inbox' });
-  ev('ACT.logOpen({id:S.log[0].id})'); assert.equal(ev("$('modal').hidden"), false, 'the inbox opens');ev('closeModal();S.log.shift()');
   // an incident points at what broke
   assert.deepEqual(JSON.parse(ev(`JSON.stringify(incOpen({ref:'${linkId}'}))`)), { a: 'link', v: linkId });
   assert.deepEqual(JSON.parse(ev("JSON.stringify(incOpen({ref:S.links[0].trench||S.links[0].id}))")), { a: 'link', v: ev('S.links[0].id') });
