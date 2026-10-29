@@ -157,12 +157,14 @@ its Monday (the week starting Sunday 1 November 2026 is `2026-W45`); `pzWeekKey(
 
 Every Sunday `weekly-puzzle.yml` runs `scripts/weekly-puzzle.js`, which loads the real game headless, picks a
 theme the last three weeks did not have (region tour, ring, detour around a hub, ocean crossing, island hopping,
-latency sprint) and cities the last four weeks did not use, and searches for the cheapest build that connects
-them and the cheapest one that survives any single cut (a whole cable, or a trench). The budget sits just above
-that N-1 build and, where there is room, below the obvious "second path along every hop", so three stars take
-some thought. Both reference builds are then played through the game's own actions and must earn one and three
-stars, or the puzzle is thrown away. The file holds only ids, numbers and translation labels with their fill-ins
-(`{"v":1,"key","theme","cities","via","avoid","budget","twist","name":{"l","p"},"joke":{"l","p"},"ref"}`).
+latency sprint) and cities the last four weeks did not use, gives them traffic (content in the first city, eyeballs
+in the others, a circuit with a latency cap for a sprint), searches for the cheapest topology that connects them and
+the cheapest one that survives any single cut (a whole cable, or a trench), then sizes both with the game's own
+routing (`scripts/lib/puzzle-solver.js`: links and routers big enough for every flow, after any cut too, then as
+small as they go). The budget sits just above that N-1 build. Both references are judged by the game's own star
+code and must earn one and three stars, or the puzzle is thrown away. The file holds only ids, numbers and
+translation labels with their fill-ins
+(`{"v":2,"key","theme","cities","src","dem","via","avoid","budget","twist","name":{"l","p"},"joke":{"l","p"},"ref","rev"?}`).
 `--check` re-validates every file the way the game does.
 
 The game fetches `puzzles/weekly/<key>.json` (relative, same origin) only when the Puzzles list opens, and checks

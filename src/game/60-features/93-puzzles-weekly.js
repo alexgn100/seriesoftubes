@@ -42,19 +42,30 @@ function pzWkTxt(o,list){if(!pzObj(o)||typeof o.l!=='string'||!list.includes(o.l
     if(t==='c'&&pzCityOk(v))out[k]=v;else if(t==='r'&&typeof v==='string'&&own(WAVE_NAME,v))out[k]=v;else if(t==='n'&&Number.isInteger(v)&&v>0&&v<1000)out[k]=v;else return null;}
   return {l:o.l,p:out};}
 // rev: the file's revision, from 2 when a release's new prices made the week regenerate (scripts/weekly-puzzle.js).
-const PZ_WK_FIELDS=['v','key','theme','cities','via','avoid','budget','twist','name','joke','ref','rev'];
-function pzWkValid(j,key){if(!pzObj(j)||Object.keys(j).some(k=>!PZ_WK_FIELDS.includes(k))||j.v!==1||j.key!==key||pzWeekStart(key)==null||typeof j.theme!=='string'||!own(PZ_WK_THEMES,j.theme))return null;
+const PZ_WK_FIELDS=['v','key','theme','cities','src','dem','via','avoid','budget','twist','name','joke','ref','rev'];
+// Schema 2 (puzzles with traffic): `src` the content origins, `dem` the flows ({t:'eye',a,g} eyeballs in a; {t:'l2',a,b,g,ms}
+// a circuit, ms its latency cap; be:true best effort), `cities` exactly the cities they touch. Older files are refused.
+const PZ_WK_V=2;
+function pzWkDem(a){if(!Array.isArray(a)||a.length<1||a.length>6)return null;const out=[],eye=new Set();
+  for(const f of a){if(!pzObj(f)||Object.keys(f).some(k=>!['t','a','b','g','ms','be'].includes(k))||!pzCityOk(f.a)||!Number.isInteger(f.g)||f.g<1||f.g>2000)return null;
+    if(own(f,'be')&&f.be!==true)return null;
+    if(f.t==='eye'){if(own(f,'b')||own(f,'ms')||eye.has(f.a))return null;eye.add(f.a);out.push({t:'eye',a:f.a,g:f.g,be:!!f.be});}
+    else if(f.t==='l2'){if(!pzCityOk(f.b)||f.b===f.a||(own(f,'ms')&&!(typeof f.ms==='number'&&isFinite(f.ms)&&f.ms>=1&&f.ms<=500)))return null;out.push({t:'l2',a:f.a,b:f.b,g:f.g,ms:f.ms||0,be:!!f.be});}
+    else return null;}
+  return out;}
+function pzWkValid(j,key){if(!pzObj(j)||Object.keys(j).some(k=>!PZ_WK_FIELDS.includes(k))||j.v!==PZ_WK_V||j.key!==key||pzWeekStart(key)==null||typeof j.theme!=='string'||!own(PZ_WK_THEMES,j.theme))return null;
   const T=PZ_WK_THEMES[j.theme],ids=(a,lo,hi)=>Array.isArray(a)&&a.length>=lo&&a.length<=hi&&a.every(pzCityOk)&&new Set(a).size===a.length?a.slice():null;
-  const cities=ids(j.cities,3,6),via=ids(j.via==null?[]:j.via,0,4),avoid=ids(j.avoid==null?[]:j.avoid,0,2);if(!cities||!via||!avoid)return null;
+  const cities=ids(j.cities,2,6),src=ids(j.src==null?[]:j.src,0,3),via=ids(j.via==null?[]:j.via,0,4),avoid=ids(j.avoid==null?[]:j.avoid,0,2),dem=pzWkDem(j.dem);if(!cities||!src||!via||!avoid||!dem)return null;
+  // Eyeballs need somewhere to pull from; an origin is not also a city of eyeballs.
+  if(dem.some(f=>f.t==='eye')&&!src.length||dem.some(f=>f.t==='eye'&&src.includes(f.a)))return null;
+  const d0={src,dem},cs=pzCities(d0);if(cs.length!==cities.length||!cs.every(c=>cities.includes(c)))return null;
   const all=[...cities,...via,...avoid];if(new Set(all).size!==all.length)return null;
-  if(!Number.isInteger(j.budget)||j.budget<50000||j.budget>1e7)return null;
-  const tw=j.twist==null?{}:j.twist;if(!pzObj(tw)||Object.keys(tw).some(k=>!['lat','ring','noSub','minG'].includes(k)))return null;
+  if(!Number.isInteger(j.budget)||j.budget<50000||j.budget>2e7)return null;
+  const tw=j.twist==null?{}:j.twist;if(!pzObj(tw)||Object.keys(tw).some(k=>!['ring','noSub'].includes(k)))return null;
   if(j.rev!==undefined&&!(Number.isInteger(j.rev)&&j.rev>=2&&j.rev<=999))return null;
-  const d={id:'weekly',key,theme:j.theme,cities,via,avoid,budget:j.budget,noSub:false,ring:false,minG:0,lat:null,rev:j.rev||1};
+  const d={id:'weekly',key,theme:j.theme,cities,src,dem,via,avoid,budget:j.budget,noSub:false,ring:false,rev:j.rev||1};
   if(own(tw,'ring')){if(tw.ring!==true)return null;d.ring=true;}
   if(own(tw,'noSub')){if(tw.noSub!==true)return null;d.noSub=true;}
-  if(own(tw,'minG')){if(![100,400].includes(tw.minG))return null;d.minG=tw.minG;}
-  if(own(tw,'lat')){const l=tw.lat;if(!Array.isArray(l)||l.length!==3||!cities.includes(l[0])||!cities.includes(l[1])||l[0]===l[1]||!Number.isInteger(l[2])||l[2]<1||l[2]>500)return null;d.lat=l.slice();}
   d.wn=pzWkTxt(j.name,T.names);d.wj=pzWkTxt(j.joke,T.jokes);if(!d.wn||!d.wj)return null;
   return d;}
 // ---------- fetching it: when Puzzles opens, never on page load ----------
