@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Big networks load faster: on a phone, the map of a late-game network now appears about a second and a half sooner.
 - Transit bills no longer change when you click something later in the day. After each day, the 95th percentile counted that day twice and dropped the oldest day, so building or changing anything could nudge your transit bill (and the bank's view of it) until the next day came round.
 - A new start screen with four doors: Puzzles, Sandbox, Normal, and Scenarios & weekly. Every network now picks its rules when it starts, and they stay locked for that network; your saved games carry on exactly as before.
 - Normal comes in three flavours. Change Freeze has a third of the outages and no DDoS floods, delivers PNIs, cross-connects and builds in days instead of months (#151), and skips the peering inbox, hardware shortages and sold-out routes. On-call is the classic game. BGP at 3 a.m. brings almost twice the outages, lasting half as long again, and twice the DDoS. The HUD and the share card show which one you picked.
