@@ -6,7 +6,7 @@
    writes over a newer one that another window saved. Each tab keeps its slot in sessionStorage: a reload continues it.
    Only one window plays a slot at a time: a Web Lock where the browser has them, else a heartbeat key, sot-open:<id>. */
 const SLOT_K='sot-save-v1:',SLOT_IX='sot-slots',SLOT_OLD='sot-save-v1',SLOT_HB='sot-open:',SLOT_SS='sot-slot',SLOT_MAIN='main';
-const SLOT={sq:{},top:{},no:new Set(),locks:new Map(),gzQ:new Map(),idle:[],wait:null,html:''};
+const SLOT={sq:{},top:{},rel:new Set(),no:new Set(),locks:new Map(),gzQ:new Map(),idle:[],wait:null,html:''};
 function slotRid(){try{const a=new Uint32Array(2);crypto.getRandomValues(a);return (a[0].toString(36)+a[1].toString(36)).slice(0,10);}catch(e){return (Date.now().toString(36)+(uidN++).toString(36)).slice(-10);}}
 const WIN=slotRid();// this page load; a reload is a new window that takes its tab's slot back
 const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
@@ -21,7 +21,7 @@ function slotClean(e){if(!e||typeof e!=='object'||!slotOkId(e.id))return null;
     preset:typeof e.preset==='string'&&own(PRESETS,e.preset)?e.preset:'oncall',scn:typeof e.scn==='string'?e.scn.slice(0,60):null,day:int(e.day,0,1e7,0),
     tier:['Tier 1','Tier 2','Tier 3'].includes(e.tier)?e.tier:null,cash:num(e.cash,0),at:num(e.at,0),size:int(e.size,0,1e10,0),seq:int(e.seq,0,1e15,0),gz:!!e.gz,broken:!!e.broken};}
 const slotMeta=(s,tier)=>({name:s.name,asn:s.asn,mode:s.mode,preset:s.rules&&s.rules.preset,scn:s.scn&&s.scn.name||null,day:s.day,cash:s.cash,tier});
-function slotKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(SLOT_K)&&slotOkId(k.slice(SLOT_K.length)))out.push(k.slice(SLOT_K.length));}}catch(e){}return out;}
+function slotKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k===SLOT_OLD)out.old=true;else if(k&&k.startsWith(SLOT_K)&&slotOkId(k.slice(SLOT_K.length)))out.push(k.slice(SLOT_K.length));}}catch(e){}return out;}
 // An index entry rebuilt from the save itself. A compressed one can only be read in the background: slotFix() fills it in.
 function slotFromKey(id){const raw=slotRaw(id)||'';if(raw.startsWith(GZ))return slotClean({id,gz:true,size:raw.length});
   try{const s=JSON.parse(raw);if(s&&s.v===1&&typeof s.day==='number')return slotClean({id,...slotMeta(s,null),seq:s.sv&&s.sv.seq,at:s.sv&&s.sv.at,size:raw.length});}catch(e){}
@@ -31,8 +31,8 @@ function slotFromKey(id){const raw=slotRaw(id)||'';if(raw.startsWith(GZ))return 
 function slotIdx(scan){const raw=lsGet(SLOT_IX);let list=null;
   if(raw!=null)try{const j=JSON.parse(raw);if(j&&Array.isArray(j.slots))list=j.slots.map(slotClean).filter(Boolean);}catch(e){}
   const bad=raw!=null&&!list;if(!list)list=[];{const seen=new Set();list=list.filter(e=>!seen.has(e.id)&&seen.add(e.id));}
-  if(scan||bad){const keys=new Set(slotKeys());let ch=bad;const n=list.length;
-    if(lsGet(SLOT_OLD)!=null&&list.some(e=>e.id===SLOT_MAIN))keys.add(SLOT_MAIN);
+  if(scan||bad){const ks=slotKeys(),keys=new Set(ks);let ch=bad;const n=list.length;
+    if(ks.old&&list.some(e=>e.id===SLOT_MAIN))keys.add(SLOT_MAIN);
     list=list.filter(e=>keys.has(e.id));if(list.length!==n)ch=true;
     for(const id of keys)if(!list.some(e=>e.id===id)){list.push(slotFromKey(id));ch=true;}
     if(ch)slotIdxPut(list);if(list.some(e=>e.gz&&!e.name&&!e.broken))slotFix(list);}
@@ -54,18 +54,18 @@ function slotBeat(){const id=UI.slot;if(!id)return;const h=slotHb(id);
 function slotUnbeat(id){const h=slotHb(id);if(h&&h.w===WIN)lsDel(SLOT_HB+id);}
 const LOCKS=()=>{try{const l=navigator.locks;return l&&typeof l.request==='function'?l:null;}catch(e){return null;}};
 // cb(true) when this window may play the slot, cb(false) when another window has it. steal takes it over.
-function slotClaim(id,steal,cb){const once=v=>{try{cb(v);}catch(e){console.error('[tubes] opening a network failed',e);}};
+function slotClaim(id,steal,cb,n=4){const once=v=>{try{cb(v);}catch(e){console.error('[tubes] opening a network failed',e);}};
   if(SLOT.locks.has(id)){slotBeatFor(id);once(true);return;}
   const L=LOCKS();
   if(L){let got=false;
-    L.request('sot-slot:'+id,steal?{steal:true}:{ifAvailable:true},lock=>{if(!lock){once(false);return;}got=true;
+    L.request('sot-slot:'+id,steal?{steal:true}:{ifAvailable:true},lock=>{if(!lock){if(n>0&&(SLOT.rel.has(id)||!slotBusy(id)))setTimeout(()=>slotClaim(id,steal,cb,n-1),120);else once(false);return;}got=true;SLOT.rel.delete(id);
       return new Promise(r=>{SLOT.locks.set(id,r);slotBeatFor(id);once(true);});})
      .catch(()=>{SLOT.locks.delete(id);if(got)slotLost(id,'take');});// stolen: another window took over
     return;}
   if(!steal&&slotBusy(id)){once(false);return;}
   slotBeatFor(id);once(true);}
 function slotBeatFor(id){try{localStorage.setItem(SLOT_HB+id,JSON.stringify({w:WIN,t:Date.now(),h:0}));}catch(e){}}
-function slotFree(id){if(UI.slot===id)return;slotUnbeat(id);const r=SLOT.locks.get(id);SLOT.locks.delete(id);if(r)r();}
+function slotFree(id){if(UI.slot===id)return;slotUnbeat(id);const r=SLOT.locks.get(id);SLOT.locks.delete(id);if(r){SLOT.rel.add(id);r();}}
 // Saves still compressing land before a slot is handed back.
 function whenIdle(f){if(!UI.gzBusy&&!SLOT.gzQ.size)f();else SLOT.idle.push(f);}
 function slotIdle(){if(UI.gzBusy||SLOT.gzQ.size)return;const l=SLOT.idle.splice(0);for(const f of l)try{f();}catch(e){console.error(e);}}
@@ -131,8 +131,7 @@ function slotBoot(go){slotMigrate(()=>{const list=slotIdx(true),mine=ssGet(SLOT_
   let id=list.some(e=>e.id===mine&&!e.broken)?mine:null;if(!id&&mine)ssSet(SLOT_SS,null);
   const auto=!id&&list.length===1&&!list[0].broken&&!slotBusy(list[0].id)?list[0].id:null;
   if(!id&&!auto){go();return;}
-  const claim=(n,f)=>slotClaim(id||auto,false,ok=>!ok&&n&&LOCKS()?setTimeout(()=>claim(n-1,f),400):f(ok));
-  claim(id?1:0,ok=>{const w=id||auto;
+  slotClaim(id||auto,false,ok=>{const w=id||auto;
     if(!ok){if(id){ssSet(SLOT_SS,null);UI.bootBusy=id;}go();return;}
     UI.slot=w;const raw=slotRaw(w);
     if(raw&&raw.startsWith(GZ)&&raw!==UI.gzRaw){if(!gzOk()){go();return;}gunzip(raw).then(t=>{UI.gzRaw=raw;UI.gzText=t;go();},e=>{console.error('[tubes] unpacking the save failed',e);go();});}
