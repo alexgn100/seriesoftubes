@@ -100,7 +100,8 @@ never freezes the game.
 4. Rolls failures (`fireFailure()`) and events (`fireEvent()`) when their timers run out,
    and expires incidents.
    Then the NOC intern's standing orders (`opsDay()`), if one is hired: each order clicks the same `ACT`
-   actions a player would, muted, within its monthly budget, and the shift recomputes once at the end.
+   actions a player would, muted, within its monthly budget, and the shift recomputes once at the end, only if
+   a job changed the network. An order that throws is paused; the day goes on. The NOC gets one notice a week.
 5. Updates customer mood, churn and new offers; IX members join; loans tick.
 6. Every 30 days: bills the month (revenue minus costs) and checks for bankruptcy.
 7. Checks goals, level, badges and scenario end conditions.
