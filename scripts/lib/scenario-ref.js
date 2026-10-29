@@ -9,6 +9,7 @@
 //   ['hire', orders, params]  the NOC intern on standing orders, as soon as the level allows
 //   ['wait', day]  until that day        ['served', g]  until g Gbps are served           ['prep', c, g]  capacity for an event
 //   ['scrub', c, tier]  a scrubbing center                    ['pnis']  a PNI with every unreached network that takes one
+//   ['pni', c, net, tier]  one PNI with that network there   ['last', c]  transit there only as a last resort
 //   ['loans']  take every loan the banks offer, from now on (the cheese plans)
 const REF = String.raw`(()=>{
 const Q=window.__ref={log:[]};
@@ -19,6 +20,7 @@ Q.cheap=c=>NETS.filter(n=>n.price&&sellsAt(n,c)&&!(Q.avoid||[]).includes(n.id)&&
 Q.pop=c=>{if(!S.pops[c])ACT.buildPop({city:c});return !!S.pops[c];};
 Q.bb=c=>{Q.pop(c);if(S.pops[c]&&!S.pops[c].bb)ACT.launchBB({city:c});return !!(S.pops[c]&&S.pops[c].bb);};
 Q.tr=(c,tier=1)=>{Q.pop(c);const n=Q.cheap(c);if(!n)return true;ACT.buyTransit({city:c,net:n.id,tier});return true;};
+Q.last=c=>{for(const t of S.transit)if(t.city===c)ACT.setPref({kind:'t',id:t.id,v:'low'});return true;};
 Q.ix=(c,tier=1)=>{if(!S.pops[c])return false;for(const x of ixIdsIn(c)){if(!ixName(x))continue;if(S.ixp[x]===undefined)ACT.buyIx({city:x,tier,signed:true});if(S.ixp[x]===undefined)continue;if(!S.rs[x])ACT.rs({city:x});ACT.peerAll({city:x});}return true;};
 // A wave: big waves need big routers at both ends, and a router swap takes a day, so the step waits (null) until they fit.
 Q.link=(a,b,tier=1,via)=>{for(const c of [a,b])Q.pop(c);if(!S.pops[a]||!S.pops[b])return false;
@@ -28,6 +30,7 @@ Q.hire=(orders,par)=>{Q.wantHire=[orders||['transit','routers','repair'],par||{}
 Q.hire0=(orders,par)=>{if(!opsCanHire()||!Q.can(20000))return false;if(!opsHired()){ACT.opsHire({id:'kevin'});closeModal();}if(!opsHired())return false;
   for(const k of orders)if(!S.ops.on[k])ACT.opsToggle({k});for(const k in par)for(const [p,v] of Object.entries(par[k]))for(let i=0;i<8&&opsP(k,p)!==v;i++)ACT.opsParam({k,p});closeModal();return true;};
 Q.pnis=(tier=0)=>{for(const n of NETS.filter(n=>!R.reachable[n.id]).sort((a,b)=>NSH[b.id]-NSH[a.id])){const b=pniBatch(n.id,tier);if(!b||!b.orders.length||!Q.can(b.cost))continue;ACT.pniAll({net:n.id,tier});}return true;};
+Q.pni=(c,net,tier=0)=>{if(!S.pni.some(p=>p.city===c&&p.net===net))ACT.pni({city:c,net,tier});closeModal();return S.pni.some(p=>p.city===c&&p.net===net);};
 Q.scrub=(c,tier=0)=>{ACT.buildScrub({city:c,tier});return true;};
 Q.loans=()=>{Q.loan=true;return true;};
 Q.served=g=>R.served>=g||null;
@@ -38,7 +41,7 @@ Q.prep=(c,g)=>{const need=(S.stats.peak||R.served||0)*1.2+g*1.15,cap=()=>S.trans
     if(t.tier<PORT.length-1&&PORT[t.tier+1].g>=need/4&&portOk(c,t.tier+1))ACT.buyTransit({city:c,net:t.net,tier:t.tier+1});else ACT.lagT({id:t.id,d:1});
     if(cap()===c0){if(t.tier<PORT.length-1&&!portOk(c,t.tier+1))ACT.upRouter({city:c});else break;}}
   for(let k=0;k<4;k++){const p=S.pops[c];if(!p||(p.routers||1)>=RMAX)break;const r0=p.routers||1;ACT.addRouter({city:c});if((p.routers||1)===r0)break;}return true;};
-Q.est={pop:c=>S.pops[c]?0:popCost(c),bb:c=>(S.pops[c]?0:popCost(c))+bbCost(c),tr:()=>20000,ix:()=>25000,hire:()=>0,scrub:(c,t)=>SCRUB_TIERS[t||0].cost,
+Q.est={pop:c=>S.pops[c]?0:popCost(c),bb:c=>(S.pops[c]?0:popCost(c))+bbCost(c),tr:()=>20000,pni:()=>20000,ix:()=>25000,hire:()=>0,scrub:(c,t)=>SCRUB_TIERS[t||0].cost,
   link:(a,b,t)=>(S.pops[a]?0:popCost(a))+(S.pops[b]?0:popCost(b))+waveMo(kmBetween(a,b),isSub(a,b),t)*2+20000};
 Q.upkeep=()=>{
   for(const l of S.links){if(l.kind!=='wave'||l.tier>=LT.length-1||linkDown(l)||(R.load[l.id]||0)<LT[l.tier].g*0.75)continue;

@@ -20,7 +20,8 @@ function routerModels(c){const p=S.pops[c],g=p.rgen||0,rt=p.routers||1;
 function portNote(c){const p=S.pops[c];if(!p)return '';const g=p.rgen||0;return RG[g].maxP<PORT.length-1?`<p class="note" style="margin-top:0">${tr('sites_and_service.your_model_here_tops_out_at',{model:esc(RG[g].n),pn:RG[g].pn})}</p>`:'';}
 // Service: what you deliver, times how it feels. Traffic backhauled far to transit is slow, and users notice.
 const latSlow=c=>!!(R&&R.latF&&R.latF[c]<0.97&&R.latFar[c]);
-function latNote(c){if(!latSlow(c))return '';const f=R.latFar[c];return `<div class="latwarn">🐢 ${tr('sites_and_service.p_of_city_s_traffic_is',{p:pct(Math.min(1,f.share)),city:esc(CITY[c].name),to:esc(CITY[f.to].name),ms:Math.round(f.ms)})}</div>`;}
+function latNote(c){if(!latSlow(c))return '';const f=R.latFar[c];const v={p:pct(Math.min(1,f.share)),city:esc(CITY[c].name),to:esc(CITY[f.to].name),ms:Math.round(f.ms)};return `<div class="latwarn">🐢 ${CITY[c].kr&&scnRule('sender')?tr('sites_and_service.p_of_city_s_traffic_comes_from_kr',v):tr('sites_and_service.p_of_city_s_traffic_is',v)}</div>`;}
 const LAT_OK=20,LAT_BAD=50,latLoss=rtt=>rtt<=LAT_OK?0:rtt<=LAT_BAD?0.2*(rtt-LAT_OK)/(LAT_BAD-LAT_OK):0.5;
+const krLatLoss=rtt=>rtt<=KR_LAT_OK?0:rtt<=KR_LAT_BAD?0.25*(rtt-KR_LAT_OK)/(KR_LAT_BAD-KR_LAT_OK):0.5;
 function sfOf(r,c){const d=r.cityDem[c]||0;return d<=1e-6?1:clamp(r.citySrv[c]/d,0,1)*((r.latF&&r.latF[c])??1);}
 

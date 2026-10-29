@@ -9,6 +9,8 @@ const { play } = require('../scripts/lib/scenario-ref');
 
 const HIRE = ['hire', ['transit', 'routers', 'repair', 'sales', 'ix']];
 const home = (c) => [['bb', c], ['tr', c, 1], ['ix', c]];
+const GN_H = ['hire', ['transit', 'routers', 'repair', 'sales', 'ix', 'caches', 'pni']];
+const GN_REF = [['bb', 'icn'], ['ix', 'icn'], ['tr', 'icn', 1], ['pni', 'icn', 'ktt', 0], GN_H, ['served', 120], ['link', 'icn', 'tok', 1], ['tr', 'tok', 1], ['ix', 'tok'], ['last', 'icn'], ['pop', 'hkg']];
 // ref: the reference plan; win: [earliest, latest] day it may win on; cheese: the shortcut, and `by`, the day before
 // which it must not win (null: never within the scenario's days).
 const PLAY = {
@@ -25,8 +27,9 @@ const PLAY = {
     win: [70, 200], cheese: [...home('cpt'), ['link', 'cpt', 'cai', 0], ['pop', 'lag'], ['pop', 'nbo'], ['hire']], by: null },
   ixbr: { ref: [...home('sao'), ...[['sao', 'rio', 1], ['sao', 'cpq', 0], ['sao', 'cwb', 0], ['cwb', 'poa', 0], ['rio', 'bhz', 0], ['bhz', 'bsb', 0], ['bsb', 'gyn', 0], ['rio', 'ssa', 0], ['ssa', 'rec', 0], ['rec', 'for', 0], ['rec', 'nat', 0], ['for', 'bel', 0], ['bel', 'mao', 0], ['bsb', 'cgb', 0], ['sao', 'vix', 0]].flatMap(([a, b, t]) => [['link', a, b, t], ['ix', b, 0]]), ['bb', 'rio'], ['tr', 'rio', 1], ['bb', 'bsb'], ['tr', 'bsb', 1], ['bb', 'for'], ['tr', 'for', 1], HIRE],
     win: [40, 120], cheese: [['bb', 'sao'], ['tr', 'sao', 1], ...['sao', 'rio', 'bsb', 'bhz', 'cwb', 'poa', 'for', 'rec', 'ssa', 'cpq', 'gyn', 'bel', 'mao', 'nat', 'vix', 'cgb'].flatMap((c) => [['pop', c], ['ix', c, 0]]), ['hire']], by: null },
-  // Seoul at home is enough here: the cheese is just playing, so it only must not be instant.
-  gangnam: { ref: [...home('icn'), ['link', 'icn', 'tok', 1], ['ix', 'tok'], ['tr', 'tok', 1], ['link', 'icn', 'hkg', 1], ['ix', 'hkg'], ['tr', 'hkg', 1], HIRE], win: [50, 120], cheese: [...home('icn'), ['loans']], by: 50 },
+  // Sender pays: Seoul transit to start (dear, but fast), one paid PNI with Kay-Tea for reach, then haul the bulk from
+  // Tokyo and keep Seoul transit as the last resort. Seoul alone loses money on the sender-pays fee and never wins.
+  gangnam: { ref: GN_REF, win: [130, 190], cheese: [...home('icn'), ['loans']], by: null },
   // Bigger routers bring Flowspec, which also takes floods: without a scrubbing center it takes twice as long.
   flood: { ref: [...home('ams'), ['scrub', 'ams', 1], ['tr', 'ams', 1], HIRE], win: [80, 200], cheese: [...home('ams'), ['tr', 'ams', 1], ['loans']], by: 180 },
   fttb: { ref: [...home('syd'), ['link', 'syd', 'akl', 0, 'tasman'], ['link', 'syd', 'nou', 0, 'gond'], ...['mel', 'bne', 'adl', 'per'].flatMap((c) => [['bb', c], ['tr', c, 1]]), ['link', 'syd', 'mel', 1], ['link', 'syd', 'bne', 1], ['link', 'mel', 'adl', 1], ['link', 'adl', 'per', 0], HIRE],
@@ -55,6 +58,23 @@ for (const [id, P] of Object.entries(PLAY)) {
     assert.ok(r.won >= P.win[0] && r.won <= P.win[1] && (id === 'carnaval' || r.won <= r.limit * 0.75), `${id}: won on day ${r.won}, want ${P.win.join('-')} of ${r.limit}`);
     const c = play(g.ev, id, P.cheese, { days: P.by || undefined });
     assert.ok(c.won === null, `${id}: the shortcut wins on day ${c.won}${P.by ? ` (before day ${P.by})` : ''}`);
+    assert.deepEqual(g.errors, []);
+  });
+}
+
+// Gangnam Style Peering bites every way (2.0.0 playtest): paying the sender-pays fee on everything loses money, hauling
+// everything from Tokyo is too slow for Korean users, and the old plan (transit everywhere, no Kay-Tea) has neither
+// the reach nor the profit. The reference's Seoul transit as first choice, not last resort, also stays in the red.
+for (const [name, plan] of Object.entries({
+  'Seoul transit and Kay-Tea': [['bb', 'icn'], ['ix', 'icn'], ['tr', 'icn', 1], ['pni', 'icn', 'ktt', 0], GN_H],
+  'everything from Tokyo': [['bb', 'icn'], ['link', 'icn', 'tok', 1], ['tr', 'tok', 1], ['ix', 'tok'], ['pni', 'tok', 'ktt', 0], ['pop', 'hkg'], GN_H],
+  'the 1.x reference': [...home('icn'), ['link', 'icn', 'tok', 1], ['ix', 'tok'], ['tr', 'tok', 1], ['link', 'icn', 'hkg', 1], ['ix', 'hkg'], ['tr', 'hkg', 1], HIRE],
+  'Tokyo haul, Seoul transit first': GN_REF.filter((s) => s[0] !== 'last'),
+})) {
+  test(`gangnam: ${name} does not win`, () => {
+    const g = load();
+    const r = play(g.ev, 'gangnam', plan);
+    assert.equal(r.won, null, `${name} won on day ${r.won}`);
     assert.deepEqual(g.errors, []);
   });
 }
