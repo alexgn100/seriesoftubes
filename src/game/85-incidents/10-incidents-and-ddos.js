@@ -30,7 +30,8 @@ const ddosFind=id=>ddosAll().find(a=>id===undefined||a.id===id);
 function ddosDrop(a){const left=ddosAll(S,false).filter(x=>x!==a);S.ev.ddos=left[0]||null;S.ev.ddosMore=left.slice(1);}
 function ddosExpire(){for(const a of ddosAll(S,false))if(a.until<=S.day||!S.pops[a.city]){ddosDone(a);ddosDrop(a);}}
 // An attack is held or lost at its victim: the junk lands there, and other POPs' bad days are not the attacker's doing.
-const ddosSf=a=>sfOf(R,a.city);
+// A city with nobody to serve holds only if its tools soak up the flood (or there is nothing to judge but that).
+const ddosSf=a=>((R.cityDem||{})[a.city]||0)>1e-6||!a.gbps?sfOf(R,a.city):clamp(1-ddosReport(a).leak/a.gbps,0,1);
 function ddosReport(a){return (R.ddos||[]).find(m=>m.attack===a)||ddosMitigation(a);}
 // Where the junk comes in: one of the city's live uplinks, or just "the edge" if it has none yet.
 function ddosEntry(c){const o=[];

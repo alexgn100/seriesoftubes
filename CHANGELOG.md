@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The project follows
 - Live attacks now show how much traffic Flowspec actually drops. Routers without TCAM no longer claim to filter attacks, and Flowspec drops are counted separately from other edge filters (#153).
 - Hosting game servers or cloud gaming brings RackNet and TeamSpooked attacks. Both bypass Flowspec and require dedicated mitigation (#153).
 - Flood Season keeps sending ever larger attacks when you keep playing after winning or running out of time. Finishing the challenge no longer switches the floods off (#153).
+- Flood Season escalates again: ordinary floods mixed with terabit monsters, all growing through the year, and floods go for the POPs that serve customers, so empty POPs no longer hold them for free.
 - Each live attack in the NOC now shows incoming bandwidth, upstream scrubbing, edge filtering, scrubbing-center use and any traffic still leaking through (#153).
 - DDoS bandwidth now adds up: upstream scrubbing, edge filters and scrubbing centers work in sequence. The NOC uses the same figures as traffic routing, including floods that cannot reach a remote center (#153).
 - Attacks can now use Memcached amplification or an ACK flood. Flowspec catches the former; the latter need mitigation (#153).

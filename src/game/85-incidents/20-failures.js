@@ -120,18 +120,21 @@ const ddosVectors=()=>Object.keys(DDOS_VEC).filter(k=>!DDOS_VEC[k].gaming||gamin
 // Spread gaming exposure over dozens of customers, including the first, rather than switching baselines.
 const ddosRate=()=>0.5+6.5*(1-Math.exp(-gamingCount()/50*(1+Math.max(1,S.lvl||1)/LEVELS.length)));
 const ddosPressure=()=>1-Math.exp(-(.01+Math.max(0,(S.lvl||1)-1)/12+gamingCount()/10+(scnRule('ddos')?.2+S.day/365:0)));
-// Normalize the vector mix so smaller gaming-only floods do not lower the advertised overall mean.
-function ddosSizeMean(){const stage=Math.max(1,S.lvl||1)/LEVELS.length,games=gamingCount(),fl=scnRule('ddos');
-  const base=Math.max(10,(R.demand||0)*4/3*stage,fl?1400:0);
-  if(fl)return base*(1+0.2*games/(games+10))*(1+S.day/365);
+// Normalize the vector mix so smaller gaming-only floods do not lower the advertised overall mean (Flood Season sizes its own).
+function ddosSizeMean(){const stage=Math.max(1,S.lvl||1)/LEVELS.length,games=gamingCount();
+  const base=Math.max(10,(R.demand||0)*4/3*stage);
   // Relative to no gaming: 3x at one customer, 8x at 50, approaching the existing 12x balance.
   const mean=base*(games?1.2-0.9*Math.pow(4/9,(games-1)/49):0.1),vectors=ddosVectors(),weight=vectors.reduce((n,k)=>n+(DDOS_VEC[k].gaming?1/3:1),0)/vectors.length;
   return mean/weight;}
 // Normal rolls: 98% uniform 0.2–2, 2% uniform 8–12. Their mean is 1.278, so spikes do not inflate the balance.
-const ddosSizeMax=()=>ddosSizeMean()*(scnRule('ddos')?1.5:12/1.278);
-function ddosSize(vec){const fl=scnRule('ddos'),r=Math.random(),roll=fl?1/3+r*2/3:(r<.98?.2+1.8*r/.98:8+4*(r-.98)/.02)/12;
-  const raw=ddosSizeMax()*(DDOS_VEC[vec].gaming?1/3:1)*roll;
-  return fl?Math.max(2,Math.floor(raw)):Math.max(0.001,Math.floor(raw*1000)/1000);}
+const ddosSizeMax=()=>ddosSizeMean()*12/1.278;
+/* Flood Season (as in 1.36): a third are terabit monsters, the rest ordinary floods sized to the city; all of it grows
+   through the year, and on after it. One draw picks both, so fixed draws give fixed sizes. */
+function ddosSize(vec,c){const fl=scnRule('ddos'),r=Math.random();
+  if(fl){const games=gamingCount(),grow=(1+S.day/365)*(1+0.2*games/(games+10))*(DDOS_VEC[vec].gaming?1/3:1);
+    const raw=r<1/3?800+2600*r*3:2+(r-1/3)*1.5*Math.max(18,((R.cityDem||{})[c]||0)*0.9);return Math.max(2,Math.floor(raw*grow));}
+  const roll=(r<.98?.2+1.8*r/.98:8+4*(r-.98)/.02)/12,raw=ddosSizeMax()*(DDOS_VEC[vec].gaming?1/3:1)*roll;
+  return Math.max(0.001,Math.floor(raw*1000)/1000);}
 // Calm (Change Freeze) and no chaos at all mean no attacks, gamers or not.
 const ddosOff=()=>{const c=rule('chaos');return c==='calm'||c==='none';};
 // More frequent attacks are opt-in: the spicy chaos setting, or hosting gamers (who attract them in real life).
@@ -145,8 +148,10 @@ function ddosTick(){if(ddosOff()&&!scnRule('ddos'))return;if(scnRule('ddos')){le
 // Size, duration and starts are randomized independently; overlapping floods never replace each other.
 function ddosAttack(recompute=true){const type='ddos',fl=scnRule('ddos');ddosExpire();
     S.ddosStarts=(S.ddosStarts||[]).filter(d=>d>S.day-7&&d<=S.day);if(S.ddosStarts.length>=14||!Object.keys(S.pops).length)return;S.ddosStarts.push(S.day);
-    const c=pick(Object.keys(S.pops)),vec=pick(ddosVectors()),V=DDOS_VEC[vec];
-    const gbps=ddosSize(vec);
+    // Flood Season goes for the POPs that serve someone, so empty ones cannot soak up floods for a free win.
+    const all=Object.keys(S.pops),served=fl?all.filter(x=>(R.cityDem||{})[x]>1e-6):[];
+    const c=pick(served.length?served:all),vec=pick(ddosVectors()),V=DDOS_VEC[vec];
+    const gbps=ddosSize(vec,c);
     const dur=1+Math.floor(Math.random()*(1+6*ddosPressure())),entry=ddosEntry(c);
     const a={id:uid(),city:c,vec,gbps,until:S.day+dur,entry,bh:false,start:S.day};
     if(!S.ev.ddos)S.ev.ddos=a;else(S.ev.ddosMore||(S.ev.ddosMore=[])).push(a);

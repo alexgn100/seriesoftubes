@@ -806,11 +806,7 @@ test('DDoS sizes use a smaller non-gaming baseline and preserve unbounded Flood 
   const { ev, errors } = load();
   ev('ACT.start({});S.lvl=13;R.demand=150000;S.biz=[]');
   assert.equal(ev('ddosSizeMean()'), 20000);
-  ev("S.scn={id:'flood',rules:{ddos:true}};S.day=365");
-  assert.equal(ev('ddosSizeMean()'), 400000);
-  ev('S.day=730');
-  assert.equal(ev('ddosSizeMean()'), 600000, 'Flood Season keeps growing after completion');
-  ev('S.scn=null;R.demand=300000');
+  ev('R.demand=300000');
   assert.equal(ev('ddosSizeMean()'), 40000, 'larger networks can draw still larger attacks');
   ev('S.lvl=1');
   const early = ev('ddosSizeMax()');
@@ -1034,13 +1030,14 @@ test('normal attack sizes cover a broad ordinary range and a two-percent large t
   assert.deepEqual(errors, []);
 });
 
-test('Flood Season retains its existing size quantiles and escalation when normal attacks gain rare spikes', () => {
+test('Flood Season mixes terabit monsters with ordinary floods, and all of it grows through the year and after', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.scn={id:'flood',rules:{ddos:true}};S.lvl=3;S.biz=[];R.demand=1850");
-  for (const [day,expected] of [[0,[700,1400,2099]],[365,[1400,2800,4199]],[730,[2100,4200,6299]]]) {
+  ev("ACT.start({});S.scn={id:'flood',rules:{ddos:true}};S.lvl=3;S.biz=[];R.cityDem={fra:100}");
+  // One draw: below a third a monster (800 to 3,400G), above it an ordinary flood up to 90% of the city's traffic.
+  for (const [day,expected] of [[0,[800,3399,2,91]],[365,[1600,6799,4,183]],[730,[2400,10199,6,275]]]) {
     ev(`S.day=${day}`);
-    const actual = JSON.parse(ev("const old=Math.random;let sizes;try{sizes=[0,0.5,0.999999].map(r=>{Math.random=()=>r;return ddosSize('syn')})}finally{Math.random=old}JSON.stringify(sizes)"));
-    assert.deepEqual(actual, expected);
+    const actual = JSON.parse(ev("const old=Math.random;let sizes;try{sizes=[0,1/3-1e-9,1/3,0.999999].map(r=>{Math.random=()=>r;return ddosSize('syn','fra')})}finally{Math.random=old}JSON.stringify(sizes)"));
+    assert.deepEqual(actual, expected, `day ${day}`);
   }
   assert.deepEqual(errors, []);
 });

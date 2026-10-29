@@ -134,3 +134,22 @@ test('the China licence arrives in a tenth of the time with quick lead times, an
     assert.deepEqual(errors, []);
   }
 });
+
+test('Flood Season escalates from ordinary floods to monsters, and empty POPs or no customers do not hold floods for free', () => {
+  const { ev, errors } = load({ seed: 5 });
+  ev("ACT.startScn({id:'flood',sure:1});S.cash=1e9;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'ams'});ACT.buyTransit({city:'ams',net:NETS.find(n=>sellsAt(n,'ams')).id,tier:1});compute()");
+  const sizes = JSON.parse(ev("const o=[];for(let i=0;i<60;i++){dayTick();for(const a of ddosAll())if(a.start===S.day)o.push(a.gbps);}JSON.stringify(o)"));
+  assert.ok(sizes.some(g => g < 100), `some ordinary floods early on (${sizes.join(' ')})`);
+  assert.ok(sizes.some(g => g >= 1000), 'and some terabit monsters');
+  // Ten empty POPs: floods still go for Amsterdam, where the customers are.
+  ev("for(const c of ['lon','par','fra','mad','mil','vie','waw','sto','osl','hel'])ACT.buildPop({city:c});compute();S.ev.ddos=null;S.ev.ddosMore=[];S.ddosStarts=[]");
+  ev("for(let i=0;i<10;i++){S.ddosStarts=[];ddosAttack(false);}");
+  assert.deepEqual(JSON.parse(ev('JSON.stringify([...new Set(ddosAll().map(a=>a.city))])')), ['ams']);
+  // A flood on a city with nobody to serve only holds if the tools soak it up.
+  ev("S.ev.ddosMore=[];S.ev.ddos={id:'e',city:'lon',vec:'http',gbps:500,start:S.day,until:S.day+2,entry:{k:'edge',lab:''}};compute()");
+  assert.equal(ev("R.cityDem.lon||0"), 0);
+  assert.ok(ev('ddosSf(S.ev.ddos)') < 0.97, 'unmitigated: not held');
+  ev("S.scrubs=[{city:'lon',tier:1}];S.scrubMode='always';compute()");
+  assert.equal(ev('ddosSf(S.ev.ddos)'), 1, 'scrubbed: held');
+  assert.deepEqual(errors, []);
+});
