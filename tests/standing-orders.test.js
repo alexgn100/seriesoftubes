@@ -231,13 +231,66 @@ test('the shift runs inside dayTick, respects a stopped clock, batches its work 
   assert.deepEqual(errors, []);
 });
 
-test('the daily log line is folded into one NOC notification', t => {
+test('the NOC gets one notice a week, the shift report; the daily lines stay in the Ops sheet', t => {
   const { ev, errors } = game(t, "S.transit[0].hist=[600]");
-  hire(ev); on(ev, 'transit', { x: 1.5 });
+  ev('S.day=14');
+  hire(ev); on(ev, 'transit', { x: 1.5 }); on(ev, 'sales', { acc: true, min: 5000 });
+  ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
   const n0 = ev('S.log.length');
-  shift(ev);
-  assert.equal(ev('S.log.length'), n0 + 1);
-  assert.match(ev('S.log[0].t'), /Kevin's shift Kevin topped up transit/);
+  for (let d = 14; d < 21; d++) {
+    if (d === 15) ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:60},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:60}]");
+    ev(`S.day=${d}`); shift(ev);
+  }
+  assert.equal(ev('S.log.length'), n0, 'a whole week of shifts: no NOC notice yet');
+  assert.ok(ev('S.ops.log.length') >= 2, 'the Ops sheet has the daily detail');
+  ev('S.day=21'); shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 1, 'one notice for the week');
+  assert.match(ev('S.log[0].t'), /^Kevin's week Kevin signed a customer \(\+\$6\.0k\/mo\), topped up transit .*declined a tiny offer.*Week total: \$[\d.]+k up front, \+\$[\d.]+k\/mo\./);
+  assert.equal(ev('S.log[0].k'), 'good');
+  ev('S.day=22'); shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 1, 'and nothing more until the next week ends');
+  // Only the sales order now: one tiny offer declined on day 23, reported when the week ends.
+  ev("for(const k in S.ops.on)S.ops.on[k]=false;S.ops.on.sales=true;S.offers=[{id:'t2',city:'fra',name:'T2',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=23");shift(ev);
+  ev("S.day=28");shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 2);
+  assert.match(ev('S.log[0].t'), /declined a tiny offer\.$/, 'nothing spent: no money line');
+  assert.equal(ev('S.log[0].k'), '');
+  ev("S.day=35");shift(ev);
+  assert.equal(ev('S.log.length'), n0 + 2, 'an idle week: no notice');
+  assert.deepEqual(errors, []);
+});
+
+test('the Ops sheet opens with the intern\'s mood and the weekly shift report, at 360 px, in every language', t => {
+  for (const lang of ['en', 'de', 'es', 'fr', 'it', 'pt']) {
+    const h = load(lang === 'en' ? {} : { lang });
+    const { ev, dom, errors } = h;
+    ev(BASE); ev('S.day=14'); dom.window.innerWidth = 360;
+    hire(ev);
+    ev('opsModal()');
+    const mood = () => dom.window.document.querySelector('#modalCard .ops-mood').textContent;
+    assert.equal(mood(), ev("tr('ops.mood_new',{name:opsName()})"), lang + ': a new hire says so');
+    on(ev, 'transit', { x: 1.5 }, 0);
+    ev("S.transit[0].hist=[600];S.day=21");shift(ev);ev("S.transit[0].hist=[6000];S.day=28");shift(ev);ev('opsModal()');
+    const reps = [...dom.window.document.querySelectorAll('#modalCard .ops-rep')];
+    assert.equal(reps.length, 2, lang + ': last week, and this week so far');
+    assert.equal(reps[0].lastElementChild.textContent, ev('opsWeekLine(S.ops.rep)'), lang);
+    assert.ok(mood().length > 10, lang);
+    assert.doesNotMatch(dom.window.document.getElementById('modalCard').textContent, /\bops\.[a-z_]+/, lang);
+    assert.deepEqual(errors, [], lang);
+    dom.window.close();
+  }
+});
+
+test('the mood follows the week, with no dice', t => {
+  const { ev, errors } = game(t);
+  ev('S.day=100'); hire(ev); ev('S.day=110');
+  const quiet = ev('opsMood()');
+  assert.equal(ev('opsMood()'), quiet, 'the same day reads the same');
+  assert.ok([ev("tr('ops.mood_quiet',{name:'Kevin'})"), ev("tr('ops.mood_kevin')")].includes(quiet));
+  ev("S.ops.wk=opsWkNew(Math.floor(S.day/7));S.ops.wk.n.sales=1");
+  assert.equal(ev('opsMood()'), ev("tr('ops.mood_sales',{name:'Kevin'})"));
+  ev("S.ops.wk.n.broke=1;delete S.ops.wk.n.sales");
+  assert.equal(ev('opsMood()'), ev("tr('ops.mood_broke',{name:'Kevin'})"));
   assert.deepEqual(errors, []);
 });
 
@@ -292,6 +345,9 @@ test('saves: old saves load with no intern and everything off, settings survive 
   assert.equal(ev("JSON.stringify(S.ops.skip)"), '{"fra":["transit"]}');
   assert.equal(ev("JSON.stringify(S.ops.log)"), '[{"d":1,"i":"kevin","r":[["transit",2,["fra +1×100G"]]]}]');
   assert.equal(ev('S.ops.floor===50000&&S.ops.tpl.bb===true'), true);
+  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x'},wh:{transit:['fra +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
+  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"sales":2},"wh":{"transit":["fra +1×100G"]},"up":0,"mo":0,"rev":41000,"ff":7}');
+  assert.equal(ev('S.ops.rep'), null);
   assert.deepEqual(errors, []);
 });
 
@@ -337,5 +393,172 @@ test('sales trial at most one offer a shift, and an offer that did not fit waits
   ev('S.day+=7'); shift(ev);
   assert.equal(ev('__t'), 4);
   ev('autoOffer=__a');
+  assert.deepEqual(errors, []);
+});
+
+test('re-hiring in a later month starts on a fresh budget, not last month\'s spending', t => {
+  const { ev, errors } = game(t);
+  hire(ev);
+  ev("S.ops.spent.transit=50000;ACT.opsFire();ACT.opsFire();S.day=400;ACT.opsHire({id:'kevin'});closeModal()");
+  assert.equal(ev('S.ops.spent.transit'), 0);
+  assert.equal(ev('S.ops.mon'), ev('Math.floor(S.day/30)'));
+  ev("S.ops.spent.transit=1234;ACT.opsFire();ACT.opsFire();ACT.opsHire({id:'annie'});closeModal()");
+  assert.equal(ev('S.ops.spent.transit'), 1234, 'the same month: what was spent stays spent');
+  assert.deepEqual(errors, []);
+});
+
+test('transit never comes from a provider that breaks a promise: no-Cogentle customers, bank covenants, the Spat', t => {
+  const { ev, errors } = game(t, "S.transit=[];ACT.buyTransit({city:'fra',net:'lvl',tier:0});compute();S.transit[0].hist=Array(30).fill(200)");
+  hire(ev); on(ev, 'transit', { x: 1.5 });
+  assert.equal(ev("cheapestTransit('fra').id"), 'cog', 'Cogentle is the cheapest here, so it would be the pick');
+  ev("S.biz.push({id:'b1',city:'fra',name:'X',type:'dia',bw:1,rate:100,mood:100,since:S.day,reqs:['nocog']})");
+  assert.equal(ev("reqOk(S.biz[0])"), true);
+  shift(ev);
+  assert.ok(ev('S.transit.length') > 1 || ev('S.transit[0].n') > 1, 'the intern still topped up');
+  assert.equal(ev("S.transit.some(t=>t.net==='cog')"), false);
+  assert.equal(ev("reqOk(S.biz[0])"), true, 'the customer still gets what they signed for');
+  ev("S.ops.p.transit={x:1.5,prov:'cog'}");
+  assert.notEqual(ev("opsProv('fra').id"), 'cog', 'even when the player picked Cogentle');
+  assert.notEqual(ev("opsTplQuote('ams').net"), 'cog', 'and the new-POP template too');
+  // A bank covenant says the same.
+  ev("S.biz=[];S.loans=[{bank:'db',covs:['nocog'],pay:1,bal:1}]");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  // Cogentle is not speaking to Goggle: the Spat scenario, or a de-peering.
+  ev("S.loans=[]");
+  assert.equal(ev("cheapestTransit('fra').id"), 'cog');
+  ev("S.ev.depeer=S.day+5");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  ev("S.ev.depeer=0;S.scn={id:'spat',rules:{spat:true}}");
+  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  // Two upstreams: once met, never undone (adding is fine; the order never removes).
+  ev("S.scn=null;S.biz=[{id:'b2',city:'fra',name:'Y',type:'dia',bw:1,rate:1,mood:100,since:0,reqs:['twoup']}]");
+  assert.ok(ev("cheapestTransit('fra')"));
+  ev("S.transit=[]");
+  assert.equal(ev("cheapestTransit('fra')"), undefined, 'a lone first upstream would break "two upstreams"');
+  assert.deepEqual(errors, []);
+});
+
+test('decommission keeps its spare in another trench than the big link', t => {
+  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T1'],['s2',0,'T2']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:tr});compute()");
+  hire(ev); on(ev, 'decom', { keep: true });
+  ev("R.load={big:1,s1:0,s2:0}");
+  shift(ev);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['big', 's2'], 'the 100G in the same trench goes, the 10G in its own trench stays');
+  // Every small wave shares the big one's trench: keep the largest, as before.
+  ev("S.links=S.links.filter(l=>l.id==='big');for(const [id,tier] of [['a',1],['b',0]])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:'T1'});compute();R.load={big:1}");
+  shift(ev);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['a', 'big']);
+  assert.deepEqual(errors, []);
+});
+
+test('decommission sees the traffic of a customer signed earlier in the same shift', t => {
+  const { ev, errors } = game(t, "S.pops.fra.bb.d=30;ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T2'],['s2',1,'T3']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:1000,trench:tr});compute()");
+  hire(ev); on(ev, 'sales', { acc: true, min: 0 }); on(ev, 'decom', { keep: false });
+  ev("S.offers=[{id:'o1',city:'fra',city2:'ams',name:'Bulk Co',type:'l2vpn',bw:450,rate:20,reqs:[],exp:S.day+20}]");
+  shift(ev);
+  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.biz.map(b=>b.id))')).length, 1, 'signed');
+  assert.equal(ev('S.links.length'), 3, 'its 450G needs every wave, so none goes');
+  ev('compute()');
+  assert.deepEqual(JSON.parse(ev('JSON.stringify(bizWhy(S.biz[0]))')), []);
+  assert.deepEqual(errors, []);
+});
+
+test('no recompute on a shift that only declined offers or stopped at a budget', t => {
+  const { ev, errors } = game(t);
+  hire(ev); on(ev, 'sales', { acc: false, min: 50000 }); on(ev, 'transit', { x: 3 }, 10000);
+  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30}]");
+  const n = ev("window.__c=compute;window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n");
+  assert.equal(n, 0, 'nothing in the network changed');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /declined a tiny offer, stopped at the budget/);
+  ev("S.ops.spent.transit=0");
+  assert.equal(ev("window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n"), 1, 'a real job still recomputes once');
+  assert.deepEqual(errors, []);
+});
+
+test('per-POP exceptions go with the POP: on decommission, and in a save that lost it', t => {
+  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});ACT.buildPop({city:'lon'});compute()");
+  hire(ev);
+  ev("ACT.opsPop({k:'transit',city:'ams'});ACT.opsPop({k:'caches',city:'lon'});closeModal()");
+  ev("decommission(['ams'])");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}');
+  ev("ACT.buildPop({city:'ams'});closeModal()");
+  assert.equal(ev("opsHere('transit','ams')"), true, 'a rebuilt POP starts with every order on');
+  ev("S.ops.skip.par=['transit'];S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}', 'no POP in Paris: its exception is dropped on load');
+  assert.deepEqual(errors, []);
+});
+
+test('one order that throws is paused and noted; the rest of the shift and the day still run', t => {
+  const { ev, errors } = game(t, "S.transit[0].hist=[60,80,70]");
+  hire(ev); on(ev, 'repair'); on(ev, 'transit', { x: 1.5 });
+  ev("window.__r=OPS_RUN.repair;OPS_RUN.repair=()=>{throw new Error('boom')};window.__e=console.error;console.error=()=>{}");
+  const d = ev('S.day'), saves = ev("window.__s=0;window.__sv=save;save=()=>{__s++;return __sv()};S.day=29;dayTick();save=__sv;__s");
+  ev("OPS_RUN.repair=__r;console.error=__e");
+  assert.ok(d >= 0 && saves >= 1, 'dayTick reached the save on day 30');
+  assert.equal(ev('S.ops.on.repair'), false, 'the broken order is paused');
+  assert.ok(ev("(S.transit[0].n||1)") > 1, 'the next order still ran');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /got stuck on Rush repairs and paused it/);
+  assert.deepEqual(errors, []);
+});
+
+test('the fat-fingered LAG member respects a paused transit order and per-POP exceptions', t => {
+  const { ev, errors } = game(t);
+  hire(ev);
+  // Each shift rolls: fat finger yes, the only POP, the LAG slip (index 3).
+  ev("S.rules=makeRules('bgp');window.__r=Math.random;window.__k=0;Math.random=()=>[0,0,0.7][__k++%3]");
+  const n0 = ev('S.transit[0].n||1'), c0 = cash(ev);
+  shift(ev);
+  assert.equal(ev('__k'), 3);
+  assert.equal(ev('S.ops.log[0].f'), 0, 'transit order paused: a harmless label instead');
+  assert.equal(ev('S.transit[0].n||1'), n0); assert.equal(cash(ev), c0);
+  on(ev, 'transit', { x: 1 }); ev("ACT.opsPop({k:'transit',city:'fra'});closeModal();S.transit[0].hist=[0]");
+  shift(ev);
+  assert.equal(ev('S.ops.log[0].f'), 0, 'Frankfurt excepted: the same');
+  ev("ACT.opsPop({k:'transit',city:'fra'});closeModal()");
+  shift(ev);
+  assert.equal(ev('S.ops.log[0].f'), 3, 'allowed: the extra member');
+  assert.equal(ev('S.transit[0].n||1'), n0 + 1);
+  ev('Math.random=__r');
+  assert.deepEqual(errors, []);
+});
+
+test('caches: the cash floor and a running-cost budget hold; the panel and the log show what a month costs', t => {
+  const { ev, errors } = game(t);
+  hire(ev); on(ev, 'caches', { g: 1 });
+  const add = () => ev("utilityCaches('fra').add.filter(x=>(R.cityDem.fra||0)*NSH[x.net]>=1).length");
+  assert.ok(add() >= 2, 'several boxes on offer');
+  ev('S.ops.floor=50000;S.cash=1000');
+  shift(ev);
+  assert.equal(ev('S.caches.length'), 0, 'below the floor: no new rent either');
+  assert.match(ev('opsEntry(S.ops.log[0])'), /stopped at the budget for Accept free caches/);
+  ev('S.cash=1e8;S.ops.cap.caches=1000');
+  const m0 = ev('opsMoNow()');
+  shift(ev);
+  assert.equal(ev('S.caches.length'), 2, 'a $1k/mo budget fits two $400/mo boxes');
+  assert.equal(ev('S.ops.addMo.caches'), 800);
+  assert.equal(ev('opsMoNow()') - m0, 800);
+  assert.equal(ev('S.ops.log[0].mo'), 800);
+  assert.match(ev('opsEntry(S.ops.log[0])'), /racked 2 free caches \(Frankfurt\).*Cost: \$0 up front, \+\$800\/mo\./);
+  ev('opsModal()');
+  const txt = ev("document.getElementById('modalCard').textContent");
+  assert.match(txt, /each box costs \$400\/mo/);
+  assert.match(txt, /Adds at most: \+\$1\.0k\/mo/);
+  assert.match(txt, /This month: \$0 up front, \+\$800\/mo on the bill/);
+  ev('S.day+=30;S.ops.cap.caches=0'); shift(ev);
+  assert.equal(ev('S.ops.addMo.caches'), (ev('S.caches.length') - 2) * 400, 'a new month counts from zero');
+  assert.deepEqual(errors, []);
+});
+
+test('transit: the log line and budget line show the monthly cost a top-up adds', t => {
+  const { ev, errors } = game(t, "S.transit[0].hist=[60,80,70]");
+  hire(ev); on(ev, 'transit', { x: 1.5 });
+  const m0 = ev('opsMoNow()'), c0 = cash(ev);
+  shift(ev);
+  const mo = ev('opsMoNow()') - m0;
+  assert.ok(mo > 0);
+  assert.equal(ev('S.ops.log[0].up'), c0 - cash(ev));
+  assert.equal(ev('S.ops.log[0].mo'), Math.round(mo));
+  assert.equal(ev('Math.round(S.ops.addMo.transit)'), Math.round(mo));
+  assert.match(ev('opsEntry(S.ops.log[0])'), /Cost: \$[\d.]+k up front, \+\$[\d.]+k?\/mo\./);
   assert.deepEqual(errors, []);
 });

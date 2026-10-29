@@ -136,3 +136,24 @@ test('route-server batch leaves peering policy and player-owned exchanges alone'
   assert.equal(ev('S.rs.fra'), false, 'owned exchange has no join-route-server control');
   assert.deepEqual(errors, []);
 });
+
+test('#192 the Infra tab shows the kit as one line, without repeating its rows', t => {
+  for (const w of [1280, 360]) {
+    const { ev, dom, errors } = setup(t);
+    ev(`window.innerWidth=${w}`);
+    ev("S.caches=[{id:'c1',city:'fra',net:'cfl'},{id:'c2',city:'fra',net:'cfl'}];compute();selectCity('fra');ACT.tab({t:'links'})");
+    const body = dom.window.document.getElementById('panelBody');
+    const txt = body.textContent;
+    assert.match(txt, /PoP redundancy kit · One-off: /);
+    assert.doesNotMatch(txt, /Second site(None|Installed)/, 'no second copy of the second-site row');
+    assert.doesNotMatch(txt, /At least two routers/, 'no second copy of the routers row');
+    assert.doesNotMatch(txt, /Request missing caches/, 'caches are in the Peering tab and Utilities');
+    assert.equal(body.querySelectorAll('section h3').length, [...body.querySelectorAll('section h3')].filter(h => h.textContent !== 'PoP redundancy kit').length);
+    assert.equal(txt.split('Backup generator').length - 1, 1, 'the generator shows once, in Power');
+    assert.ok(body.querySelector('[data-act="utilityKit"]'), 'the kit is one tap away');
+    body.querySelector('[data-act="utilities"]').click();
+    assert.match(dom.window.document.getElementById('modalCard').textContent, /At least two routers/, 'the full kit is in Utilities');
+    assert.equal(dom.window.document.querySelector('#utilityCity').value, 'fra');
+    assert.deepEqual(errors, [], `${w}px`);
+  }
+});

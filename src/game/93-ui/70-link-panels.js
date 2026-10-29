@@ -34,10 +34,11 @@ function vxcPanel(l){
   return h;
 }
 function prefCtl(kind,id,cur){cur=cur||'normal';return `<div class="btns"><span class="meta" style="align-self:center">${tr('common.egress')}</span>${Object.keys(PREF).map(v=>btn(PREF[v],'setPref',{kind,id,v},cur===v?'pink sm':'ghost sm')).join('')}</div>`;}
-// Trial routing is isolated from the live save, counters and scenic-route memory.
+// Trial routing is isolated from the live save, counters and scenic-route memory. "Before" is the live routing, which
+// after() keeps current, so a check costs one compute() on a big network, not two.
 function linkTrial(id){const save=S,live=R,hot=UI.hotMap,cache=TE_CACHE;
-  try{S=JSON.parse(JSON.stringify(save));const l=S.links.find(x=>x.id===id);if(!l||linkDown(l))return null;
-    compute();const before=R;l.cut=S.day+1;compute();
+  try{const l0=save.links.find(x=>x.id===id);if(!l0||linkDown(l0))return null;
+    S=JSON.parse(JSON.stringify(save));const l=S.links.find(x=>x.id===id),before=live;l.cut=S.day+1;compute();
     const allowed=new Set(Object.keys(S.pops).filter(popUp).concat(remoteCities())),adj={};
     for(const x of S.links)if(!linkDown(x)&&allowed.has(x.a)&&allowed.has(x.b)){(adj[x.a]=adj[x.a]||[]).push(x.b);(adj[x.b]=adj[x.b]||[]).push(x.a);}
     const seen=new Set([l.a]),q=[l.a];for(let i=0;i<q.length;i++)for(const c of adj[q[i]]||[])if(!seen.has(c)){seen.add(c);q.push(c);}
@@ -67,6 +68,8 @@ function trafficSection(l){
   if(u>=0.8&&egs.length){const d=R.egDesc[egs[0][0]];h+=`<p class="why">${tr('link_panels.biggest_feeder_egress_in_city_set',{egress:esc(d.lab),city:CITY[d.city].name})}</p>`;}
   return h+`</section>`;
 }
+// Safari keeps the number field focused through a button tap, and renderPanel() skips a focused field: let go first (#131).
+const metBlur=()=>{const t=$('metIn');if(t&&document.activeElement===t)t.blur();};
 function metricSection(l){const key=edgeKey(l),cur=pairMet(key),pl=pairLinks(l.a,l.b),sb=!!l.standby,base=l.km+60,sel=k=>cur===k?'pink sm':'ghost sm';
   let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost_0160')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},sel(k))).join('')}${btn(tr('common.custom'),'setMetric',{id:l.id,v:'custom'},sel('custom'))}</div>`;
   const cm=pairCm(key);

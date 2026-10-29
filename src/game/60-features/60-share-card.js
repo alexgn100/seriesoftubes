@@ -20,7 +20,7 @@ function shareCanvas(){const Wc=1200,Hc=630,cv=document.createElement('canvas');
   if(S.scn)rows.unshift([scnName(),S.scn.done?(S.scn.id==='weekly'?tr('share_card.score_v',{v:fmtG(S.scn.score||S.stats.peak||0)}):tr('features.done_in_d_days',{d:S.scn.done})):S.scn.failed?tr('share_card.not_this_time'):tr('common.in_progress')]);
   let y=150;for(const [k,v] of rows.slice(0,9)){g.fillStyle='#fff';g.strokeStyle='#1E2640';g.lineWidth=3;g.beginPath();g.roundRect?g.roundRect(770,y,390,42,12):g.rect(770,y,390,42);g.fill();g.stroke();g.fillStyle='#5A6280';g.font='800 18px Nunito, sans-serif';g.fillText(k,786,y+11);g.fillStyle='#1E2640';g.font='900 22px Nunito, sans-serif';const tw=g.measureText(v).width;g.fillText(v,1146-tw,y+9);y+=48;}
   // Badge variants show as a ring: frosted for Change Freeze, fiery for BGP at 3 a.m.
-  top.forEach((b,i)=>{const v=S.achP&&S.achP[b.id];if(v&&v!=='oncall'&&BVAR[v]){g.strokeStyle=BVAR[v].col;g.lineWidth=4;g.beginPath();g.arc(60+i*48,537,22,0,7);g.stroke();}});
+  top.forEach((b,i)=>{const v=S.achP&&S.achP[b.id];if(v&&v!=='oncall'&&own(BVAR,v)){g.strokeStyle=BVAR[v].col;g.lineWidth=4;g.beginPath();g.arc(60+i*48,537,22,0,7);g.stroke();}});
   g.font='34px sans-serif';top.forEach((b,i)=>g.fillText(b.i,40+i*48,520));
   {const n=v=>got.filter(b=>(S.achP&&S.achP[b.id]||'oncall')===v).length,f=n('freeze'),h=n('bgp');if(f||h){g.fillStyle='#1E2640';g.font='800 18px Nunito, sans-serif';g.fillText([h?`🔥 ${h}`:'',f?`🧊 ${f}`:''].filter(Boolean).join('  '),40+Math.max(1,top.length)*48+8,526);}}
   g.fillStyle='#1E2640';g.font='900 30px "Baloo 2", sans-serif';g.fillText('seriesoftub.es',40,572);g.font='700 20px Nunito, sans-serif';g.fillText(tr('share_card.build_the_internet_one_tube_at'),300,580);

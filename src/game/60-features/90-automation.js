@@ -11,7 +11,14 @@ function autoOffer(o){if(!o||!own(BIZ_T,o.type)||!(o.exp>S.day)||!(o.bw>0)||o.ra
   // Trial the added demand before signing; failed trials leave the live game untouched.
   try{S={...S,biz:S.biz};
     // shortcut: future events reserve capacity together; use per-date trials if separate bookings must share capacity.
-    if(future){S.biz=S.biz.map(x=>BIZ_T[x.type].event&&x.start>S.day?{...x,start:S.day}:x);compute();}
+    if(future){S.biz=S.biz.map(x=>BIZ_T[x.type].event&&x.start>S.day?{...x,start:S.day}:x);
+      /* Signed if the offer works and nobody who works without it breaks. compute() reads the last result only for
+         scenic circuits, so without them the pass with the offer can go first: when the offer fails, or nobody is
+         unhappy with it, the pass without it cannot change the answer and is skipped. */
+      const fut=S.biz,all=fut.concat(b);
+      if(!all.some(x=>x.route==='scenic')){if(T.event)b.start=S.day;if(T.cap)b.live=true;S.biz=all;compute();if(bizWhy(b).length)return null;
+        const bad=fut.filter(x=>bizWhy(x).length);if(!bad.length)return b;S.biz=fut;compute();return bad.every(x=>bizWhy(x).length)?b:null;}
+      compute();}
     const healthy=S.biz.filter(x=>!bizWhy(x).length);if(T.event)b.start=S.day;if(T.cap)b.live=true;S.biz=S.biz.concat(b);compute();
     return !bizWhy(b).length&&healthy.every(x=>!bizWhy(x).length)?b:null;
   }finally{S=state;R=result;UI.hotMap=hot;b.start=o.start;if(T.cap)delete b.live;}}

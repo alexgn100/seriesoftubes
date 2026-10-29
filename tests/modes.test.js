@@ -409,8 +409,8 @@ test('#114 Only Spätzle-IX can be won by peering alone', () => {
   const { ev, errors } = load();
   ev("ACT.startScn({id:'stg',sure:1})");
   assert.equal(ev("scnRule('local')&&scnRule('noTransit')"), true);
-  assert.match(ev("SCN.find(x=>x.id==='stg').goal"), /45%.*300 Gbps/);
-  assert.deepEqual(JSON.parse(ev("JSON.stringify(scnProg().items.map(x=>x.max))")), [0.45, 300]);
+  assert.match(ev("SCN.find(x=>x.id==='stg').goal"), /50%.*300 Gbps/);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(scnProg().items.map(x=>x.max))")), [0.5, 300]);
   // a game saved before the fix picks the rule up on load
   ev("const o=JSON.parse(JSON.stringify(S));delete o.scn.rules.local;migrate(o);window.__mig=o.scn.rules.local");
   assert.equal(ev('window.__mig'), true);
