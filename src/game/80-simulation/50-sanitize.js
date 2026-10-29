@@ -77,8 +77,11 @@ function sanitize(s){
   for(const k of Object.keys(s.ach))s.ach[k]=num(s.ach[k],0);
   {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=BVAR[p[k]]?p[k]:'oncall';}
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
-  // The rules (2.0): a save without them is the classic game, On-call (or a sandbox or puzzle, if it was one). Locked after the start.
-  {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{},p=s.mode==='sandbox'?'sandbox':s.mode==='puzzle'?'puzzle':own(PRESETS,r.preset)?r.preset:'oncall';s.rules=makeRules(p,own(PRESETS,r.preset)?r:{});}
+  /* The rules (2.0) follow from the mode, as the doors set them, and nothing else: a save without them is the classic
+     game, On-call. Scenarios and the weekly run on On-call; a sandbox keeps only its chaos; a Normal game one of the
+     three Normal presets, unchanged (its validated mods kept). So an edited or imported save cannot stop the clock or print money. */
+  {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{};
+   const m={mods:r.mods};s.rules=s.scn&&typeof s.scn==='object'?makeRules('oncall',m):s.mode==='sandbox'?makeRules('sandbox',{...m,chaos:r.chaos}):makeRules(NORMAL_PRESETS.includes(r.preset)?r.preset:'oncall',m);}
   if(s.te){if(typeof s.te!=='object')s.te=null;else{s.te.on=!!s.te.on;s.te.script=typeof s.te.script==='string'?s.te.script.slice(0,4000):'';}}
   return s;}
 function migrate(s){sanitize(s);
