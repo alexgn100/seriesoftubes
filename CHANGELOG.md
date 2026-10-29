@@ -49,6 +49,7 @@ All notable changes to this project are documented here. The project follows
 - When a new release changes prices so that this week's or a coming week's puzzle no longer adds up, that puzzle gets a fair new budget, and only its stars start again. Weeks that are over keep theirs.
 - The Networks list shows 100 networks at a time, with a button for the rest, so it opens quickly now that every country has its own networks.
 - A tidier start screen: language first, then your network's name, the doors, three compact difficulty buttons with the chosen one explained below, and one drop-down for your home city with the five suggested homes at the top.
+- Every network in a POP's PNI list now shows how you reach it today and whether a PNI there is worth the cross-connect (#175, #172). A chip says PNI here (with size and load), PNI elsewhere, which exchanges you peer at, whose customer cone carries it, transit only or not reached; a value line shows how much of its traffic leaves from that POP over transit, exchanges or other PNIs, and what a PNI there would save or cost a month. The best candidates get a ⭐ Worth it tag, the list sorts them first, filters to All, Via transit, Worth it or Already PNI, and groups networks by type, with idle groups folded. The same chip shows in the Networks tab and in the bulk PNI preview.
 
 ## [1.37.0] — 2026-10-28
 
