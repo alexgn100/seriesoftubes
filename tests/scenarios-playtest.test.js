@@ -18,7 +18,8 @@ const PLAY = {
     win: [120, 240], cheese: [['bb', 'stg'], ['ix', 'stg'], ['link', 'stg', 'fra', 1], ['ix', 'fra'], ['bb', 'fra'], ['loans'], ['hire', ['routers', 'repair']]], by: null },
   // The other way round the planet: Paris, New York, Los Angeles, Tokyo, Hong Kong, Singapore.
   redsea: { ref: [...home('mrs'), ['link', 'mrs', 'par', 1], ['bb', 'par'], ['ix', 'par'], ['link', 'par', 'nyc', 1, 'amitie'], ['tr', 'nyc', 1], ['ix', 'nyc'], ['link', 'nyc', 'lax', 1], ['ix', 'lax'], ['tr', 'lax', 1], ['link', 'lax', 'tok', 1, 'jup'], ['bb', 'tok'], ['tr', 'tok', 1], ['ix', 'tok'], ['link', 'tok', 'hkg', 1, 'apg'], ['bb', 'hkg'], ['tr', 'hkg', 1], ['ix', 'hkg'], ['link', 'hkg', 'sin', 1], ['bb', 'sin'], ['tr', 'sin', 1], ['ix', 'sin'], HIRE],
-    win: [100, 250], cheese: [...home('mrs'), ['loans'], ['link', 'mrs', 'sin', 1], ['bb', 'sin']], by: null },
+    // 2.0.0: no more max-prefix outages to break the 30-day streak, so the reference can finish in under 100 days.
+    win: [80, 250], cheese: [...home('mrs'), ['loans'], ['link', 'mrs', 'sin', 1], ['bb', 'sin']], by: null },
   spat: { ref: [...home('nyc'), HIRE], avoid: ['cog'], win: [50, 140], cheese: [...home('nyc'), ['hire', ['routers', 'repair']]], by: 160 },
   carnaval: { ref: [...home('rio'), ['hire'], ['wait', 69], ['prep', 'rio', 400], ['wait', 76], ['prep', 'rio', 400], ['wait', 83], ['prep', 'rio', 400]], win: [95, 95], cheese: [...home('rio'), ['loans']], by: null },
   darien: { ref: [...home('pan'), ['link', 'pan', 'bog', 1, 'pccs'], ['bb', 'bog'], ['ix', 'bog'], ['link', 'bog', 'lim', 1], ['bb', 'lim'], ['ix', 'lim'], ['link', 'lim', 'scl', 1], ['bb', 'scl'], ['ix', 'scl'], ['link', 'scl', 'sao', 1], ['bb', 'sao'], ['tr', 'sao', 1], ['ix', 'sao'], HIRE],
