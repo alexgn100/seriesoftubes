@@ -88,8 +88,9 @@ test('generator: a quarter of weeks, all verified, varied, small and in the sche
   for (const j of out) {
     assert.ok(j.cities.length >= 3 && j.cities.length <= 6);
     assert.ok(j.ref.one <= j.ref.three && j.ref.three <= j.budget && j.budget <= j.ref.three * 1.06 + 10000, `${j.key}: budget ${j.budget} just above the N-1 build ${j.ref.three}`);
-    assert.ok(JSON.stringify(j).length < 600, 'small file');
-    assert.deepEqual(Object.keys(j), ['v', 'key', 'theme', 'cities', 'via', 'avoid', 'budget', 'twist', 'name', 'joke', 'ref']);
+    assert.ok(JSON.stringify(j).length < 900, 'small file');
+    assert.ok(j.dem.length >= 2 && j.src.length === 1 && j.dem.every((f) => f.g > 0), `${j.key}: it carries traffic`);
+    assert.deepEqual(Object.keys(j), ['v', 'key', 'theme', 'cities', 'src', 'dem', 'via', 'avoid', 'budget', 'twist', 'name', 'joke', 'ref']);
   }
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, 'index.json'), 'utf8')).weeks, out.map((j) => j.key));
 });
@@ -113,7 +114,8 @@ test('--check passes on the committed files and rejects tampered ones', () => {
   bad((j) => { j.joke.p = { hub: 'fra' }; }, 'parameters the label does not take');
   bad((j) => { j.extra = '<img src=x onerror=alert(1)>'; }, 'an unknown field');
   bad((j) => { j.key = '2030-W01'; }, 'a file under another week\'s name');
-  bad((j) => { j.twist = { lat: [j.cities[0], j.cities[1], 0.5] }; }, 'an impossible latency target');
+  bad((j) => { j.dem.push({ t: 'l2', a: j.cities[0], b: j.cities[1], g: 10, ms: 1 }); }, 'an impossible latency target');
+  bad((j) => { j.dem[0].g = 5000; }, 'more traffic than a puzzle carries');
   bad(() => '{nope', 'not JSON');
   bad((j, d) => { fs.writeFileSync(path.join(d, 'index.json'), '{"v":1,"weeks":[]}'); }, 'an index that misses weeks');
 });
@@ -221,11 +223,12 @@ test('the published puzzle is played when it is good, the seeded one when it is 
   assert.equal(ev('S.pz.budget'), good.budget);
   assert.match(ev("document.getElementById('pzBox').textContent"), new RegExp(ev('pzTxt(S.pz.wj)').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   // Solve it with three stars: the share line and the streak use the published key.
-  const sol = G.solve(G.world(ev), { cities: good.cities, via: good.via, avoid: good.avoid, ring: !!good.twist.ring, noSub: false, lat: good.twist.lat || null }).three;
-  for (const l of sol.links) {
-    if (!ev(`!!S.pops['${l.a}']`)) ev(`ACT.pzPop({city:'${l.a}'})`);
-    ev(`ACT.pzLinkTo({a:'${l.a}',b:'${l.b}'});ACT.pzVia({v:'${l.via}'});ACT.pzDiv({v:1});ACT.pzLink({tier:0})`);
-  }
+  // The generator's sized 3-star reference, played into this puzzle (links, routers, routes).
+  const SV = require('../scripts/lib/puzzle-solver');SV.install(ev);
+  const def = JSON.parse(ev('JSON.stringify(pzWkDef())')), sol = G.sized({ ev }, G.world(ev), G.shape(def), def).three.b;
+  ev('pzBegin(pzWkDef())');
+  SV.judge(ev, sol.links);
+  ev(`pzsApplyRt(${JSON.stringify(sol.rt)});pzAfter()`);
   assert.equal(ev('pzEval().stars'), 3);
   assert.match(ev('pzShareText(pzEval())'), new RegExp(`^Series of Tubes puzzle ${key} ⭐⭐⭐ \\$[\\d.]+[kM] · seriesoftub\\.es$`));
   const p = JSON.parse(ev("localStorage.getItem('sot-puzzles')"));
@@ -242,7 +245,13 @@ test('the file is checked field by field', () => {
   const j = committed()[0], k = j.key, ok = (o) => ev(`!!pzWkValid(${JSON.stringify(o)},'${k}')`);
   assert.ok(ok(j));
   const no = (edit, why) => { const o = JSON.parse(JSON.stringify(j)); edit(o); assert.equal(ok(o), false, why); };
-  no((o) => { o.v = 2; }, 'a newer schema');
+  no((o) => { o.v = 3; }, 'a newer schema');
+  no((o) => { o.v = 1; }, 'an old file without traffic');
+  no((o) => { o.dem = []; }, 'no traffic');
+  no((o) => { o.dem = [{ t: 'warp', a: o.cities[0], g: 1 }]; }, 'an unknown kind of flow');
+  no((o) => { o.dem = [{ ...o.dem[0], g: 1.5 }, ...o.dem.slice(1)]; }, 'fractional gigabits');
+  no((o) => { o.src = []; }, 'eyeballs with nowhere to pull from');
+  no((o) => { o.cities = o.cities.slice(0, -1); }, 'cities that do not match the traffic');
   no((o) => { o.theme = 'constructor'; }, 'an unknown theme');
   no((o) => { o.cities = ['fra']; }, 'too few cities');
   no((o) => { o.cities = [...o.cities, o.cities[0]]; }, 'a city twice');

@@ -279,7 +279,9 @@ function sized(g, W, P, def) {
   const sol = solve(W, P); if (!sol.one || !sol.three) return null;
   const one = size(g.ev, def, sol.one.links, false), three = size(g.ev, def, sol.three.links, true);
   if (!one || !three) return null;
-  return { one: { cost: Math.round(one.spend), b: one }, three: { cost: Math.round(three.spend), b: three } };
+  // The three-star build delivers too: when it is the cheaper one (a ring, sized down), it is the one-star reference.
+  const o = one.spend <= three.spend ? one : three;
+  return { one: { cost: Math.round(o.spend), b: o }, three: { cost: Math.round(three.spend), b: three } };
 }
 // The game's own validator decides what a puzzle is; then both references must earn their stars.
 function verify(g, W, j, key, known) {
@@ -384,7 +386,7 @@ function refresh(g, dir, now = Date.now()) {
 const writeIndex = (dir) => fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({ v: SCHEMA, weeks: list(dir) }) + '\n');
 const writeWeek = (dir, j) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, j.key + '.json'), JSON.stringify(j) + '\n'); writeIndex(dir); };
 
-module.exports = { game, generate, check, refresh, solve, world, writeWeek, writeIndex, list };
+module.exports = { game, generate, check, refresh, solve, sized, shape, world, writeWeek, writeIndex, list };
 
 if (require.main === module) {
   const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
