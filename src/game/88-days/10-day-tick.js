@@ -11,7 +11,8 @@ function dayTick(){
   for(const a of ddosAll(S,false))if(a.until>=d&&R&&S.pops[a.city])a.worst=Math.min(a.worst===undefined?1:a.worst,ddosSf(a));
   ddosExpire();
   ddosTick();
-  if(R&&R.demand>0)S.stats.clean=R.served/R.demand>=0.995?(S.stats.clean||0)+1:0;
+  // What the Great Firewall drops is not your outage: it alone kept Anchors Away's 99.5% out of reach (playtest).
+  if(R&&R.demand>0)S.stats.clean=(R.served+(R.gfwLost||0))/R.demand>=0.995?(S.stats.clean||0)+1:0;
   if(S.scn&&S.scn.id==='redsea')S.stats.asiaRun=asiaG()>=RS_G?(S.stats.asiaRun||0)+1:0;
   if(S.ev.php===d)toast(tr('day_tick.the_internet_is_back_half_of'),'good');
   for(const k in S.peers){const [id,c]=k.split('@'),sn=snub(id,c);if(!sn)continue;delete S.peers[k];S.stats.depeered=(S.stats.depeered||0)+1;
@@ -63,6 +64,8 @@ function dayTick(){
   // Chaos (the rules) scales how often: calm waits about three times as long, spicy comes almost twice as often, none never.
   let dirty=false;const cm=chaosMul();
   if(cm&&d>=S.nextFail){dirty=true;fireFailure();const size=S.links.length+Object.keys(S.pops).length;S.nextFail=d+Math.round((Math.max(22,50-size*1.5)+Math.floor(Math.random()*25))*(scnRule('chaos')?0.5:1)/cm);}
+  // Anchors Away: on top of the usual failures, ships drag anchors over each Baltic seabed link (about three cuts a link-year).
+  if(cm&&d>45&&scnRule('anchors')){const n=S.links.filter(l=>l.kind!=='vxc'&&!linkDown(l)&&anchorProne(l)).length;if(n&&Math.random()<Math.min(5,+S.scn.rules.anchors||1)*n/365){dirty=true;fireFailure('cut');}}
   if(cm&&d>=S.nextEvent){dirty=true;fireEvent();S.nextEvent=d+Math.round((45+Math.floor(Math.random()*45))/cm);}
   if(dirty)compute();
   opsDay(d);

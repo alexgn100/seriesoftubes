@@ -5,13 +5,13 @@ const pSrv=g=>({l:tr('common.traffic_served'),v:R.served,max:g,txt:`${fmtG(R.ser
 const pReach=()=>({l:tr('common.reach'),v:R.reach,max:0.99,txt:`${pct(R.reach)} / 99%`});
 const pChk=(l,ok)=>({l,v:ok?1:0,max:1,txt:ok?'✓':'—'});
 const SCN_PROG={stg:()=>[{l:tr('common.reach'),v:R.reach,max:0.5,txt:`${pct(R.reach)} / 50%`},pSrv(300)],redsea:()=>{const g=asiaG(),n=S.stats.asiaRun||0;return [pChk(tr('progress.a_path_from_marseille_to_singapore'),pathExists('mrs','sin')),{l:tr('progress.your_traffic_to_and_from_asia'),v:Math.min(g,RS_G),max:RS_G,txt:`${fmtG(g)} / ${fmtG(RS_G)}`},{l:tr('progress.days_in_a_row_at_g',{g:fmtG(RS_G)}),v:n,max:RS_DAYS,txt:`${n} / ${RS_DAYS}`}];},spat:()=>[pReach(),pSrv(150)],
-  carnaval:()=>[pChk(tr('progress.carnaval_delivered_in_full'),(S.stats.evFull||0)>=1)],ixbr:()=>{const n=brIxN();return [{l:tr('progress.ix_brrr_ports'),v:n,max:15,txt:`${n} / 15`},pChk(tr('progress.a_port_on_ix_brrr_manaus'),S.ixp.mao!==undefined),pSrv(200)];},
-  c2c:()=>[pChk(tr('progress.a_path_from_cape_town_to'),pathExists('cpt','cai')),...['lag','nbo'].map(c=>pChk(tr('progress.pop_in_city',{city:CITY[c].name}),!!S.pops[c])),pSrv(150)],
+  carnaval:()=>[pChk(tr('progress.carnaval_delivered_in_full'),(S.stats.evFull||0)>=1)],ixbr:()=>{const n=brIxN();return [{l:tr('progress.ix_brrr_ports_on_your_backbone'),v:n,max:15,txt:`${n} / 15`},pChk(tr('progress.a_port_on_ix_brrr_manaus'),S.ixp.mao!==undefined),pSrv(200)];},
+  c2c:()=>[pChk(tr('progress.a_path_from_cape_town_to'),pathExists('cpt','cai')),...['lag','nbo'].map(c=>pChk(tr('progress.city_on_your_network',{city:CITY[c].name}),pathExists('cpt',c))),pSrv(150)],
   pac:()=>[pChk(tr('progress.1_6t_on_every_hop_from'),fastPath('lax','syd',1600)),pChk(tr('progress.a_path_from_los_angeles_to'),pathExists('lax','tok')),pSrv(150)],
   atl:()=>[pChk(tr('progress.1_6t_on_every_hop_from_a90b'),fastPath('mia','mad',1600)),pChk(tr('progress.1_6t_on_every_hop_from_da01'),fastPath('lis','lag',1600)),pSrv(100)],
-  darien:()=>[...['bog','lim','scl','sao'].map(c=>pChk(tr('progress.pop_in_city',{city:CITY[c].name}),!!S.pops[c])),pSrv(150)],
+  darien:()=>[...['bog','lim','scl','sao'].map(c=>pChk(tr('progress.city_on_your_network',{city:CITY[c].name}),pathExists('pan',c))),pSrv(150)],
   gangnam:()=>[pReach(),pSrv(200)],
-  fttb:()=>[...AU_BB.map(c=>pChk(tr('progress.broadband_in_city',{city:CITY[c].name}),!!(S.pops[c]&&S.pops[c].bb))),{l:tr('common.cables_overseas'),v:Math.min(2,auExits()),max:2,txt:`${auExits()} / 2`}],
+  fttb:()=>[...AU_BB.map(c=>pChk(tr('progress.broadband_in_city',{city:CITY[c].name}),!!(S.pops[c]&&S.pops[c].bb))),{l:tr('common.cables_overseas'),v:Math.min(2,auExits()),max:2,txt:`${auExits()} / 2`},pSrv(FTTB_G)],
   flood:()=>{const ok=S.stats.ddosOk||0,big=S.stats.ddosOkBig||0,attacks=ddosAll();
     return [{l:tr('common.floods_held'),v:ok,max:20,txt:`${ok} / 20`},{l:tr('progress.terabit_floods_held'),v:big,max:5,txt:`${big} / 5`},{l:tr('progress.floods_that_got_through'),v:0,max:0,txt:String(S.stats.ddosLost||0)}].concat(attacks.map(a=>({l:tr('progress.under_attack_now'),v:0,max:0,txt:`${fmtG(a.gbps)} · ${CITY[a.city].name} · ${pct(a.worst===undefined?1:a.worst)}`})));},baltic:()=>[{l:tr('progress.days_in_a_row_with_99'),v:S.stats.clean||0,max:90,txt:tr('progress.n_of_m',{n:S.stats.clean||0,m:90})}]};
 function scnProg(){const sc=S&&S.scn;if(!sc)return null;

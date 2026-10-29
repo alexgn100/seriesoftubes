@@ -5,7 +5,9 @@
    Not That Telecom and Level Tree (whose real-world network lists no sites in PeeringDB at all, but sells in Sydney). Others can sit in
    an Australian city, like the Pacific carriers backhauling to Sydney (or Glowball Sakura Lager), but reach Australian
    customers only from overseas. */
-const AU_SELLERS=['tsy','voc','spl','sgt','drz','cog','ntt','lvl'],sellsAt=(n,c)=>!!n.price&&(n.pops.includes(c)||!!n.premOnly&&n.premOnly.includes(c))&&(!CITY[c].au||AU_SELLERS.includes(n.id));
+const AU_SELLERS=['tsy','voc','spl','sgt','drz','cog','ntt','lvl'],sellsAt=(n,c)=>!!n.price&&(n.pops.includes(c)||!!n.premOnly&&n.premOnly.includes(c))&&(!CITY[c].au||AU_SELLERS.includes(n.id))&&!noTransitIn(c);
+// A scenario city where nobody sells transit (Anchors Away: Tallinn's internet is across the water).
+const noTransitIn=c=>{const x=S&&S.scn&&S.scn.rules&&S.scn.rules.noTransitIn;return Array.isArray(x)&&x.includes(c);};
 /* China Telecomet's premium crossing into China (CN-Too) is sold where its border routes start: Hong Kong, and Moscow
    (#195), where it rides the land route east and nothing else of theirs is on offer (premOnly). It costs the same
    wherever you buy it: the Hong Kong price. */

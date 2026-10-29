@@ -16,6 +16,8 @@ const borderPair=(a,b)=>CITY[a].reg==='AF'&&CITY[b].reg==='AF'&&CITY[a].cc!==CIT
 // fiber costs a little more again because the incumbents own it.
 const NULLARBOR=1.7,nullPair=(a,b)=>!!CITY[a].au&&!!CITY[b].au&&(a==='per')!==(b==='per');
 const andesPair=(a,b)=>!!CITY[a].andes&&!!CITY[b].andes&&CITY[a].andes!==CITY[b].andes;
+// A pair an anchor-prone cable serves (the Baltic): the map calls it overland, but the fibre lies on the seabed (Anchors Away).
+let ANCHOR_P=null;const anchorPair=l=>(ANCHOR_P||(ANCHOR_P=new Set(CABLE_PAIRS.filter(p=>CAB[p.cid]&&CAB[p.cid].anchor).map(p=>edgeKey(p))))).has(edgeKey(l));
 /* Overland between continents (Europe to the Middle East and Asia) crosses a dozen borders and as many
    carriers, each taking a cut: in real life it costs ten times the subsea route or more (#40). */
 const LAND_X=45,landX=(a,b)=>!isSub(a,b)&&CITY[a].reg!==CITY[b].reg;
