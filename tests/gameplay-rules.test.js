@@ -84,9 +84,7 @@ const EXCEPTIONS = {
     'spl:hba': 'Speedyloop reaches Hobart’s exchange over its own backhaul but sells no transit there',
   },
   // M3: subsystems that annoy the player but read no rule.
-  M3: {
-    snub: 'de-peering at exchanges happens in every mode (open question: should Change Freeze stop it?)',
-  },
+  M3: {},
 };
 
 // The real names the puns are based on. No network, cable, exchange, data center, router or optic may be called one.
@@ -234,7 +232,7 @@ test('M3: every subsystem that can annoy the player reads a rule', () => {
   // [function, what it must read]
   const reads = [['dayTick', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'], ['inboxDay', "rule('inbox')"],
     ['soldOut', "rule('market')"], ['hwMul', "rule('market')"], ['leadDays', "rule('lead')"], ['pniLead', 'leadDays'],
-    ['dfBuildDays', 'leadDays'], ['dayTick', "rule('clock')"]];
+    ['dfBuildDays', 'leadDays'], ['dayTick', "rule('clock')"], ['snub', "rule('market')"]];
   fail('M3', reads.filter(([f, r]) => !ev(`typeof ${f}==='function'&&${f}.toString().includes(${JSON.stringify(r)})`)).map(([f, r]) => `${f}() does not read ${r}`), 'gate it on the ruleset (src/game/40-progress/30-rules.js)');
   // and in play: no chaos, no market, no inbox means a quiet year
   const g = load();

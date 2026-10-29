@@ -99,6 +99,26 @@ test('a snubbing peer tears down an existing session and the Request button expl
   assert.deepEqual(errors, []);
 });
 
+test('Change Freeze never refuses or tears down a session at an exchange; On-call does', () => {
+  const { ev, errors } = load();
+  setup(ev);
+  const k = ev(`(()=>{const ok=['fra','ams','lon','par','nyc','ash','sjc','sin','tok','hkg'];
+    for(let d=0;d<600;d++)for(const n of NETS)for(const c of ok){if(!ixMembers(c).includes(n.id))continue;
+      S.day=d;const a=snub(n.id,c);S.day=d+1;const b=snub(n.id,c);S.day=0;if(!a&&b)return n.id+'@'+c+'@'+d;}})()`);
+  assert.ok(k, 'found a snub starting at an IX');
+  const [id, c, d] = k.split('@');
+  ev(`S.rules=makeRules('freeze');S.day=${d}`);
+  ev(`ACT.buildPop({city:'${c}'});ACT.buyIx({city:'${c}',tier:1,signed:true});S.peers['${id}@${c}']=true;compute()`);
+  ev('dayTick()');
+  assert.equal(ev(`!!S.peers['${id}@${c}']`), true, 'the session survives the freeze');
+  assert.equal(ev(`snub('${id}','${c}')`), null, 'and nobody refuses a new one');
+  assert.equal(ev(`ixSessions('${c}').has('${id}')`), true);
+  assert.equal(ev('S.stats.depeered||0'), 0);
+  ev(`S.rules=makeRules('oncall');S.day=${+d + 1}`);
+  assert.ok(ev(`!!snub('${id}','${c}')`), 'On-call still snubs the same pair');
+  assert.deepEqual(errors, []);
+});
+
 test('remote peering is offered but costs more, gives less and gets refused more', () => {
   const { ev, errors } = load();
   setup(ev);
