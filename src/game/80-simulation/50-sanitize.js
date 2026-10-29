@@ -67,6 +67,7 @@ function sanitize(s){
   const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
     a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+Math.ceil(7*SPICY_LONG));
     delete a.entries; // 2.0 betas spread attacks over every ingress port; they arrive on one again
+    if(a.who!==undefined&&!FLOOD_WHO.includes(a.who))delete a.who; // a label from the list, never text from the file
     a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
     if(!a.entry||typeof a.entry!=='object'||!['t','ix','p','edge'].includes(a.entry.k))a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
   const attacks=[s.ev.ddos,...(Array.isArray(s.ev.ddosMore)?s.ev.ddosMore:[])].map(repairAttack).filter(Boolean).slice(0,14);

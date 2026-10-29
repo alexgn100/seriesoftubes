@@ -113,3 +113,13 @@ test('BGP at 3 a.m. brings about twice On-call\'s DDoS; gaming customers bring t
   const ratio = picks.bgp / picks.oncall;
   assert.ok(ratio > 1.7 && ratio < 2.3, `about twice the DDoS (${ratio.toFixed(2)}x)`);
 });
+
+test('an imported save cannot put HTML in a Flood Season attacker\'s name', () => {
+  const { ev, dom, errors } = load({ seed: 5 });
+  ev("ACT.startScn({id:'flood',sure:1});S.day=10;ddosAttack();S.ev.ddos.who='<img src=x id=pwn>';S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.ev.ddos.who'), undefined, 'only names from the list survive a load');
+  ev('S.ev.ddos.who="<img src=x id=pwn2>";ddosDone(S.ev.ddos)');
+  assert.equal(dom.window.document.getElementById('pwn'), null);
+  assert.equal(dom.window.document.getElementById('pwn2'), null, 'and the toast escapes it anyway');
+  assert.deepEqual(errors, []);
+});
