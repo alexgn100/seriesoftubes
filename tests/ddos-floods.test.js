@@ -123,3 +123,14 @@ test('an imported save cannot put HTML in a Flood Season attacker\'s name', () =
   assert.equal(dom.window.document.getElementById('pwn2'), null, 'and the toast escapes it anyway');
   assert.deepEqual(errors, []);
 });
+
+test('the China licence arrives in a tenth of the time with quick lead times, and the button says so', () => {
+  for (const [preset, days] of [['oncall', 45], ['freeze', 5]]) {
+    const { ev, errors } = load();
+    ev(`beginGame('C','fra',{mode:'normal',preset:'${preset}'});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9`);
+    assert.match(ev("tr('link_panels.apply_for_a_license_price_mo_n_days',{price:'$1',mo:'$1',n:leadDays(45)})"), new RegExp(`~${days} days`));
+    ev('ACT.applyCn()');
+    assert.equal(ev('S.cnLic.ready-S.day'), days, preset);
+    assert.deepEqual(errors, []);
+  }
+});

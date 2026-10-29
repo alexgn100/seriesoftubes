@@ -2126,7 +2126,7 @@
 "link_panels.add_parallel_link":"Aggiungi link parallelo",
 "link_panels.additional_traffic_lost":"Ulteriore traffico perso",
 "link_panels.an_alternate_path_exists_but_current":"Esiste un percorso alternativo, ma con routing e capacità attuali viene consegnato meno traffico.",
-"link_panels.apply_for_a_license_price_mo":"Richiedi una licenza <small>{price} + {mo}/mese · ~45 giorni</small>",
+"link_panels.apply_for_a_license_price_mo_n_days":"Richiedi una licenza <small>{price} + {mo}/mese · ~{n} giorni</small>",
 "link_panels.back_in_n_days":"Torna tra {n} giorni.",
 "link_panels.behind_the_great_firewall":"Dietro il Great Firewall",
 "link_panels.biggest_fabric_money_can_buy":"Il fabric più grosso che si possa comprare.",
