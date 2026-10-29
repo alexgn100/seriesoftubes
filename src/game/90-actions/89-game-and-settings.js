@@ -4,14 +4,14 @@ Object.assign(ACT,{
    beginGame(nm,homeOk(UI.startCity)?UI.startCity:'fra',sb?{mode:'sandbox',rules:{chaos:own(CHAOS,UI.sbChaos)?UI.sbChaos:'none'}}:{mode:'normal',preset:NORMAL_PRESETS.includes(UI.preset)?UI.preset:'oncall'});},
  // Title-screen doors and their options toggle in place, so the name being typed and the city stay as they are.
  modeSet:({m})=>{if(m!=='sandbox'&&m!=='normal')return;UI.mode=m;document.querySelectorAll('.door').forEach(b=>b.classList.toggle('on',b.dataset.door===m));const n=$('doorNormal'),x=$('doorSandbox');if(n)n.hidden=m!=='normal';if(x)x.hidden=m!=='sandbox';},
- presetSet:({p})=>{if(!NORMAL_PRESETS.includes(p))return;UI.preset=p;ACT.modeSet({m:'normal'});document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',b.dataset.preset===p));},
+ presetSet:({p})=>{if(!NORMAL_PRESETS.includes(p))return;UI.preset=p;ACT.modeSet({m:'normal'});document.querySelectorAll('.preset').forEach(b=>{b.classList.toggle('on',b.dataset.preset===p);b.setAttribute('aria-pressed',b.dataset.preset===p);});const w=$('presetWhat');if(w)w.innerHTML=presetWhat(p);},
  chaosSet:({c})=>{if(!own(CHAOS,c))return;UI.sbChaos=c;ACT.modeSet({m:'sandbox'});document.querySelectorAll('.chs').forEach(b=>b.classList.toggle('on',b.dataset.chaos===c));},
  // Puzzles live in their own module; until it ships, the door says so.
  puzzleDoor:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||randomNetworkName()).slice(0,24);if(typeof ACT.puzzleMenu==='function')ACT.puzzleMenu();else toast(tr('title.puzzles_are_coming_soon'),'goal');},
  scenarios:()=>{UI.nm=(($('nmIn')&&$('nmIn').value)||UI.nm||(S&&S.name)||randomNetworkName()).slice(0,24);scenarioModal();},
  startScn:({id})=>{const sc=SCN.find(x=>x.id===id);if(!sc)return;beginGame(UI.nm||(S&&S.name)||randomNetworkName(),sc.city,{scn:sc});},
  startWeekly:()=>{const wk=weekly();beginGame(UI.nm||(S&&S.name)||randomNetworkName(),wk.city,{scn:wk,seed:wk.seed});},
- pickStart:({city})=>{if(!homeOk(city))return;UI.startCity=city;document.querySelectorAll('.start').forEach(b=>b.classList.toggle('on',b.dataset.city===city||(b.classList.contains('own')&&!START5.includes(city))));const s=$('homeSel');if(s&&START5.includes(city))s.value='';const w=$('homeWhat');if(w)w.innerHTML=homeWhat();},
+ pickStart:({city})=>{if(!homeOk(city))return;UI.startCity=city;const s=$('homeSel');if(s)s.value=city;const w=$('homeWhat');if(w)w.innerHTML=homeWhat();},
  pickHome:({v})=>{if(v)ACT.pickStart({city:v});else ACT.pickStart({city:'fra'});},
  // Delete this window's network and go back to the title (the other networks stay).
  newgame:()=>{if(pzOn())pzLeave();const id=UI.slot;if(id){slotDrop(id);slotFree(id);}gameClear();showTitle();},

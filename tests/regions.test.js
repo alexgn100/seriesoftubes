@@ -605,7 +605,7 @@ test('Africa: more countries, cables along both coasts, border costs and Cape to
 test('Australia: hard mode start in Sydney, dear transit and waves, cheap IX ports, NBN takes its cut', () => {
   const { ev, errors } = load();
   ev("showTitle()");
-  assert.ok(ev("!!document.querySelector('.start[data-city=\"syd\"]')"), 'Sydney is on the start screen');
+  assert.ok(ev("!!document.querySelector('#homeSel optgroup:first-child option[value=syd]')"), 'Sydney is among the suggested homes');
   ev("ACT.pickStart({city:'syd'});ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0");
   assert.equal(ev('S.home'), 'syd');
   assert.equal(ev("regionMult('syd')"), 3, 'transit into Australia costs more than Asia');
