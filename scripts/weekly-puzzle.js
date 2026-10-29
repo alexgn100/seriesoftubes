@@ -31,13 +31,8 @@ function game(file) {
     console.warn(`warning: ${file} has no published weekly puzzles yet; using src/ instead`);
     g = load();
   }
-  // N-1 counts a whole cable as one failure: every segment of a cable shares its risk, as in the main game. A game
-  // that still counts each segment separately is checked under the whole-cable rule too, which is the stricter one,
-  // so a puzzle verified here keeps its stars under either.
-  if (g.ev("pzUnit({cable:'x',a:'a',b:'b'})") !== 'cab:x') {
-    g.ev("window.pzUnitW=l=>l.cable?'cab:'+l.cable:String(l.trench||l.id);for(const f of [pzComp,pzEval])window.eval(f.toString().replace(/\\bpzUnit\\b/g,'pzUnitW'))");
-    if (!/pzUnitW/.test(g.ev('pzEval.toString()+pzComp.toString()'))) throw new Error('could not apply the whole-cable N-1 rule');
-  }
+  // N-1 counts a whole cable as one failure (every segment of a cable shares its risk), as the solver does.
+  if (g.ev("pzUnit({cable:'x',a:'a',b:'b'})") !== 'cab:x') throw new Error('this game counts cable segments separately; the solver would not match its N-1 check');
   return g;
 }
 
