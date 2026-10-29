@@ -34,9 +34,26 @@ function vxcPanel(l){
   return h;
 }
 function prefCtl(kind,id,cur){cur=cur||'normal';return `<div class="btns"><span class="meta" style="align-self:center">${tr('common.egress')}</span>${Object.keys(PREF).map(v=>btn(PREF[v],'setPref',{kind,id,v},cur===v?'pink sm':'ghost sm')).join('')}</div>`;}
+// Trial routing is isolated from the live save, counters and scenic-route memory. "Before" is the live routing, which
+// after() keeps current, so a check costs one compute() on a big network, not two.
+function linkTrial(id){const save=S,live=R,hot=UI.hotMap,cache=TE_CACHE;
+  try{const l0=save.links.find(x=>x.id===id);if(!l0||linkDown(l0))return null;
+    S=JSON.parse(JSON.stringify(save));const l=S.links.find(x=>x.id===id),before=live;l.cut=S.day+1;compute();
+    const allowed=new Set(Object.keys(S.pops).filter(popUp).concat(remoteCities())),adj={};
+    for(const x of S.links)if(!linkDown(x)&&allowed.has(x.a)&&allowed.has(x.b)){(adj[x.a]=adj[x.a]||[]).push(x.b);(adj[x.b]=adj[x.b]||[]).push(x.a);}
+    const seen=new Set([l.a]),q=[l.a];for(let i=0;i<q.length;i++)for(const c of adj[q[i]]||[])if(!seen.has(c)){seen.add(c);q.push(c);}
+    const losses=[];for(const c in S.pops){const g=Math.max(0,(before.citySrv[c]||0)-(R.citySrv[c]||0));if(g>.01)losses.push({name:CITY[c].name,g});}
+    for(const b of S.biz)if(BIZ_T[b.type].l2){const g=Math.max(0,(before.l2[b.id]||0)-(R.l2[b.id]||0));if(g>.01)losses.push({name:b.name,g});}
+    const busy=S.links.filter(x=>x.id!==id&&!linkDown(x)&&capOf(x)>0&&(R.load[x.id]||0)/capOf(x)>=.995).map(x=>({name:CITY[x.a].name+' ⇄ '+CITY[x.b].name,g:R.load[x.id]||0,cap:capOf(x)}));
+    return {split:!seen.has(l.b),loss:losses.reduce((a,x)=>a+x.g,0),losses,busy,day:S.day};
+  }finally{S=save;R=live;UI.hotMap=hot;TE_CACHE=cache;}}
+function linkCheckModal(l){const t=linkTrial(l.id);if(!t)return;
+  const title=t.split?tr('link_panels.this_backhoe_wins'):t.loss>.01?tr('link_panels.connected_but_tight'):tr('link_panels.one_backhoe_is_not_enough');
+  openModal(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2>${tr('common.redundancy_check')}</h2><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div><p class="eyebrow">${esc(CITY[l.a].name)} ⇄ ${esc(CITY[l.b].name)} · ${dateStr(t.day)}</p><div class="inc" style="background:${t.split?'#FFE3E3':t.loss>.01?'#FFF6CF':'#EAF7EE'}"><div class="nm">${title}</div><p class="lead">${t.split?tr('link_panels.no_alternate_backbone_path_connects'):t.loss>.01?tr('link_panels.an_alternate_path_exists_but_current'):tr('link_panels.with_current_demand_and_routing_this')}</p><div class="kv"><span>${tr('link_panels.additional_traffic_lost')}</span><b>${fmtG(t.loss)}</b></div></div>${t.losses.length?`<h3>${tr('common.service_affected')}</h3>${t.losses.map(x=>`<div class="kv"><span>${esc(x.name)}</span><b>−${fmtG(x.g)}</b></div>`).join('')}`:''}${t.busy.length?`<h3>${tr('link_panels.full_links_during_the_test')}</h3>${t.busy.slice(0,6).map(x=>`<div class="kv"><span>${esc(x.name)}</span><b>${fmtG(x.g)} / ${fmtG(x.cap)}</b></div>`).join('')}`:''}<p class="note">${tr('link_panels.snapshot_only_one_selected_link')}</p><div class="btns">${btn(tr('common.close'),'closeModal',{},'ghost')}</div>`,'link-check');}
+function linkCheckControl(l){return `<section><h3>${tr('common.redundancy_check')}</h3><p class="note">${tr('link_panels.what_happens_if_this_link_fails')}</p>${btn(tr('common.check_redundancy'),'linkCheck',{id:l.id},'ghost sm',linkDown(l))}</section>`;}
 function trafficSection(l){
   const rec=R.ef[edgeKey(l)],n=pairLinks(l.a,l.b).length;
-  let h=`<section><h3>${tr('link_panels.what_s_on_this_link')}</h3>`;
+  let h=linkCheckControl(l)+`<section><h3>${tr('link_panels.what_s_on_this_link')}</h3>`;
   if(!rec){return h+`<p class="empty">${tr('link_panels.no_traffic_right_now')}</p></section>`;}
   const tot=Object.values(rec.net).reduce((a,b)=>a+b,0)||1;
   const nets=Object.entries(rec.net).sort((a,b)=>b[1]-a[1]);
@@ -51,8 +68,17 @@ function trafficSection(l){
   if(u>=0.8&&egs.length){const d=R.egDesc[egs[0][0]];h+=`<p class="why">${tr('link_panels.biggest_feeder_egress_in_city_set',{egress:esc(d.lab),city:CITY[d.city].name})}</p>`;}
   return h+`</section>`;
 }
-function metricSection(l){const cur=pairMet(edgeKey(l)),pl=pairLinks(l.a,l.b),sb=!!l.standby;
-  let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},cur===k?'pink sm':'ghost sm')).join('')}</div>`;
+// Safari keeps the number field focused through a button tap, and renderPanel() skips a focused field: let go first (#131).
+const metBlur=()=>{const t=$('metIn');if(t&&document.activeElement===t)t.blur();};
+function metricSection(l){const key=edgeKey(l),cur=pairMet(key),pl=pairLinks(l.a,l.b),sb=!!l.standby,base=l.km+60,sel=k=>cur===k?'pink sm':'ghost sm';
+  let h=`<section><h3>${tr('common.routing_metric')}</h3><p class="lead">${tr('link_panels.your_routers_pick_the_lowest_cost_0160')}</p><div class="btns">${Object.keys(MET).map(k=>btn(MET[k].l,'setMetric',{id:l.id,v:k},sel(k))).join('')}${btn(tr('common.custom'),'setMetric',{id:l.id,v:'custom'},sel('custom'))}</div>`;
+  const cm=pairCm(key);
+  if(cm){const k=cm.k,[lo,hi]=MET_LIM[k],md=m=>k===m?'pink sm':'ghost sm';
+    const pre=Object.keys(MET).map(m=>`${MET[m].l} ×${MET[m].f} = ${Math.round(base*MET[m].f)}`).join(', ');
+    h+=`<p class="meta">${tr('link_panels.a_link_s_cost_is_its')} ${tr('link_panels.presets_on_this_link_list',{list:pre})}</p>
+    <div class="btns">${btn(tr('common.multiplier'),'metricMode',{id:l.id,k:'f'},md('f'))}${btn(tr('common.cost'),'metricMode',{id:l.id,k:'w'},md('w'))}</div>
+    <div class="metric-in"><input class="t" id="metIn" type="number" inputmode="decimal" min="${lo}" max="${hi}" step="${k==='w'?1:0.1}" value="${cm.v}" data-id="${esc(l.id)}" aria-label="${esc(k==='w'?tr('common.cost'):tr('common.multiplier'))}">${btn(tr('common.set'),'metricSet',{id:l.id},'pink sm')}</div>
+    <p class="meta">${k==='w'?tr('link_panels.cost_the_exact_number_whatever_the'):tr('link_panels.multiplier_scales_the_distance_cost')} ${tr('link_panels.cost_on_this_link_w_allowed',{w:Math.round(pairW(key,l.km)),lo:k==='w'?lo:'×'+lo,hi:k==='w'?hi:'×'+hi})}</p>`;}
   // Standby only means something next to another link; a link left on standby alone can still be taken off it.
   if(pl.length>1||sb){const busy=(R.load[l.id]||0)>1e-3,alone=!pl.some(x=>x!==l&&!x.standby&&!linkDown(x));
     const st=!sb?tr('link_panels.a_link_on_standby_carries_traffic'):!busy?tr('link_panels.on_standby_idle_while_the_other'):alone?tr('link_panels.on_standby_but_carrying_the_traffic'):tr('link_panels.on_standby_taking_the_overflow');
@@ -86,7 +112,7 @@ function dfPanel(l){
   if(l.own&&l.sub)h+=subUpgradePanel(l);
   for(const k of Object.keys(OPT)){const O=OPT[k],n=(l.ch||[]).filter(x=>x===k).length,why=chWhy(l,k);
     const md=optMode(k,l),cc=chCost(l,k),sp=spareN(k);
-    h+=`<div class="row"><div class="grow"><div class="nm">${O.n} <span class="meta">${optModes(k,l).map(([g,r])=>tr('link_panels.g_to_km_km',{g:fmtG(g),km:r.toLocaleString()})).join(' · ')}</span></div><div class="meta">${esc(O.blurb)}${n?` · <b>${tr('link_panels.n_lit',{n})}</b>`:''}${sp?` · ${trn('link_panels.n_spare_on_the_shelf',sp)}`:''}</div>${md&&!md.full?`<div class="meta">⚠️ ${tr('link_panels.runs_at_g_per_channel_on',{g:fmtG(md.g)})} ${!l.sub&&regenNeed(k,l)>(l.regen|0)?trn('link_panels.n_regen_site_would_bring_it',regenNeed(k,l),{g:fmtG(O.g)}):''}</div>`:''}${why?`<div class="why">${esc(why)}</div>`:''}</div>${n?btn('−','rmCh',{id:l.id,o:k},'ghost sm'):''}${btn(sp?`+ <small>${cc?tr('link_panels.spare_price',{price:fmt$(cc)}):tr('common.spare')}</small>`:`+ <small>${fmt$(cc)}</small>`,'addCh',{id:l.id,o:k},'sm',!!why||S.cash<cc)}</div>`;}
+    h+=`<div class="row"><div class="grow"><div class="nm">${O.n} <span class="meta">${optModes(k,l).map(([g,r])=>tr('link_panels.g_to_km_km',{g:fmtG(g),km:r.toLocaleString()})).join(' · ')}</span></div><div class="meta">${esc(O.blurb)}${n?` · <b>${tr('link_panels.n_lit',{n})}</b>`:''}${sp?` · ${trn('link_panels.n_spare_on_the_shelf',sp)}`:''}</div>${md&&!md.full?`<div class="meta">⚠️ ${tr('link_panels.runs_at_g_per_channel_on',{g:fmtG(md.g)})} ${!l.sub&&regenNeed(k,l)>(l.regen|0)?trn('link_panels.n_regen_site_would_bring_it',regenNeed(k,l),{g:fmtG(O.g)}):''}</div>`:''}${why?`<div class="why">${esc(why)}</div>`:''}${opticCountControl(l,k,n)}</div>${n?btn('−','rmCh',{id:l.id,o:k},'ghost sm'):''}${btn(sp?`+ <small>${cc?tr('link_panels.spare_price',{price:fmt$(cc)}):tr('common.spare')}</small>`:`+ <small>${fmt$(cc)}</small>`,'addCh',{id:l.id,o:k},'sm',!!why||S.cash<cc)}</div>`;}
   {const st=Object.keys(OPT).filter(k=>spareN(k)>0);h+=`<p class="note">${tr('link_panels.unplugged_optics_go_on_the_spares')}</p>`;
    {const used=[...new Set(l.ch||[])].filter(k=>OPT[k]&&OPT[k].lvl<=lvl());if(used.length)h+=`<div class="btns">${used.map(k=>btn(tr('link_panels.stock_a_spare_optic_price',{optic:OPT[k].n,price:fmt$(optCost(k))}),'buySpare',{o:k},'ghost sm',S.cash<optCost(k)||spareN(k)>=64)).join('')}</div><p class="meta">${tr('link_panels.spares_bought_now_are_already_paid')}</p>`;}if(st.length)h+=`<h4 class="sub4">${tr('common.spares_shelf')}</h4>`+st.map(k=>`<div class="row"><div class="grow"><div class="nm">${spareN(k)} × ${OPT[k].n}</div></div>${btn(tr('link_panels.sell_one_price',{price:fmt$(spareValue(k))}),'sellSpare',{o:k},'ghost sm')}</div>`).join('');}
   const rg=l.regen|0,rgAdd=REGEN_COST+Math.round((l.ch||[]).reduce((a,c)=>a+optCost(c),0)*REGEN_CH);
@@ -98,7 +124,7 @@ function dfPanel(l){
 }
 function offersHere(c){
   const os=S.offers.filter(o=>bCities(o).includes(c));if(!os.length)return '';
-  return `<section><h3>${tr('common.offers_here')}</h3>${os.map(o=>`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)}${o.city2?` ${CITY[o.city].name} ⇄ ${CITY[o.city2].name}`:''} · ${bTerms(o)} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>${R.reach<0.99&&!BIZ_T[o.type].l2?`<div class="why">${tr('link_panels.they_need_the_full_internet_your',{pct:pct(R.reach)})}</div>`:''}${o.type==='scrub'&&!hasScrub()?`<div class="why">${tr('link_panels.needs_your_own_scrubbing_center')}</div>`:''}${reqList(o)}${bHas(o)?'':`<div class="why">${tr('link_panels.needs_a_pop_in_cities_too',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}</div>${bHas(o)?btn(tr('common.accept'),'accept',{id:o.id},'green sm'):''}${btn(tr('common.no'),'decline',{id:o.id},'ghost sm')}</div>`).join('')}</section>`;
+  return `<section><h3>${tr('common.offers_here')}</h3>${os.map(o=>`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)}${o.city2?` ${CITY[o.city].name} ⇄ ${CITY[o.city2].name}`:''} · ${bTerms(o)} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>${R.reach<0.99&&!BIZ_T[o.type].l2?`<div class="why">${tr('link_panels.they_need_the_full_internet_your',{pct:pct(R.reach)})}</div>`:''}${o.type==='scrub'&&!hasScrub()?`<div class="why">${tr('link_panels.needs_your_own_scrubbing_center')}</div>`:''}${bRisk(o)}${reqList(o)}${bHas(o)?'':`<div class="why">${tr('link_panels.needs_a_pop_in_cities_too',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}</div>${bHas(o)?btn(tr('common.accept'),'accept',{id:o.id},'green sm'):''}${btn(tr('common.no'),'decline',{id:o.id},'ghost sm')}</div>`).join('')}</section>`;
 }
 function linkPanel(id){
   const l=S.links.find(x=>x.id===id);if(!l){UI.sel=null;return '';}

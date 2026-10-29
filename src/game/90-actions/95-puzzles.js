@@ -2,8 +2,8 @@ Object.assign(ACT,{
  // The puzzle list. The ruleset's title-screen door calls this.
  puzzleMenu:()=>{if(S&&UI.started&&!pzOn())UI.nm=S.name;pzMenu();},
  pzStart:({id})=>{const d=pzDef(id);if(!d||!pzPackOpen(d.pack))return;pzBegin(d);},
- pzWeekly:()=>pzBegin(pzWeekly()),
- pzRetry:()=>{if(!pzOn())return;pzBegin(S.pz.id==='weekly'?pzWeekly():pzDef(S.pz.id));},
+ pzWeekly:()=>{if(pzWkLoading())return;pzBegin(pzWkDef());},
+ pzRetry:()=>{if(!pzOn())return;pzBegin(S.pz.id==='weekly'?pzWkDef():pzDef(S.pz.id));},
  pzLeave:()=>{if(pzOn())pzLeave();},
  pzPop:({city})=>{if(!pzOn()||S.pops[city]||!['goal','via'].includes(pzKind(city)))return;pzSnap();S.pops[city]=pzNewPop();sfx('build');haptic(10);floater(CITY[city].x,CITY[city].y-30,tr('common.new_pop'),'#FF4F9A');pzAfter();},
  pzRmPop:({city})=>{if(!pzOn()||!S.pops[city])return;pzSnap();delete S.pops[city];S.links=S.links.filter(l=>l.a!==city&&l.b!==city);sfx('click');UI.sel=null;pzAfter();},
@@ -24,3 +24,8 @@ Object.assign(ACT,{
    const copied=()=>toast(tr('puzzles.copied_paste_it_anywhere',{t:esc(t)}),'good'),copy=()=>{try{navigator.clipboard.writeText(t).then(copied,()=>toast(esc(t),''));}catch(e){toast(esc(t),'');}};
    if(navigator.share&&isPhone()){navigator.share({text:t}).catch(()=>{});return;}copy();track('puzzle_share');},
 });
+// A puzzle is its own S: a leftover main-game button (an old toast, a stale panel, a shortcut) must not build, buy or
+// open anything in it. Everything but these and the pz* actions does nothing while a puzzle is on. This file is the
+// last of the actions, so every one is here to wrap.
+const PZ_ACTS=new Set(['animSet','closeModal','closePanel','help','helpClose','install','keepPlaying','langSet','menu','mute','prefSet','puzzleDoor','puzzleMenu','selLink','settings','settingsClose','soundSet','speed','updateLater','updateNow','vpSet','whatsNewShow']);
+for(const k of Object.keys(ACT))if(!PZ_ACTS.has(k)&&!/^pz[A-Z]/.test(k)){const f=ACT[k];ACT[k]=a=>pzOn()?undefined:f(a);}

@@ -45,11 +45,12 @@ function renderLeft(){checkLayer();
     {const lv=S.lvl||1,nx=LEVELS[lv];h+=`<div class="inc" style="background:#FFF6CF"><div class="nm">${tr('hud_and_panels.customer_level_lv_name',{lv,name:LEVELS[lv-1].n})}</div><div class="meta">${nx?tr('hud_and_panels.next_req_unlocks_what',{req:nx.req,what:lc1(nx.unlock)}):tr('common.every_customer_type_is_unlocked_go')}</div></div>`;}
     if(!S.offers.length)h+=`<p class="empty">${tr('hud_and_panels.no_open_offers_right_now_businesses')}</p>`;
     for(const o of S.offers.slice().sort((a,b)=>a.exp-b.exp)){const has=bHas(o);
-      h+=`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)} · ${CITY[o.city].name}${o.city2?' ⇄ '+CITY[o.city2].name:''} · <b>${bTerms(o)}</b> · ${tr('ui.n_d_left',{n:o.exp-S.day})}${(o.reqs||[]).length?` · ${trn('hud_and_panels.n_special_requirement',o.reqs.length)}`:''}</div>${reqList(o)}
+      h+=`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)} · ${CITY[o.city].name}${o.city2?' ⇄ '+CITY[o.city2].name:''} · <b>${bTerms(o)}</b> · ${tr('ui.n_d_left',{n:o.exp-S.day})}${(o.reqs||[]).length?` · ${trn('hud_and_panels.n_special_requirement',o.reqs.length)}`:''}</div>${bRisk(o)}${reqList(o)}
       <div class="btns">${has?btn(tr('common.accept'),'accept',{id:o.id},'green sm'):btn(tr('common.go_there'),'focusCity',{city:bCities(o).find(c=>!S.pops[c])},'ghost sm')}${btn(tr('common.decline'),'decline',{id:o.id},'ghost sm')}</div>${has?'':`<div class="why">${tr('hud_and_panels.needs_a_pop_in_cities',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}</div></div>`;}
   }else if(UI.left==='noc'){
     h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.open_noc_dashboard'),'dash',{},'pink')}${btn(tr('common.connections'),'connOpen',{},'')}${btn(tr('common.traceroute'),'trace',{},'')}</div>`;
     h+=`<p class="lead">${tr('hud_and_panels.your_network_operations_center_every')}</p>`;
+    h+=opsCard();
     // Incidents come first, the ones you can fix with one click at the top (#63): no scrolling past hot ports to replace an optic.
     for(const i of S.inc.filter(i=>i.type!=='ddos').sort((a,b)=>(b.cost?1:0)-(a.cost?1:0)||(b.impact||0)-(a.impact||0))){h+=`<div class="inc"><div class="nm">${incTitle(i.type)}</div><div class="meta">${esc(i.msg)}</div><div class="meta">${trn('hud_and_panels.auto_fix_in_n_day',i.until-S.day)}${i.impact?` · ${tr('hud_and_panels.g_lost',{g:fmtG(i.impact)})}`:''}</div>${i.cost?`<div class="btns">${btn(`${esc(i.fix||tr('common.rush_repair'))} ${fmt$(i.cost)}`,'fixInc',{id:i.id},'red sm',S.cash<i.cost)}</div>`:''}</div>`;}
     h+=logSection();UI.logSeen=Date.now();
@@ -79,7 +80,7 @@ function renderLeft(){checkLayer();
     h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('common.all_networks'),'netFilter',{f:'all'},!foc&&!out?'sm':'ghost sm')}${btn(tr('hud_and_panels.out_of_reach_without_transit_n',{n:lostN}),'netFilter',{f:'out'},out?'sm':'ghost sm')}</div>`;
     if(out&&!lostN)h+=`<p class="empty">${tr('hud_and_panels.nothing_every_network_is_reachable')}</p>`;
     for(const n of foc?[foc]:out?ntLost():NETS){if(n.tail&&!UI.tailOpen&&!foc&&!out)continue;
-      h+=`<div class="row">${logo(n)}<div class="grow"><div class="nm">${esc(n.name)} <span class="meta">AS${n.asn}</span></div><div class="meta"><span class="tag ${n.type}">${TYPE_L[n.type]}</span> <span class="tag ${n.pol}">${n.pol}</span> · ${tr('hud_and_panels.p_of_traffic',{p:(NSH[n.id]*100).toFixed(1)})}${n.price?` · ${tr('hud_and_panels.transit_price_gbps',{price:(n.price*S.priceMul).toFixed(2)})}`:''}</div><div class="meta">${esc(n.blurb)}</div>${netWhere(n,where)}${(foc||out)&&!R.nt[n.id]?`<p class="why">${esc(offTransitHint(n.id))}</p>`:''}${(foc||out)&&coneVia(n.id)&&(R.cone[n.id]||!R.nt[n.id])?`<p class="meta">${R.cone[n.id]?tr('hud_and_panels.reached_through_the_customer_cone_of',{net:esc(coneVia(n.id).name)}):tr('hud_and_panels.buys_transit_from_net_peer_with',{net:esc(coneVia(n.id).name)})}</p>`:''}${foc||out&&!R.nt[n.id]?meetLine(n,foc?24:4):''}</div></div>`;}
+      h+=`<div class="row">${logo(n)}<div class="grow"><div class="nm">${esc(n.name)} <span class="meta">AS${n.asn}</span></div><div class="meta"><span class="tag ${n.type}">${TYPE_L[n.type]}</span> <span class="tag ${n.pol}">${n.pol}</span> · ${tr('hud_and_panels.p_of_traffic',{p:(NSH[n.id]*100).toFixed(1)})}${n.price?` · ${tr('hud_and_panels.transit_price_gbps',{price:(n.price*S.priceMul).toFixed(2)})}`:''}</div><div class="meta">${esc(n.blurb)}</div>${netWhere(n,where)}${(foc||out)&&!R.nt[n.id]?`<p class="why">${esc(offTransitHint(n.id))}</p>`:''}${(foc||out)&&coneVia(n.id)&&(R.cone[n.id]||!R.nt[n.id])?`<p class="meta">${R.cone[n.id]?tr('hud_and_panels.reached_through_the_customer_cone_of',{net:esc((NET[R.cone[n.id]]||coneVia(n.id)).name)}):tr('hud_and_panels.buys_transit_from_net_peer_with',{net:esc(coneVia(n.id).name)})}</p>`:''}${foc||out&&!R.nt[n.id]?meetLine(n,foc?24:4):''}</div></div>`;}
     if(!foc&&!out)h+=`<div class="row"><div class="grow"><div class="nm">${tr('hud_and_panels.the_long_tail')} <span class="meta">${tr('hud_and_panels.n_small_networks',{n:tl.length})}</span></div><div class="meta">${tr('hud_and_panels.p_of_traffic_between_them_scattered',{p:(tl.reduce((a,n)=>a+NSH[n.id],0)*100).toFixed(1),n:tlOn})}</div></div>${btn(UI.tailOpen?tr('common.hide'):tr('common.show'),'tailTog',{},'ghost sm')}</div>`;
   }
   if(h!==UI._lh){UI._lh=h;morph($('leftBody'),h);}
@@ -88,6 +89,8 @@ function renderPanel(){checkLayer();
   const P=$('panel');
   if(!S||!UI.sel){P.hidden=true;return;}
   P.hidden=false;
+  // Don't wipe a half-typed custom metric on the daily re-render.
+  const fe=document.activeElement;if(fe&&fe.id==='metIn'&&UI.sel.type!=='city'&&fe.dataset.id===UI.sel.id)return;
   const scrollEl=$('panelBody').querySelector('.scroll');const st=scrollEl?scrollEl.scrollTop:0;
   const html=pzOn()?pzPanel(UI.sel):UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(!html){P.hidden=true;return;}if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
   const ns=$('panelBody').querySelector('.scroll');if(ns)ns.scrollTop=st;

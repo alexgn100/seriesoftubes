@@ -54,6 +54,7 @@ button,.chip,.b,a{touch-action:manipulation;-webkit-tap-highlight-color:transpar
   #coach{top:auto !important;bottom:calc(var(--tabbar) + 8px);width:calc(100% - 16px);padding:7px 10px;font-size:13px}
   body.sheet-open #coach{bottom:calc(var(--tabbar) + 8px + min(62vh,520px))}
   #modal{align-items:end;padding:0}
+  #modal.link-check{bottom:var(--tabbar)}
   #modal .cta{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:1;background:var(--paper);margin:12px -16px 0 !important;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:2px solid var(--line)}
   .title-art h1{font-size:34px}.title-art svg{width:54px;height:54px}
   .tagline{font-size:13.5px;margin:8px 0 10px}

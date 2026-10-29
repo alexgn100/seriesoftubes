@@ -15,6 +15,7 @@ function sanitize(s){
   for(const k of ['survived','incidents','peak'])s.stats[k]=num(s.stats[k],0);
   for(const c of Object.keys(s.pops)){const p=s.pops[c];if(!isCity(c)||!p||typeof p!=='object'){delete s.pops[c];continue;}p.routers=int(p.routers,1,RMAX,1);if(p.rupDay!==undefined)p.rupDay=num(p.rupDay,-1);if(p.rgen!==undefined)p.rgen=int(p.rgen,0,RG.length-1,0);p.down=num(p.down,0);if(p.bb&&typeof p.bb==='object')p.bb.d=num(p.bb.d,0);else p.bb=null;}
   if(!isCity(s.home))s.home=Object.keys(s.pops)[0]||'fra';
+  opsSanitize(s);
   const tier=v=>int(v,0,PORT.length-1,0),lag=v=>int(v,1,LAG_MAX,1),sid=v=>String(v==null?uid():v).slice(0,40);
   s.links=s.links.filter(l=>l&&isCity(l.a)&&isCity(l.b)&&l.a!==l.b).map(l=>{l.id=sid(l.id);l.km=num(l.km,kmBetween(l.a,l.b));l.mo=num(l.mo,0);l.cut=num(l.cut,0);if(l.pairs!==undefined)l.pairs=Math.min(l.sub?SUB_PAIRS_MAX:s.lvl>=PAIRS_LV?PAIRS_BIG:PAIRS_MAX,Math.max(1,Math.floor(+l.pairs)||1));if(l.kind!=='df'&&l.kind!=='vxc')l.kind='wave';if(l.kind==='wave')l.tier=int(l.tier,0,LT.length-1,0);if(l.cable&&!own(CAB,l.cable))l.cable=null;if(l.kind==='vxc'&&!own(VXC,l.vt))l.vt=0;if(l.kind==='df'){if(!own(DF_SYS,l.sys))l.sys='lite';l.ch=Array.isArray(l.ch)?l.ch.filter(o=>own(OPT,o)):[];l.ready=num(l.ready,0);for(const k of Object.keys(SUB_UPGRADES)){const f='sub'+k;if(l[f]!==undefined){if(l.own&&l.sub&&Number.isFinite(l[f])&&l[f]>=0)l[f]=Math.round(l[f]);else delete l[f];}}if(l.seaPath!==undefined){if(l.own&&l.sub&&Array.isArray(l.seaPath)&&l.seaPath.length>=2&&l.seaPath.length<=2048&&l.seaPath.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90))l.seaPath=l.seaPath.map(p=>p.slice());else delete l.seaPath;}if(l.paid!==undefined){if(l.own&&l.sub&&Number.isFinite(l.paid)&&l.paid>=0)l.paid=Math.round(l.paid);else delete l.paid;}if(l.own&&l.sub&&!own(SEA_DESIGNS,l.seaDesign))l.seaDesign='standard';l.regen=int(l.regen,0,REGEN_MAX,0);}const deg=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;if(l.loss)l.loss=deg(l.loss);return l;});
   for(const l of s.links)repairSubUpgradeDates(l,s.day);
@@ -22,7 +23,9 @@ function sanitize(s){
      links, with all of them carrying traffic, so the pair keeps that metric and nothing goes on standby. */
   {const pm=s.pairMet,lo={};for(const l of s.links){if(l.metric!==undefined){const k=edgeKey(l),m=own(MET,l.metric)?l.metric:'normal';if(!lo[k]||MET[m].f<MET[lo[k]].f)lo[k]=m;}if(l.standby!==true)delete l.standby;}
    for(const l of s.links){const k=edgeKey(l);if(lo[k]&&l.metric===undefined)lo[k]='normal';delete l.metric;}
-   for(const k in lo)pm[k]=lo[k];const ks=new Set(s.links.map(edgeKey));for(const k of Object.keys(pm))if(!ks.has(k)||!own(MET,pm[k])||pm[k]==='normal')delete pm[k];}
+   for(const k in lo)pm[k]=lo[k];const ks=new Set(s.links.map(edgeKey));for(const k of Object.keys(pm)){const v=pm[k];
+     if(v&&typeof v==='object'&&ks.has(k)){const mk=v.k==='w'?'w':'f';pm[k]={k:mk,v:clampM(mk,num(v.v,mk==='w'?60:1))};continue;}
+     if(!ks.has(k)||typeof v!=='string'||!own(MET,v)||v==='normal')delete pm[k];}}
   const degO=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;
   s.transit=s.transit.filter(t=>t&&isCity(t.city)&&isNet(t.net)).map(t=>(t.lacp=degO(t.lacp),t.site=['a','b','ab'].includes(t.site)?t.site:'a',t.id=sid(t.id),t.tier=tier(t.tier),t.n=lag(t.n),t.down=num(t.down,0),t.clean=!!t.clean,t.premium=premOnlyAt(NET[t.net],t.city)||!!t.premium&&premCity(NET[t.net],t.city),t));
   s.pni=s.pni.filter(x=>x&&isCity(x.city)&&isNet(x.net)).map(x=>(x.lacp=degO(x.lacp),x.site=['a','b','ab'].includes(x.site)?x.site:'a',x.id=sid(x.id),x.tier=tier(x.tier),x.n=lag(x.n),x.sacrif=!!x.sacrif,x));
@@ -60,14 +63,19 @@ function sanitize(s){
   if(!Array.isArray(s.scrubs))s.scrubs=s.scrubAt&&isCity(s.scrubAt)?[{city:s.scrubAt,tier:s.scrubTier}]:[];delete s.scrubAt;delete s.scrubTier;
   {const seen=new Set();s.scrubs=s.scrubs.filter(x=>x&&typeof x==='object'&&isCity(x.city)&&s.pops[x.city]&&!seen.has(x.city)&&seen.add(x.city)).map(x=>({city:x.city,tier:int(x.tier,0,SCRUB_TIERS.length-1,0)}));}
   s.scrubMode=s.scrubMode==='ondemand'?'ondemand':'always';
-  if(s.ev&&s.ev.ddos){const a=s.ev.ddos;
-    if(!a||typeof a!=='object'||!isCity(a.city)||!own(DDOS_VEC,a.vec))delete s.ev.ddos;
-    else{a.gbps=num(a.gbps,2);a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=num(a.start,s.day);
-      if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}}}
+  // Keep the legacy primary attack so old saves and imports remain compatible; additional floods overlap it.
+  const repairAttack=a=>{if(!a||typeof a!=='object'||!isCity(a.city)||!s.pops[a.city]||!own(DDOS_VEC,a.vec))return null;
+    a.id=sid(a.id);a.gbps=Math.max(0,num(a.gbps,2));a.until=num(a.until,s.day);a.bh=!!a.bh;a.ixbh=!!a.ixbh;a.start=Math.max(0,Math.min(s.day,num(a.start,s.day)));a.until=Math.min(a.until,a.start+7);
+    if(Array.isArray(a.entries)){a.entries=a.entries.filter(en=>en&&['t','ix','p'].includes(en.k)&&isCity(en.city)&&typeof en.id==='string'&&Number.isFinite(+en.share)&&+en.share>0).slice(0,3000).map(en=>({k:en.k,id:en.id.slice(0,40),city:en.city,lab:String(en.lab||'').slice(0,60),share:+en.share}));const sum=a.entries.reduce((n,en)=>n+en.share,0);if(Number.isFinite(sum)&&sum>0)for(const en of a.entries)en.share/=sum;else delete a.entries;}else delete a.entries;
+    a.sla=Array.isArray(a.sla)?a.sla.filter(x=>typeof x==='string').slice(0,s.biz.length):[];
+    if(!a.entry||typeof a.entry!=='object')a.entry={k:'edge',lab:''};else{a.entry.lab=String(a.entry.lab||'').slice(0,60);a.entry.id=a.entry.id==null?undefined:String(a.entry.id).slice(0,40);}return a;};
+  const attacks=[s.ev.ddos,...(Array.isArray(s.ev.ddosMore)?s.ev.ddosMore:[])].map(repairAttack).filter(Boolean).slice(0,14);
+  if(attacks.length)s.ev.ddos=attacks[0];else delete s.ev.ddos;s.ev.ddosMore=attacks.slice(1);
+  s.ddosStarts=(Array.isArray(s.ddosStarts)?s.ddosStarts:attacks.map(a=>a.start)).filter(d=>typeof d==='number'||typeof d==='string').map(Number).filter(d=>Number.isFinite(d)&&d>s.day-7&&d<=s.day).sort((a,b)=>a-b).slice(-14);
   s.auV=s.auV===1?1:0;if(s.auNews!==true)delete s.auNews;
   // Badges: S.ach[id] is the day it was earned (any save); S.achP[id] the variant (2.0). A missing variant is the standard one.
   for(const k of Object.keys(s.ach))s.ach[k]=num(s.ach[k],0);
-  {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=BVAR[p[k]]?p[k]:'oncall';}
+  {const p=s.achP&&typeof s.achP==='object'&&!Array.isArray(s.achP)?s.achP:{};s.achP={};for(const k of Object.keys(s.ach))s.achP[k]=typeof p[k]==='string'&&own(BVAR,p[k])?p[k]:'oncall';}
   if(s.merged){const o={};if(typeof s.merged==='object')for(const m of MERGERS)if(isFinite(s.merged[m.id]))o[m.id]=+s.merged[m.id];s.merged=Object.keys(o).length?o:undefined;}
   // The rules (2.0): a save without them is the classic game, On-call (or a sandbox or puzzle, if it was one). Locked after the start.
   {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{},p=s.mode==='sandbox'?'sandbox':s.mode==='puzzle'?'puzzle':own(PRESETS,r.preset)?r.preset:'oncall';s.rules=makeRules(p,own(PRESETS,r.preset)?r:{});}

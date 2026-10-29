@@ -15,7 +15,7 @@ function decomModal(){const sel=[...(UI.decom||[])],im=decomImpact(sel),all=Obje
 function decommission(cities){const set=new Set(cities),im=decomImpact(cities),lids=new Set(im.links.map(l=>l.id)),bids=new Set(im.biz.map(b=>b.id));
   S.links=S.links.filter(l=>!lids.has(l.id));prunePairMet();S.biz=S.biz.filter(b=>!bids.has(b.id));S.offers=S.offers.filter(o=>!bCities(o).some(c=>set.has(c)));
   S.transit=S.transit.filter(t=>!set.has(t.city));S.pni=S.pni.filter(x=>!set.has(x.city));S.caches=S.caches.filter(x=>!set.has(x.city));S.nni=(S.nni||[]).filter(x=>!set.has(x.city));
-  for(const c of cities){for(const x of ixIdsIn(c)){delete S.ixp[x];delete S.rs[x];if(S.ixn)delete S.ixn[x];if(S.ixSite)delete S.ixSite[x];for(const k in S.peers)if(k.endsWith('@'+x))delete S.peers[k];}delete S.myIx[c];S.scrubs=S.scrubs.filter(x=>x.city!==c);delete S.pops[c];}
+  for(const c of cities){for(const x of ixIdsIn(c)){delete S.ixp[x];delete S.rs[x];if(S.ixn)delete S.ixn[x];if(S.ixSite)delete S.ixSite[x];for(const k in S.peers)if(k.endsWith('@'+x))delete S.peers[k];}delete S.myIx[c];S.scrubs=S.scrubs.filter(x=>x.city!==c);if(S.ops)delete S.ops.skip[c];delete S.pops[c];}
   const rem=remoteCities();for(const x in S.ixp){const c=ixCity(x);if(!S.pops[c]&&!rem.includes(c)){delete S.ixp[x];delete S.rs[x];for(const k in S.peers)if(k.endsWith('@'+x))delete S.peers[k];}}
   if(set.has(S.home))S.home=Object.keys(S.pops)[0];
   purgeInc();S.cash-=im.fee;S.stats.decom=(S.stats.decom||0)+cities.length;
