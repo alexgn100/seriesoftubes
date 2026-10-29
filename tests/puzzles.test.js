@@ -18,7 +18,7 @@ const REF = {
   downunder: { one: [['syd', 'mel', 'land', 1], ['syd', 'bne', 'land', 1], ['mel', 'adl', 'land', 1]], three: [['syd', 'mel', 'land', 1], ['syd', 'bne', 'land', 1], ['mel', 'adl', 'land', 1], ['bne', 'adl', 'land', 1]] },
   edgelord: { one: [['@rt', 'ams', 5, 1], ['@rt', 'lon', 5, 1], ['ams', 'lon', 'nshuttle', 2], ['ams', 'lon', 'circe', 1]], three: [['@rt', 'ams', 5, 1], ['@rt', 'lon', 5, 1], ['ams', 'lon', 'concerto', 2], ['ams', 'lon', 'nshuttle', 2], ['ams', 'lon', 'circe', 1]] },
   hubcap: { one: [['@rt', 'lon', 5, 1], ['lon', 'par', 'pasdc', 1], ['lon', 'ams', 'concerto', 1], ['lon', 'ams', 'circe', 1], ['lon', 'ams', 'nshuttle', 1], ['lon', 'par', 'pasdc', 1], ['ams', 'fra', 'land', 1], ['ams', 'fra', 'land', 1]], three: [['@rt', 'lon', 5, 1], ['lon', 'par', 'chn', 1], ['lon', 'par', 'pasdc', 1], ['ams', 'fra', 'land', 1], ['lon', 'ams', 'concerto', 1], ['lon', 'ams', 'circe', 1], ['lon', 'ams', 'nshuttle', 1], ['lon', 'par', 'chn', 1], ['lon', 'par', 'pasdc', 1], ['ams', 'fra', 'land', 1], ['ams', 'fra', 'land', 1], ['lon', 'ams', 'uly', 1]] },
-  flash: { one: [['nyc', 'lon', 'grace', 1], ['nyc', 'lon', 'hibx', 0]], three: [['nyc', 'lon', 'grace', 1], ['nyc', 'lon', 'hibx', 0]] },
+  flash: { one: [['nyc', 'lon', 'hibx', 1]], three: [['nyc', 'lon', 'grace', 1], ['nyc', 'lon', 'hibx', 0]] },
   baltic: { one: [['fra', 'hel', 'clion', 1], ['tll', 'hel', 'land', 1], ['@route', 1, 'fast']], three: [['fra', 'hel', 'clion', 1], ['tll', 'hel', 'land', 1], ['fra', 'tll', 'land', 1], ['@route', 1, 'fast']] },
   fjord: { one: [['par', 'lon', 'pasdc', 1], ['svg', 'lon', 'tampn', 1], ['@route', 1, 'fast']], three: [['par', 'svg', 'land', 1], ['par', 'lon', 'pasdc', 1], ['svg', 'lon', 'tampn', 1], ['@route', 1, 'fast']] },
   braces: { one: [['nyc', 'dub', 'havf', 1], ['lon', 'dub', 'celtix', 1]], three: [['nyc', 'lon', 'grace', 1], ['nyc', 'dub', 'havf', 1], ['lon', 'dub', 'celtix', 1]] },
@@ -528,5 +528,20 @@ test('a POP in a thin market costs its higher monthly rent too, and the panel sa
   assert.ok(ev("pzPopCost('suv')") > ev("popCost('suv')+12*POP_MO"));
   ev("selectCity('suv')");
   assert.ok(ev("document.getElementById('panelBody').textContent").includes(ev("fmt$(popMo('suv'))") + '/mo'));
+  assert.deepEqual(errors, []);
+});
+
+test('each pack\'s idea is needed: three stars without it fail, and the one-star builds are not secretly three', () => {
+  const { ev, errors } = load();
+  const stars = (id, steps) => { ev(`pzBegin(pzDef('${id}'))`); build(ev, steps); return evalP(ev).stars; };
+  const packs = JSON.parse(ev('JSON.stringify(Object.fromEntries(PZ.map(p=>[p.id,p.pack])))'));
+  for (const id of Object.keys(REF)) {
+    // A ring puzzle's cheapest delivering build is a ring, which is already N-1.
+    if (id !== 'fire') assert.ok(stars(id, REF[id].one) < 3, `${id}: the one-star reference earns three stars`);
+    if (packs[id] === 'rodeo') assert.ok(stars(id, REF[id].three.filter((s) => s[0] !== '@rt')) < 3, `${id}: three stars on the starter routers`);
+    if (REF[id].three.some((s) => s[0] === '@route')) assert.ok(stars(id, REF[id].three.filter((s) => s[0] !== '@route')) < 3, `${id}: three stars without the routing choice`);
+    // N-1 Club: the brute-force answer (every one-star link doubled) is over budget or not N-1.
+    if (packs[id] === 'n1') assert.ok(stars(id, [...REF[id].one, ...links(REF[id].one)]) < 3, `${id}: doubling every link earns three stars`);
+  }
   assert.deepEqual(errors, []);
 });
