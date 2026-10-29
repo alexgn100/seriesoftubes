@@ -45,7 +45,8 @@ steps.
 release tag** with `weekly=true`. That run rebuilds exactly the live release, with every weekly file from `main`
 added, checks them with `scripts/weekly-puzzle.js --check`, and deploys it in the same `pages` concurrency group.
 Players get no update banner (the version does not change). Every release build also copies all weekly files from
-`main`, so a release never drops a published week. Weekly files are plain JSON the game fetches only when the
+`main`, so a release never drops a published week, and regenerates (in the build, deterministically) any week
+not over yet that the release's prices no longer fit. Weekly files are plain JSON the game fetches only when the
 Puzzles list opens and never trusts; the service worker serves them network-first. See `docs/ARCHITECTURE.md`.
 
 ## Before you hand back a change that touches the build, deploy or loading

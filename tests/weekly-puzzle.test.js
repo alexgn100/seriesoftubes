@@ -96,7 +96,8 @@ test('generator: a quarter of weeks, all verified, varied, small and in the sche
 
 test('--check passes on the committed files and rejects tampered ones', () => {
   const g = G.game();
-  // Weeks still to come are re-solved; past ones are checked the way the game reads them.
+  // Weeks still to come are re-solved; past ones are checked the way the game reads them. check() only reports;
+  // refresh() (the first half of --check) is what fixes.
   assert.deepEqual(G.check(g, DIR), [], 'committed weeklies verify');
   const bad = (edit, why) => {
     const d = tmp();
@@ -115,6 +116,53 @@ test('--check passes on the committed files and rejects tampered ones', () => {
   bad((j) => { j.twist = { lat: [j.cities[0], j.cities[1], 0.5] }; }, 'an impossible latency target');
   bad(() => '{nope', 'not JSON');
   bad((j, d) => { fs.writeFileSync(path.join(d, 'index.json'), '{"v":1,"weeks":[]}'); }, 'an index that misses weeks');
+});
+
+test('--check regenerates a published week when new prices break its budget, and only then', () => {
+  const g = G.game(), d = tmp();
+  for (const k of G.list(DIR)) fs.copyFileSync(path.join(DIR, k + '.json'), path.join(d, k + '.json'));
+  G.writeIndex(d);
+  const read = (k) => JSON.parse(fs.readFileSync(path.join(d, k + '.json'), 'utf8')), [k0, k1] = G.list(d).slice(-2);
+  assert.deepEqual(G.refresh(g, d, 0), { fixed: [], bad: [] }, 'the committed weeks still verify: nothing changes');
+  // Prices went up: the old budget no longer buys the N-1 build. The same puzzle comes back with a budget that does.
+  const old = read(k0), j = read(k0); j.budget = Math.floor(j.ref.three * 0.8 / 10000) * 10000; j.ref.three = j.budget - 1;
+  fs.writeFileSync(path.join(d, k0 + '.json'), JSON.stringify(j));
+  const r = G.refresh(g, d, 0);
+  assert.deepEqual(r.bad, []);
+  assert.equal(r.fixed.length, 1, r.fixed.join('; '));
+  const n = read(k0);
+  assert.equal(n.rev, 2, 'a new revision');
+  assert.deepEqual([n.theme, n.cities, n.via, n.avoid, n.twist, n.name, n.joke], [old.theme, old.cities, old.via, old.avoid, old.twist, old.name, old.joke], 'the same puzzle');
+  assert.ok(n.budget >= n.ref.three && n.ref.three > j.budget);
+  assert.deepEqual(G.check(g, d, 0), [], 'and it verifies');
+  assert.deepEqual(G.refresh(g, d, 0), { fixed: [], bad: [] }, 'deterministic and settled: a second run changes nothing');
+  // A week the game rejects (a city that is gone) gets a fresh puzzle under the same key.
+  const b = read(k1); b.cities[0] = 'xxx'; fs.writeFileSync(path.join(d, k1 + '.json'), JSON.stringify(b));
+  assert.equal(G.refresh(g, d, 0).fixed.length, 1);
+  assert.equal(read(k1).key, k1);
+  assert.equal(read(k1).rev, 2);
+  assert.deepEqual(G.check(g, d, 0), []);
+  // Weeks that are over cannot be played again: their stars stay, so a broken budget there is left alone.
+  const e = read(k0); e.budget = 50000; fs.writeFileSync(path.join(d, k0 + '.json'), JSON.stringify(e));
+  assert.deepEqual(G.refresh(g, d, 8.64e15), { fixed: [], bad: [] });
+});
+
+test('stars belong to the revision of the week they were earned on', () => {
+  const { ev, errors } = load();
+  const j = committed()[0], k = j.key, ok = (o) => ev(`!!pzWkValid(${JSON.stringify(o)},'${k}')`);
+  assert.equal(ev(`pzWkValid(${JSON.stringify(j)},'${k}').rev`), 1, 'a first edition is rev 1');
+  assert.ok(ok({ ...j, rev: 2 }));
+  for (const rev of [1, 0, '2', 2.5, 1000]) assert.equal(ok({ ...j, rev }), false, `rev ${rev}`);
+  ev(`localStorage.setItem('sot-puzzles',JSON.stringify({wk:{'${k}':{st:3,sp:1},'2026-W01':{st:2,sp:5}}}))`);
+  assert.equal(ev(`pzWkRec(pzLoad(),pzWkValid(${JSON.stringify(j)},'${k}')).st`), 3, 'same week, same revision: the stars stand');
+  const d2 = `pzWkValid(${JSON.stringify({ ...j, rev: 2 })},'${k}')`;
+  assert.equal(ev(`pzWkRec(pzLoad(),${d2})`), null, 'regenerated: that week starts again');
+  ev(`pzBegin(${d2});pzRecord({stars:1,spend:9})`);
+  const p = JSON.parse(ev("localStorage.getItem('sot-puzzles')"));
+  assert.deepEqual(p.wk[k], { st: 1, sp: 9, rv: 2 }, 'a lower score on the new revision replaces the old one');
+  assert.deepEqual(p.wk['2026-W01'], { st: 2, sp: 5 }, 'other weeks keep theirs');
+  assert.equal(ev(`pzWkRec(pzLoad(),${d2}).st`), 1);
+  assert.deepEqual(errors, []);
 });
 
 test('the page never asks for a weekly puzzle on load, only when Puzzles opens', async () => {

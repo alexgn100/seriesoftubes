@@ -7,7 +7,7 @@ const RULE_DEF={clock:true,chaos:'normal',lead:'real',market:true,inbox:true,mon
 const RULE_OK={clock:[true,false],chaos:['none','calm','normal','spicy'],lead:['real','quick'],market:[true,false],inbox:[true,false],money:['normal','infinite'],gates:['ladder','open']};
 // i: icon, n: name, d: the one-line joke, x: what is different, in small print.
 const PRESETS={
- freeze:{i:'🧊',n:tr('rules.change_freeze'),d:tr('rules.nobody_touches_prod_even_the_backhoes'),x:tr('rules.fewer_outages_pnis_and_builds_in'),clock:true,chaos:'calm',lead:'quick',market:false,inbox:false,money:'normal',gates:'ladder'},
+ freeze:{i:'🧊',n:tr('rules.change_freeze'),d:tr('rules.nobody_touches_prod_even_the_backhoes'),x:tr('rules.a_third_of_the_outages_no_ddos'),clock:true,chaos:'calm',lead:'quick',market:false,inbox:false,money:'normal',gates:'ladder'},
  oncall:{i:'📟',n:tr('rules.on_call'),d:tr('rules.the_real_thing_your_pager_has'),x:tr('rules.real_lead_times_real_outages_a'),clock:true,chaos:'normal',lead:'real',market:true,inbox:true,money:'normal',gates:'ladder'},
  bgp:{i:'🔥',n:tr('rules.bgp_at_3_a_m'),d:tr('rules.everything_is_on_fire_and_it'),x:tr('rules.more_and_longer_outages_more_ddos'),clock:true,chaos:'spicy',lead:'real',market:true,inbox:true,money:'normal',gates:'ladder'},
  sandbox:{i:'🏖️',n:tr('common.sandbox'),d:tr('rules.a_billion_dollars_every_unlock_your'),x:tr('rules.infinite_money_everything_unlocked_quick'),clock:true,chaos:'none',lead:'quick',market:true,inbox:true,money:'infinite',gates:'open'},

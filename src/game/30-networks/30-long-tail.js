@@ -93,8 +93,8 @@ NETS.push(
  {id:'otk',name:'Ours-Truly Telekom',asn:45891,type:'eye',cc:'SB',pol:'selective',minIx:1,minPni:8,share:.001,up:['tly'],col:'#00843D',pops:['hir'],ix:['hir'],blurb:tr('long_tail.the_solomon_islands_incumbent_yours')},
  {id:'tcc',name:'Tongue-in-Cheek Comms',asn:38201,type:'eye',cc:'TO',pol:'selective',minIx:1,minPni:8,share:.001,up:['ntt'],col:'#C10230',pops:['tbu'],ix:[],blurb:tr('long_tail.tonga_s_own_telco_lived_through')},
  {id:'bsk',name:'Blue-Sky-Pie Samoa',asn:17993,type:'eye',cc:['WS','AS'],pol:'selective',minIx:1,minPni:8,share:.001,up:['tly'],col:'#0096D6',pops:['apw','ppg'],ix:[],blurb:tr('long_tail.samoa_s_broadband_promised_with_a')},
- {id:'pnc',name:'PNC-See',asn:9534,type:'eye',cc:'PW',pol:'selective',minIx:1,minPni:8,share:.0005,up:['ntt'],col:'#1B75BB',pops:['ror'],ix:[],blurb:tr('long_tail.palau_s_telco_snorkel_down_and')},
- {id:'nta',name:'Never Too Atoll',asn:21581,type:'eye',cc:'MH',pol:'selective',minIx:1,minPni:8,share:.0005,up:['ntt'],col:'#2E8B57',pops:['maj'],ix:[],blurb:tr('long_tail.the_marshall_islands_telco_two')});
+ {id:'pnc',name:'PNC-See',asn:17893,type:'eye',cc:'PW',pol:'selective',minIx:1,minPni:8,share:.0005,up:['ntt'],col:'#1B75BB',pops:['ror'],ix:[],blurb:tr('long_tail.palau_s_telco_snorkel_down_and')},
+ {id:'nta',name:'Never Too Atoll',asn:24439,type:'eye',cc:'MH',pol:'selective',minIx:1,minPni:8,share:.0005,up:['ntt'],col:'#2E8B57',pops:['maj'],ix:[],blurb:tr('long_tail.the_marshall_islands_telco_two')});
 NETS.push(
  {id:'onc',name:'One Commotion',asn:3855,type:'eye',cc:'BM',pol:'selective',minIx:1,minPni:8,share:.001,up:['lvl','tly'],col:'#E4007C',pops:['bda'],ix:[],blurb:tr('long_tail.bermuda_s_phones_tv_and_internet')},
  {id:'cvt',name:'Curriculum Vitae Telecom',asn:37517,type:'t2',cc:'CV',pol:'open',share:.002,price:8,up:['tat','tly'],col:'#004B87',pops:['rai','lis','for','dkr'],ix:['rai'],blurb:tr('long_tail.cape_verde_s_incumbent_and_the')},
