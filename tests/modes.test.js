@@ -299,12 +299,12 @@ test('#34 scenario goal, progress and customer level are always in view', () => 
   ev("UI.left='goals';UI.leftOpen=true;UI.sel=null;renderAll()");
   const left = () => dom.window.document.getElementById('leftBody').textContent;
   assert.match(left(), /Mind the Gap/);
-  assert.match(left(), /POP in Bogotá/);
+  assert.match(left(), /Bogotá on your network/);
   assert.match(left(), /days left/);
   assert.match(left(), /Customer level 1 of 13/);
   assert.equal(ev("$('hScn').hidden"), false, 'scenario chip in the top bar');
   const f0 = ev('scnProg().f');
-  ev("S.cash=1e8;ACT.buildPop({city:'bog'});ACT.buildPop({city:'lim'});compute();renderAll()");
+  ev("S.cash=1e8;UI.via='pccs';openLinkModal('pan','bog');ACT.buildLink({tier:1});closeModal();compute();renderAll()");
   assert.ok(ev('scnProg().f') > f0, 'progress moves when a goal step is reached');
   assert.match(ev("$('hScnVal').textContent"), /%/);
   assert.match(ev("$('hTier').textContent"), /Lv 1/);
@@ -361,8 +361,10 @@ test('Flood Season: attacks keep coming, grow, and only count when service held'
   for (let i = 0; i < 40; i++) { ev('dayTick()'); if (ev('ddosAll().some(a=>a.start===S.day)')) n++; }
   assert.ok(n >= 4, `attacks keep coming (${n} in 40 days)`);
   assert.ok(ev('(S.stats.ddosOk||0)+(S.stats.ddosLost||0)') >= 3, 'finished attacks are scored');
-  // scoring: held only if service stayed at 97%+
-  ev("S.stats.ddosOk=0;S.stats.ddosOkBig=0;S.stats.ddosLost=0;ddosDone({city:'ams',gbps:1500,worst:0.99});ddosDone({city:'ams',gbps:20,worst:0.5});ddosDone({city:'xyz',gbps:30,worst:1})");
+  // scoring: held only if service stayed at 97%+, and a terabit one only with scrubbing or Flowspec
+  ev("S.stats.ddosOk=0;S.stats.ddosOkBig=0;S.stats.ddosLost=0;ddosDone({city:'ams',gbps:1500,vec:'http',worst:0.99})");
+  assert.equal(ev('S.stats.ddosOk+S.stats.ddosOkBig'), 1, 'held, but no terabit credit without mitigation');
+  ev("S.scrubs.push({city:'ams',tier:1});S.stats.ddosOk=0;S.stats.ddosOkBig=0;S.stats.ddosLost=0;ddosDone({city:'ams',gbps:1500,worst:0.99});ddosDone({city:'ams',gbps:20,worst:0.5});ddosDone({city:'xyz',gbps:30,worst:1})");
   assert.equal(ev('S.stats.ddosOk'), 2);
   assert.equal(ev('S.stats.ddosOkBig'), 1);
   assert.equal(ev('S.stats.ddosLost'), 1);
