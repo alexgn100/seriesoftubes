@@ -45,6 +45,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Weeks already out that main's prices no longer fit are regenerated first, so the new week's history is current.
+      - name: Fit the published weeks to main
+        run: node scripts/weekly-puzzle.js --check
       - name: Make the puzzle
         run: |
           set -euo pipefail
