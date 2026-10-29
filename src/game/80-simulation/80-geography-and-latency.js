@@ -10,7 +10,8 @@ function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TR
 const netMult=(n,c)=>regionMult(c)*((n&&n.far&&CITY[c]&&n.far[CITY[c].reg])||1);
 const uaePair=(a,b)=>!!CITY[a].uae&&!!CITY[b].uae;
 const rainPair=(a,b)=>!!(CITY[a].rain||CITY[b].rain);
-const borderPair=(a,b)=>!!CITY[a].cc&&!!CITY[b].cc&&CITY[a].cc!==CITY[b].cc;
+// Every city has a country (cc), but the border toll is Africa's: elsewhere a wave crosses borders at the plain price.
+const borderPair=(a,b)=>CITY[a].reg==='AF'&&CITY[b].reg==='AF'&&CITY[a].cc!==CITY[b].cc;
 // Perth to the east coast: the sea route round the south coast is domestic (AU_WAVE.ew), and the Nullarbor
 // fiber costs a little more again because the incumbents own it.
 const NULLARBOR=1.7,nullPair=(a,b)=>!!CITY[a].au&&!!CITY[b].au&&(a==='per')!==(b==='per');
