@@ -1310,7 +1310,7 @@ test('#134 an exchange named after its city does not repeat the city in messages
   const labs = JSON.parse(ev("JSON.stringify(lagsN().filter(o=>o.k==='ix').map(o=>o.lab))"));
   assert.ok(labs.includes('IX.brrr Campinas LAG'), labs.join(' | '));
   assert.ok(labs.some(l => / LAG in Frankfurt$/.test(l)), labs.join(' | '));
-  ev("S.inc=[];eval('('+fireFailure.toString().replace('type=pick(f);}',\"type='maxpfx';}\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
+  ev("S.inc=[];eval('('+fireFailure.toString().replace(\"if(type==='funny'){\",\"type='funny';if(type==='funny'){\").replace('type=pick(f);}',\"type='maxpfx';}\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
   const msg = ev("S.inc.map(i=>i.msg).join(' ')");
   assert.match(msg, /IX\.brrr Campinas/);
   assert.doesNotMatch(msg, /in Campinas/);
