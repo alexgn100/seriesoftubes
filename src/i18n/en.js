@@ -1997,7 +1997,6 @@
 "hud_and_panels.n_incident":{"one":"{n} incident","other":"{n} incidents"},
 "hud_and_panels.n_more_networks":{"one":"+{n} more network","other":"+{n} more networks"},
 "hud_and_panels.n_networks_d_days_left":"{n} networks · {d} days left",
-"hud_and_panels.n_new_notification":{"one":"{n} new notification","other":"{n} new notifications"},
 "hud_and_panels.n_rules_live":"{n} rules live",
 "hud_and_panels.n_small_networks":"{n} small networks",
 "hud_and_panels.n_special_requirement":{"one":"{n} special requirement","other":"{n} special requirements"},

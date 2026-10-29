@@ -1996,7 +1996,6 @@
 "hud_and_panels.n_incident":{"one":"{n} incident","other":"{n} incidents"},
 "hud_and_panels.n_more_networks":{"one":"+{n} autre réseau","other":"+{n} autres réseaux"},
 "hud_and_panels.n_networks_d_days_left":"{n} réseaux · {d} j restants",
-"hud_and_panels.n_new_notification":{"one":"{n} nouvelle notification","other":"{n} nouvelles notifications"},
 "hud_and_panels.n_rules_live":"{n} règles actives",
 "hud_and_panels.n_small_networks":"{n} petits réseaux",
 "hud_and_panels.n_special_requirement":{"one":"{n} exigence spéciale","other":"{n} exigences spéciales"},

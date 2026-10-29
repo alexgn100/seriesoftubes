@@ -20,7 +20,7 @@ function renderHUD(){
   $('hDate').textContent=dateStr(S.day);
   {const bo=(S.loanOffers||[]).length,hb=$('hBank');hb.hidden=!bo;hb.textContent=bo;}
   {const st=custStats(),hc=$('hCust');hc.hidden=!st.n;if(st.n){$('hCustVal').innerHTML=`${st.avg>=80?'😀':st.avg>=60?'🙂':st.avg>=30?'😟':'😡'} ${Math.round(st.avg)}%${st.unhappy?` <span class="cnt red">${st.unhappy}</span>`:''}`;hc.classList.toggle('hot',st.furious>0);}}
-  const n=S.inc.length;$('hNoc').classList.toggle('hot',n>0);{const u=UI.left==='noc'&&UI.leftOpen?0:logUnread(),b=$('hNocNew');if(b){b.hidden=!u;b.textContent=u>99?'99+':String(u);b.title=trn('hud_and_panels.n_new_notification',u);}}$('hNocVal').textContent=n?trn('hud_and_panels.n_incident',n):tr('common.all_quiet');
+  const n=S.inc.length;$('hNoc').classList.toggle('hot',n>0);{const b=$('hNocNew');if(b)b.hidden=true;}$('hNocVal').textContent=n?trn('hud_and_panels.n_incident',n):tr('common.all_quiet');
   if(!window.__TUBES_TEST__)fitHud();
   renderTabbar();
 }
@@ -31,7 +31,7 @@ function renderLeft(){checkLayer();
   renderTabbar();
   if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
   const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
-  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red">${S.inc.length}</span>`:''}`],['nets',tr('common.networks')]];
+  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',tr('common.networks')]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
   let h='';
   if(UI.left==='goals'){

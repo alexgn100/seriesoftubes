@@ -1998,7 +1998,6 @@
 "hud_and_panels.n_incident":{"one":"{n} Störung","other":"{n} Störungen"},
 "hud_and_panels.n_more_networks":{"one":"+{n} weiteres Netz","other":"+{n} weitere Netze"},
 "hud_and_panels.n_networks_d_days_left":"{n} Netze · noch {d} Tage",
-"hud_and_panels.n_new_notification":{"one":"{n} neue Benachrichtigung","other":"{n} neue Benachrichtigungen"},
 "hud_and_panels.n_rules_live":"{n} Regeln aktiv",
 "hud_and_panels.n_small_networks":"{n} kleine Netze",
 "hud_and_panels.n_special_requirement":{"one":"{n} Sonderwunsch","other":"{n} Sonderwünsche"},
