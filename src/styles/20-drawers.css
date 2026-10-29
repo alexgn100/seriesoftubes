@@ -83,3 +83,5 @@ section h3{font-size:17px;margin-bottom:6px;display:flex;align-items:center;gap:
 .inc .nm{font-weight:900}
 .inc .meta{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.35}
 
+/* The NOC tab only says whether something is broken, never how many notifications wait (2.0). */
+.cnt.dot{min-width:0;width:9px;height:9px;padding:0;border-radius:50%;vertical-align:middle}
