@@ -7,6 +7,8 @@ const colo=c=>{const q=CITY_PDB[c];return !q?1:q[0]===0?1.5:q[0]<=2?1.25:1;};
 const popMo=c=>Math.round(POP_MO*colo(c));
 function regionMult(c){const C=CITY[c];if(!C||C.cn)return 1;if(C.kr)return KR_TRANSIT;if(C.au)return AU_TRANSIT;if(C.tape)return 1.5;const base=C.reg==='AS'?2.5:C.reg==='AF'?2:C.reg==='OC'?1.8:C.reg==='SA'?1.6:1;return Math.round(base*txComp(c)*10)/10;}
 // A network's own markup on top of that, where it is far from home (Glowball Sakura Lager in Asia and New Zealand).
+// What a home pays, against the usual bill.
+const arpuOf=c=>CITY[c].arpu||(CITY[c].kr&&scnRule('sender')?KR_ARPU:1);
 const netMult=(n,c)=>regionMult(c)*((n&&n.far&&CITY[c]&&n.far[CITY[c].reg])||1);
 const uaePair=(a,b)=>!!CITY[a].uae&&!!CITY[b].uae;
 const rainPair=(a,b)=>!!(CITY[a].rain||CITY[b].rain);
