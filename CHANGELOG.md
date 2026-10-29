@@ -49,6 +49,7 @@ All notable changes to this project are documented here. The project follows
 - When a new release changes prices so that this week's or a coming week's puzzle no longer adds up, that puzzle gets a fair new budget, and only its stars start again. Weeks that are over keep theirs.
 - The Networks list shows 100 networks at a time, with a button for the rest, so it opens quickly now that every country has its own networks.
 - A tidier start screen: language first, then your network's name, the doors, three compact difficulty buttons with the chosen one explained below, and one drop-down for your home city with the five suggested homes at the top.
+- Pick your own AS number next to your network's name when you start (#135). Leave it empty and the game picks one, and the round green arrow in the name box suggests another name.
 
 ## [1.37.0] — 2026-10-28
 
