@@ -1,33 +1,36 @@
 /* Puzzles: one entry per line, in play order. A puzzle is data:
-   id, pack, n (name), j (one-line joke), cities (all must end up connected), via (optional stepping stones),
-   budget (setup + a year of monthly, 0 = no budget star to chase: it is given), and at most a twist or two:
-   noSub (no subsea cables), ring (one ring through every POP), lat:[a,b,ms] (best path under ms), minG (every link at
-   least this many Gbps), avoid (cities shown on the map that you may not build in). */
+   id, pack, n (name), j (one-line joke), src (the content origins: eyeballs pull from the nearest), dem (the traffic:
+   {t:'eye',a,g} eyeballs in city a want g Gbps; {t:'l2',a,b,g,ms} a circuit of g Gbps between a and b, under ms
+   milliseconds one way; be:1 marks a flow best effort, which may drop when something is cut), via (suggested stepping
+   stones), budget (setup + a year of monthly, 0 = no budget star to chase: it is given), and at most a twist:
+   noSub (no subsea cables), ring (one ring through every POP), avoid (cities you may not build in).
+   Each pack teaches one idea; the budgets sit a little above the cheapest 3-star build found (tests/puzzles.test.js). */
 const PZ_PACKS=[
- {id:'hello',n:tr('puzzles.hello_world'),d:tr('puzzles.your_first_tubes_roomy_budgets'),need:0},
- {id:'fire',n:tr('puzzles.ring_of_fire'),d:tr('puzzles.the_pacific_rim_where_every_hop'),need:6},
- {id:'speed',n:tr('puzzles.speed_runs'),d:tr('puzzles.beat_the_clock_light_in_glass'),need:14},
- {id:'n1',n:tr('puzzles.n_1_club'),d:tr('puzzles.for_architects_who_sleep_through_backhoes'),need:22},
+ {id:'hello',n:tr('puzzles.fat_pipes'),d:tr('puzzles.capacity_first_every_link_has_a'),need:0},
+ {id:'rodeo',n:tr('puzzles.router_rodeo'),d:tr('puzzles.routers_have_ports_and_a_limit'),need:10},
+ {id:'cops',n:tr('puzzles.traffic_cops'),d:tr('puzzles.your_routers_pick_the_path'),need:18},
+ {id:'n1',n:tr('puzzles.n_1_club'),d:tr('puzzles.survive_any_single_cut_with_the'),need:26},
+ {id:'final',n:tr('puzzles.grand_tour'),d:tr('puzzles.everything_at_once_across_oceans'),need:36},
 ];
 const PZ=[
- {id:'hello',pack:'hello',n:tr('puzzles.hello_world'),j:tr('puzzles.every_internet_starts_with_one_tube'),cities:['lon','nyc'],budget:0},
- {id:'eurotrip',pack:'hello',n:tr('puzzles.euro_trip'),j:tr('puzzles.three_cities_two_currencies_one_very'),cities:['lon','ams','fra'],budget:0},
- {id:'shining',pack:'hello',n:tr('puzzles.sea_to_shining_sea'),j:tr('puzzles.four_cities_one_continent_and_a'),cities:['nyc','chi','dal','sjc'],budget:340000},
- {id:'smorgas',pack:'hello',n:tr('puzzles.smorgasbord'),j:tr('puzzles.four_capitals_one_very_long_winter'),cities:['osl','sto','cph','hel'],budget:210000},
- {id:'downunder',pack:'hello',n:tr('puzzles.down_under_up_and_running'),j:tr('puzzles.one_very_big_island_and_a'),cities:['syd','mel','bne','adl'],budget:320000},
- {id:'aloha',pack:'fire',n:tr('puzzles.aloha_latency'),j:tr('puzzles.honolulu_the_world_s_most_scenic'),cities:['sjc','hnl','syd'],budget:1830000},
- {id:'rimshot',pack:'fire',n:tr('puzzles.pacific_rim_shot'),j:tr('puzzles.seattle_to_singapore_with_a_stop'),cities:['sea','tok','hkg','sin'],budget:1240000},
- {id:'fire',pack:'fire',n:tr('puzzles.ring_of_fire'),j:tr('puzzles.four_cities_four_cables_one_ring'),cities:['tok','hkg','sin','syd'],ring:true,budget:1610000},
- {id:'kiwi',pack:'fire',n:tr('puzzles.kiwi_fruit_salad'),j:tr('puzzles.new_zealand_is_far_from_everything'),cities:['akl','syd','sea'],via:['hnl','suv','lax'],budget:1450000},
- {id:'guam',pack:'fire',n:tr('puzzles.guam_slam'),j:tr('puzzles.a_tiny_island_where_half_the'),cities:['tok','mnl','syd'],via:['gum'],budget:1700000},
- {id:'flash',pack:'speed',n:tr('puzzles.flash_boys'),j:tr('puzzles.traders_paid_millions_to_shave_milliseconds'),cities:['nyc','lon'],lat:['nyc','lon',27],budget:465000},
- {id:'pingpong',pack:'speed',n:tr('puzzles.ping_pong_to_tokyo'),j:tr('puzzles.the_pacific_is_big_light_is'),cities:['lax','tok'],via:['sea','sjc'],lat:['lax','tok',47],budget:880000},
- {id:'suez',pack:'speed',n:tr('puzzles.suez_you_later'),j:tr('puzzles.frankfurt_to_singapore_the_short_way'),cities:['fra','sin'],via:['mrs','bom'],lat:['fra','sin',68],budget:1010000},
- {id:'samba',pack:'speed',n:tr('puzzles.samba_sprint'),j:tr('puzzles.sao_paulo_to_miami_before_the'),cities:['sao','mia'],via:['for','rio'],lat:['sao','mia',45],budget:1060000},
- {id:'sharks',pack:'n1',n:tr('puzzles.the_shark_tank'),j:tr('puzzles.the_sharks_have_been_biting_again'),cities:['lis','mad','par','mil'],via:['bcn','mrs'],noSub:true,budget:210000},
- {id:'braces',pack:'n1',n:tr('puzzles.belt_and_braces'),j:tr('puzzles.two_cables_across_the_atlantic_because'),cities:['nyc','lon','dub'],budget:380000},
- {id:'nofra',pack:'n1',n:tr('puzzles.not_through_frankfurt'),j:tr('puzzles.de_kicks_sales_has_your_number'),cities:['ams','ber','muc','zrh'],via:['ham','dus'],avoid:['fra'],budget:192000},
- {id:'fatpipes',pack:'n1',n:tr('puzzles.fat_pipes_only'),j:tr('puzzles.nobody_ever_got_fired_for_buying'),cities:['par','mrs','mil','zrh'],minG:100,budget:235000},
+ {id:'hello',pack:'hello',n:tr('puzzles.hello_world'),j:tr('puzzles.every_internet_starts_with_one_tube'),src:['nyc'],dem:[{t:'eye',a:'lon',g:8}],budget:0},
+ {id:'eurotrip',pack:'hello',n:tr('puzzles.euro_trip'),j:tr('puzzles.three_cities_two_currencies_one_very'),src:['ams'],dem:[{t:'eye',a:'lon',g:30},{t:'eye',a:'fra',g:60}],budget:0},
+ {id:'bigboat',pack:'hello',n:tr('puzzles.a_bigger_boat'),j:tr('puzzles.paris_wants_150g_one_100g_wave'),src:['fra'],dem:[{t:'eye',a:'par',g:150}],budget:1},
+ {id:'shining',pack:'hello',n:tr('puzzles.sea_to_shining_sea'),j:tr('puzzles.four_cities_one_continent_and_a'),src:['nyc'],dem:[{t:'eye',a:'chi',g:40},{t:'eye',a:'dal',g:30},{t:'eye',a:'sjc',g:60}],budget:1},
+ {id:'downunder',pack:'hello',n:tr('puzzles.down_under_up_and_running'),j:tr('puzzles.one_very_big_island_and_a'),src:['syd'],dem:[{t:'eye',a:'mel',g:50},{t:'eye',a:'bne',g:30},{t:'eye',a:'adl',g:20}],budget:1},
+ {id:'edgelord',pack:'rodeo',n:tr('puzzles.edge_lord'),j:tr('puzzles.london_wants_half_a_terabit_your'),src:['ams'],dem:[{t:'eye',a:'lon',g:500}],budget:1},
+ {id:'hubcap',pack:'rodeo',n:tr('puzzles.hub_cap'),j:tr('puzzles.all_of_europe_s_cat_videos'),src:['lon'],dem:[{t:'eye',a:'ams',g:150},{t:'eye',a:'par',g:150},{t:'eye',a:'fra',g:120}],budget:1},
+ {id:'ports',pack:'rodeo',n:tr('puzzles.port_authority'),j:tr('puzzles.five_small_cities_one_small_router'),src:['zrh'],dem:[{t:'eye',a:'mil',g:8},{t:'eye',a:'muc',g:8},{t:'eye',a:'fra',g:8},{t:'eye',a:'par',g:8},{t:'eye',a:'vie',g:8}],budget:1},
+ {id:'flash',pack:'cops',n:tr('puzzles.flash_boys'),j:tr('puzzles.traders_paid_millions_to_shave_milliseconds'),src:['nyc'],dem:[{t:'l2',a:'nyc',b:'lon',g:10,ms:26},{t:'eye',a:'lon',g:80,be:1}],budget:1},
+ {id:'baltic',pack:'cops',n:tr('puzzles.baltic_shortcut'),j:tr('puzzles.the_road_to_tallinn_is_short'),src:['fra'],dem:[{t:'eye',a:'tll',g:60},{t:'l2',a:'fra',b:'tll',g:10,ms:8.8}],via:['hel'],budget:1},
+ {id:'fjord',pack:'cops',n:tr('puzzles.fjord_focus'),j:tr('puzzles.the_oil_rigs_want_their_numbers'),src:['par'],dem:[{t:'eye',a:'svg',g:30},{t:'l2',a:'par',b:'svg',g:10,ms:7.2}],via:['lon'],budget:1},
+ {id:'braces',pack:'n1',n:tr('puzzles.belt_and_braces'),j:tr('puzzles.two_cables_across_the_atlantic_because'),src:['nyc'],dem:[{t:'eye',a:'lon',g:60},{t:'eye',a:'dub',g:40}],budget:1},
+ {id:'sharks',pack:'n1',n:tr('puzzles.the_shark_tank'),j:tr('puzzles.the_sharks_have_been_biting_again'),src:['lis'],dem:[{t:'eye',a:'mad',g:40},{t:'eye',a:'par',g:60},{t:'eye',a:'mil',g:30}],via:['bcn','mrs'],noSub:true,budget:1},
+ {id:'nofra',pack:'n1',n:tr('puzzles.not_through_frankfurt'),j:tr('puzzles.de_kicks_sales_has_your_number'),src:['ams'],dem:[{t:'eye',a:'ber',g:50},{t:'eye',a:'muc',g:50},{t:'eye',a:'zrh',g:40}],via:['ham','dus'],avoid:['fra'],budget:1},
+ {id:'fire',pack:'n1',n:tr('puzzles.ring_of_fire'),j:tr('puzzles.four_cities_four_cables_one_ring'),src:['tok'],dem:[{t:'eye',a:'hkg',g:20},{t:'eye',a:'sin',g:20},{t:'eye',a:'syd',g:10}],ring:true,budget:1},
+ {id:'suez',pack:'final',n:tr('puzzles.suez_you_later'),j:tr('puzzles.frankfurt_to_singapore_the_short_way'),src:['fra'],dem:[{t:'l2',a:'fra',b:'sin',g:10,ms:68},{t:'eye',a:'sin',g:30,be:1}],via:['mrs','bom'],budget:1},
+ {id:'kiwi',pack:'final',n:tr('puzzles.kiwi_fruit_salad'),j:tr('puzzles.new_zealand_is_far_from_everything'),src:['sea'],dem:[{t:'eye',a:'akl',g:20},{t:'eye',a:'syd',g:40}],via:['hnl','suv','lax'],budget:1},
+ {id:'samba',pack:'final',n:tr('puzzles.samba_sprint'),j:tr('puzzles.sao_paulo_to_miami_before_the'),src:['mia'],dem:[{t:'l2',a:'sao',b:'mia',g:10,ms:45},{t:'eye',a:'sao',g:40},{t:'eye',a:'rio',g:20,be:1}],via:['for'],budget:1},
 ];
 // Weekly puzzle pools: each is one landmass and one region, so every pair has an overland route.
 const PZ_WEEK_POOLS=[

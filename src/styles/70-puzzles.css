@@ -8,6 +8,12 @@ body.pz #hud .chip:not(.brand):not(.speed),body.pz #hud .speed button:not(#muteB
 .pzck{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}.pzc{font-weight:900;font-size:12px;border:2px solid var(--ink);border-radius:999px;padding:1px 8px;background:#fff}
 .pzc i{font-style:normal}
 .pzc.s1{background:#FFE3F0}.pzc.s2{background:var(--ok);color:#fff}
+.pzsrc{font-size:12px;font-weight:800;color:var(--ink2);margin:4px 0}
+.pzfl{margin:4px 0 6px}.pzf{margin:4px 0;padding:3px 6px;border:2px solid var(--line);border-radius:10px}.pzf.ok{border-color:var(--ok)}
+.pzf .kv{font-size:12px;gap:6px}.pzf .bar{margin:2px 0}.pzf .meta .bad{color:var(--bad);font-weight:900}.pzf .seg.pzrt{margin-top:3px}
+.pzpair{border-top:2px dashed var(--line);padding-top:4px;margin-top:4px}.pzhave{font-size:13px;font-weight:800;margin:6px 0;padding:4px 8px;border-radius:10px;background:#FFF4D6}
+.pznote{font-weight:800;font-size:13.5px;margin:8px 0;padding:8px 10px;border:2.5px solid var(--ink);border-radius:12px;background:#FFF3C4}
+.row.on{background:#FFE3F0;border-radius:10px}
 .pztw{font-size:12.5px;font-weight:800;color:var(--bad);margin:3px 0}.pztw.ok{color:var(--eye)}.pztw.rule{color:var(--ink2)}
 .pzbud{margin:6px 0}.pzbud .kv{font-size:12.5px}
 .pzn1{font-size:12.5px;font-weight:800;margin:6px 0;padding:4px 8px;border:2px solid var(--line);border-radius:10px;color:var(--ink2)}

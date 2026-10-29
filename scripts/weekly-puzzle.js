@@ -12,15 +12,18 @@
 //   --dir DIR                                        where the files live (default site/puzzles/weekly)
 //
 // How a puzzle is made: pick a theme the last weeks did not have, choose 4-6 cities for it (avoiding last weeks'
-// cities), then search for the cheapest build that connects them and the cheapest build that survives any single cut
-// (a whole cable or a trench). The budget is that N-1 build plus a little, so three stars need the smart design, not
-// the obvious "double everything". Both reference builds are then played through the game's own actions and must earn
-// their stars, or the candidate is thrown away and another one tried.
+// cities) and the traffic they carry (content in the first city, eyeballs in the others; a latency sprint adds a
+// circuit with a latency cap). Search for the cheapest topology that connects them and the cheapest one that survives
+// any single cut (a whole cable or a trench), then size each with the game's own routing (scripts/lib/puzzle-solver.js):
+// links and routers big enough for every flow, after any single cut too, then as small as they can be. The budget is
+// that N-1 build plus a little. Both reference builds are judged by the game's own star code and must earn their
+// stars, or the candidate is thrown away and another one tried.
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SCHEMA = 1, HISTORY = 4, THEME_GAP = 3, REG_GAP = 2, ATTEMPTS = 40, KEEP = 6;
+const SV = require('./lib/puzzle-solver');
+const SCHEMA = 2, HISTORY = 4, THEME_GAP = 3, REG_GAP = 2, ATTEMPTS = 40, KEEP = 6;
 const THEMES = ['tour', 'ring', 'detour', 'ocean', 'islands', 'sprint'];
 
 // ---------- the game, headless ----------
@@ -31,6 +34,7 @@ function game(file) {
     console.warn(`warning: ${file} has no published weekly puzzles yet; using src/ instead`);
     g = load();
   }
+  SV.install(g.ev);
   // N-1 counts a whole cable as one failure (every segment of a cable shares its risk), as the solver does.
   if (g.ev("pzUnit({cable:'x',a:'a',b:'b'})") !== 'cab:x') throw new Error('this game counts cable segments separately; the solver would not match its N-1 check');
   return g;
@@ -219,6 +223,12 @@ function draft(W, theme, r, banned) {
   }
   if (new Set([...P.cities, ...P.via, ...P.avoid]).size !== P.cities.length + P.via.length + P.avoid.length) return null;
   if (P.cities.length < 3 || P.cities.length > 6) return null;
+  // The traffic: content in the first city, eyeballs in the others (less across an ocean, where waves are dear), and
+  // for a sprint a circuit between its two cities under the latency cap.
+  const far = theme === 'ocean' || theme === 'islands', sizes = far ? [5, 8, 10, 15] : [10, 20, 30, 40, 60];
+  P.src = [P.cities[0]];
+  P.dem = P.cities.slice(1).map((c) => ({ t: 'eye', a: c, g: pick(r, sizes) }));
+  if (P.lat) P.dem.unshift({ t: 'l2', a: P.lat[0], b: P.lat[1], g: 10, ms: P.lat[2] });
   return P;
 }
 
@@ -240,29 +250,45 @@ function history(dir, key) {
 }
 const list = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /^\d{4}-W\d{2}\.json$/.test(f)).map((f) => f.slice(0, -5)).sort() : []);
 
-// Plays a build through the game's own actions and returns the stars it earns.
-function play(ev, def, links) {
-  ev(`localStorage.removeItem('sot-puzzles');pzBegin(${JSON.stringify(def)})`);
-  for (const l of links) {
-    if (!ev(`!!S.pops['${l.a}']`)) ev(`ACT.pzPop({city:'${l.a}'})`);
-    ev(`ACT.pzLinkTo({a:'${l.a}',b:'${l.b}'});ACT.pzVia({v:'${l.via}'});ACT.pzDiv({v:1});ACT.pzLink({tier:0})`);
+// A topology's links, sized for the traffic: every wave at the smallest size that carries it all (after any single cut
+// too, for the N-1 build), as the game routes it, with the cheapest routers that fit.
+const TIER_G = [10, 100, 400];
+function size(ev, def, links, n1) {
+  ev(`pzBegin(${JSON.stringify(def)})`);
+  const tot = def.dem.reduce((a, f) => a + f.g, 0), t0 = Math.max(0, TIER_G.findIndex((g) => g >= tot));
+  for (let t = t0; t < TIER_G.length; t++) {
+    const L = [...links.map((l) => [l.a, l.b, l.via, t, 0]), ...def.dem.map((f, i) => f.ms ? ['@route', i, 'fast'] : null).filter(Boolean)], j = SV.judge(ev, L);
+    if (n1 ? j.three : j.one) { const r = n1 ? SV.improve(ev, L) : { links: L, ...j }; return r; }
   }
-  ev('closeModal()');
+  return null;
+}
+// Plays a sized build (links and routers) in the game and returns the stars it earns.
+function play(ev, def, b) {
+  ev(`localStorage.removeItem('sot-puzzles');pzBegin(${JSON.stringify(def)})`);
+  SV.judge(ev, b.links); ev(`pzsApplyRt(${JSON.stringify(b.rt)})`);
   return JSON.parse(ev('JSON.stringify((({stars,spend,goal,n1,cheap})=>({stars,spend,goal,n1,cheap}))(pzEval()))'));
 }
-const fileOf = (key, P, budget, w, sol) => ({ v: SCHEMA, key, theme: P.theme, cities: P.cities, via: P.via, avoid: P.avoid, budget,
-  twist: Object.assign({}, P.ring ? { ring: true } : {}, P.noSub ? { noSub: true } : {}, P.lat ? { lat: P.lat } : {}),
+const fileOf = (key, P, budget, w, sol) => ({ v: SCHEMA, key, theme: P.theme, cities: P.cities, src: P.src, dem: P.dem, via: P.via, avoid: P.avoid, budget,
+  twist: Object.assign({}, P.ring ? { ring: true } : {}, P.noSub ? { noSub: true } : {}),
   name: w.name, joke: w.joke, ref: { one: sol.one.cost, three: sol.three.cost } });
+// The topology search reads a sprint's latency cap from its circuit.
+const shape = (def) => { const l2 = def.dem.find((f) => f.t === 'l2' && f.ms); return { theme: def.theme, cities: def.cities, via: def.via, avoid: def.avoid, noSub: def.noSub, ring: def.ring, lat: l2 ? [l2.a, l2.b, l2.ms] : null }; };
+// Topology, then sizes: the 1-star and 3-star references with their prices.
+function sized(g, W, P, def) {
+  const sol = solve(W, P); if (!sol.one || !sol.three) return null;
+  const one = size(g.ev, def, sol.one.links, false), three = size(g.ev, def, sol.three.links, true);
+  if (!one || !three) return null;
+  return { one: { cost: Math.round(one.spend), b: one }, three: { cost: Math.round(three.spend), b: three } };
+}
 // The game's own validator decides what a puzzle is; then both references must earn their stars.
-function verify(g, W, j, key) {
+function verify(g, W, j, key, known) {
   const { ev } = g, def = JSON.parse(ev(`JSON.stringify(pzWkValid(${JSON.stringify(j)},'${key}'))`));
   if (!def) return { ok: false, why: 'the game rejects the file' };
-  const P = { theme: def.theme, cities: def.cities, via: def.via, avoid: def.avoid, noSub: def.noSub, ring: def.ring, lat: def.lat };
-  const sol = solve(W, P);
-  if (!sol.one || !sol.three) return { ok: false, why: 'no build reaches the goal and survives a cut' };
+  const P = shape(def), sol = known || sized(g, W, P, def);
+  if (!sol) return { ok: false, why: 'no build delivers the traffic and survives a cut' };
   if (sol.three.cost > def.budget) return { ok: false, why: `the cheapest N-1 build found costs ${sol.three.cost}, over the budget ${def.budget}` };
-  const s1 = play(ev, def, sol.one.links), s3 = play(ev, def, sol.three.links);
-  if (s1.stars < 1 || (!P.ring && s1.stars !== 2)) return { ok: false, why: `the one-star reference earns ${s1.stars} stars` };
+  const s1 = play(ev, def, sol.one.b), s3 = play(ev, def, sol.three.b);
+  if (s1.stars < 1) return { ok: false, why: `the one-star reference earns ${s1.stars} stars` };
   if (s3.stars !== 3) return { ok: false, why: `the three-star reference earns ${s3.stars} stars (${JSON.stringify(s3)})` };
   return { ok: true, sol, s1, s3 };
 }
@@ -281,17 +307,18 @@ function generate(g, key, dir) {
       if (!P || hist.regs.some((c) => W.C[c] && W.C[c].reg === W.C[P.cities[0]].reg && W.C[c].lands[0] === W.C[P.cities[0]].lands[0])) continue;
       const sol = solve(W, P);
       if (!sol.one || !sol.three) continue;
-      // Three stars need the smart design: the budget sits just above the cheapest N-1 build found, and below the
-      // obvious one (a second way along every hop) whenever there is room.
-      let budget = ceil10k(sol.three.cost * 1.05);
-      if (sol.naive && budget >= sol.naive.cost) budget = Math.max(ceil10k(sol.three.cost), Math.floor((sol.naive.cost - 1) / 10000) * 10000);
-      const smart = sol.naive ? sol.naive.cost / budget : 1.05, slack = budget / sol.one.cost;
+      // Prefer puzzles where surviving a cut takes real thought: the obvious "double everything" costs a lot more.
+      const smart = sol.naive ? sol.naive.cost / sol.three.cost : 1.05, slack = sol.three.cost / sol.one.cost;
       const score = Math.min(smart, 1.6) + Math.min(slack, 2) * 0.2 + r() * 0.05;
-      cands.push({ P, sol, budget, score, w: words(ev, W, P, r) });
+      cands.push({ P, score, w: words(ev, W, P, r) });
     }
     cands.sort((a, b) => b.score - a.score);
     for (const c of cands) {
-      const j = fileOf(key, c.P, c.budget, c.w, c.sol), v = verify(g, W, j, key);
+      // Sized with the traffic: the budget sits just above the cheapest N-1 build found.
+      const def = JSON.parse(ev(`JSON.stringify(pzWkValid(${JSON.stringify(fileOf(key, c.P, 1e6, c.w, { one: { cost: 0 }, three: { cost: 0 } }))},'${key}'))`));
+      const sol = def && sized(g, W, c.P, def);
+      if (!sol) { console.warn(`${key}: rejected a ${theme} puzzle: no build carries its traffic`); continue; }
+      const j = fileOf(key, c.P, Math.max(50000, ceil10k(sol.three.cost * 1.05)), c.w, sol), v = verify(g, W, j, key, sol);
       if (v.ok) return j;
       console.warn(`${key}: rejected a ${theme} puzzle: ${v.why}`);
     }

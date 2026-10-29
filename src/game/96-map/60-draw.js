@@ -28,7 +28,7 @@ function drawFrame(now){
   const far=lodFar(),PI=pairIdx(),LG=linkGroups(),GM=LG.map(g=>linkGeom(g[0],PI.get(edgeKey(g[0])))),busy=linesOnScreen(GM,ks)>MAP_BUSY;
   for(let gi=0;gi<LG.length;gi++){const grp=LG[gi],l=grp[0],many=grp.length>1,up=many?grp.filter(x=>!linkDown(x)):null;
     const gm=GM[gi],cap=many?up.reduce((a,x)=>a+capOf(x),0):capOf(l),load=many?grp.reduce((a,x)=>a+(R.load[x.id]||0),0):(R.load[l.id]||0),u=cap?load/cap:0,df=l.kind==='df',bld=df&&l.ready>day,cut=!bld&&(many?!up.length:linkDown(l))&&!(df&&!(l.ch||[]).length),dark=df&&!bld&&!(l.ch||[]).length,vx=l.kind==='vxc',idle=!cut&&!bld&&load<1e-3&&(many?up.length>0&&up.every(x=>x.standby):!!l.standby);
-    const sel=UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id);let lab=null;
+    const pz=pzOn(),sel=(UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id))||(pz&&pzLinkHot(grp));let lab=null;
     const w=(vx?2.2:(2.5+Math.max(...grp.map(tierW))*1.8+(many?Math.min(1.5,(grp.length-1)*0.5):0)))*sc*(far?0.5:1),np=gm.pts.length;
     if(SX.length<np){SX=new Float64Array(np*2);SY=new Float64Array(np*2);}
     for(const k of ks){
@@ -50,7 +50,7 @@ function drawFrame(now){
       const [mx2,my]=at(.5);const mxx=mx2;
       if(bld){if(far){ctx.fillStyle='#FF8A3D';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,4,0,7);ctx.fill();ctx.stroke();}else drawCone(mxx,my,now);}
       else if(cut&&!vx){if(far){ctx.fillStyle='#FF4D5E';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='900 8px Nunito, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',mxx,my+0.5);}else drawBackhoe(mxx,my,now,l.sub);}
-      else if(sel||(z>0.9&&!busy)){const t=lab||(lab=many?groupLabel(grp,up):capName(l));ctx.font='800 11px "Baloo 2", sans-serif';let tw=LINKW.get(t);if(tw===undefined)LINKW.set(t,tw=ctx.measureText(t).width+10);ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(mxx-tw/2,my-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,mxx,my+1);}
+      else if(sel||pz||(z>0.9&&!busy)){const t=lab||(lab=pz?pzLinkLab(grp,up||[l],load,cap):many?groupLabel(grp,up):capName(l));ctx.font='800 11px "Baloo 2", sans-serif';let tw=LINKW.get(t);if(tw===undefined)LINKW.set(t,tw=ctx.measureText(t).width+10);ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(mxx-tw/2,my-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,mxx,my+1);}
     }
   }
   // drag preview

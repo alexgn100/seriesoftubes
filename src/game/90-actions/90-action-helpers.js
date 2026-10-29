@@ -22,7 +22,7 @@ function chWhy(l,o){const O=OPT[o];if(O.lvl>lvl())return tr('action_helpers.unlo
   if((l.ch||[]).length+soldSlots(l)>=chMax(l))return soldSlots(l)?tr('action_helpers.sys_is_full_max_channels_sold',{sys:DF_SYS[l.sys].n,max:chMax(l),sold:soldSlots(l)}):tr('action_helpers.sys_is_full_max_channels',{sys:DF_SYS[l.sys].n,max:chMax(l)});
   for(const c of [l.a,l.b]){const p=S.pops[c];if(p&&RG[p.rgen||0].cls<O.rg)return tr('action_helpers.needs_routers_with_pn_ports_or',{pn:RG[mainRG(O.rg)].pn,city:CITY[c].name});}return '';}
 function bbCost(c){return 15000+CITY[c].P*20;}
-function after(){if(S)purgeInc();compute();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
+function after(){if(pzOn()){pzAfter();return;}if(S)purgeInc();compute();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
 const isTablet=()=>innerWidth>760&&innerWidth<=1200;
 function selectLink(id){UI.sel={type:'link',id};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;$('panel').classList.remove('full');renderPanel();renderLeft();}
 function selectCity(c){UI.sel={type:'city',id:c};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;const P=$('panel');if(P)P.classList.remove('full');if(!S.pops[c])UI.tab='cust';renderPanel();}
