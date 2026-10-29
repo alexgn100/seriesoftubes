@@ -74,6 +74,7 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | `.github/workflows/release.yml` | Builds and deploys to GitHub Pages, the only workflow that can |
 | `.github/workflows/weekly-puzzle.yml` | Sunday 03:37 UTC: makes the week's puzzle, commits it to `main` (data only, no release) and starts `release.yml` for the live release tag with `weekly=true` |
 | `scripts/weekly-puzzle.js`, `site/puzzles/weekly/` | The weekly puzzle generator and its output, one `<key>.json` per week plus `index.json` (see below) |
+| `scripts/weekly-scenario.js`, `scripts/lib/scenario-bot.js`, `site/scenarios/weekly/` | The weekly scenario generator, its reference player and its output (see below) |
 | `docs/adr/` | Decisions: GitHub Pages only (0001), one page assembled at build (0002), translations by label (0003) |
 
 ## Globals
@@ -176,6 +177,16 @@ The weekly ships without a release: the workflow commits only `site/puzzles/week
 so `auto-release.yml` stays quiet) and starts `release.yml` from the live release's tag with `weekly=true`, which
 rebuilds that exact release with every weekly file from `main` and deploys it. Every release build takes the
 weekly files from `main` too, so no deploy ever drops a published week.
+
+The weekly scenario is its twin, in the same weeks and the same workflow run: `scripts/weekly-scenario.js` writes
+`site/scenarios/weekly/<key>.json`. A template (plain data in the script) picks a theme, a home city, rules from the
+scenario vocabulary (`scnRule` keys, `WEEK_MODS`) and a goal type with parameters; each goal type (`WS_GOALS` in
+`src/game/60-features/94-scenarios-weekly.js`) is implemented once in the game, with its progress card. A reference
+player (`scripts/lib/scenario-bot.js`) plays it through `ACT`, seeded with the scenario's seed; the goal's number is
+calibrated from that run, the scenario must not be won on day 0, the reference must win with a tenth of the days to
+spare, and its finishing day is the par. The file keeps the reference plan (`ref`), which `--check` replays. The game
+fetches the file when the Scenarios list opens, checks it with `wsValid()` (again in `sanitize()` on load), and falls
+back to the in-browser `weekly()`.
 
 ## Saves, imports and migration
 
