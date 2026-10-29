@@ -282,6 +282,16 @@ test('C1: every scenario has a goal its card checks, and none is won on day 0', 
     if (g.ev(`(()=>{try{return !!${def}.ok();}catch(e){return false;}})()`)) bad.push(id + ': won on day 0');
     if (!g.ev(`typeof SCN_PROG['${id}']==='function'&&scnProg().items.length>0`)) bad.push(id + ': no progress card (SCN_PROG)');
   }
+  // The published weekly scenarios too: each committed week starts, has its goal type's card, and needs play.
+  const wdir = path.join(__dirname, '..', 'site', 'scenarios', 'weekly');
+  for (const f of fs.readdirSync(wdir).filter((x) => /^\d{4}-W\d{2}\.json$/.test(x))) {
+    const j = fs.readFileSync(path.join(wdir, f), 'utf8'), id = 'weekly ' + f.slice(0, -5);
+    if (!g.ev(`wsBegin(${j},'S')`)) { bad.push(id + ': the game rejects it'); continue; }
+    g.ev('if(UI.pendGame)ACT.pitchSkip();closeModal();compute()');
+    if (g.ev('wsOk()')) bad.push(id + ': won on day 0');
+    if (!g.ev('scnProg().items.length>0&&!!scnName()&&!!wsGoalTxt(S.scn.wk)')) bad.push(id + ': no progress card or goal');
+    if (g.ev('S.rules.preset') !== 'oncall') bad.push(id + ': not On-call (M4)');
+  }
   fail('C1', bad, 'give it n, d, goal, ok(), days, a city and a SCN_PROG entry; its goal must need play');
   assert.deepEqual(g.errors, []);
 });

@@ -47,7 +47,9 @@ added, checks them with `scripts/weekly-puzzle.js --check`, and deploys it in th
 Players get no update banner (the version does not change). Every release build also copies all weekly files from
 `main`, so a release never drops a published week, and regenerates (in the build, deterministically) any week
 not over yet that the release's prices no longer fit. Weekly files are plain JSON the game fetches only when the
-Puzzles list opens and never trusts; the service worker serves them network-first. See `docs/ARCHITECTURE.md`.
+Puzzles list opens and never trusts; the service worker serves them network-first. The weekly scenario rides along in
+the same run: `scripts/weekly-scenario.js` writes `site/scenarios/weekly/<key>.json` (fetched when the Scenarios list
+opens), committed and deployed with the puzzle, never by a second workflow. See `docs/ARCHITECTURE.md`.
 
 ## Before you hand back a change that touches the build, deploy or loading
 

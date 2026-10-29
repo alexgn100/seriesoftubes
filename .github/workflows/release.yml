@@ -70,15 +70,17 @@ jobs:
           fi
       # Weekly puzzles are published on main between releases (weekly-puzzle.yml). Every deploy ships all of them,
       # so neither a release nor a weekly redeploy ever drops a week that is already out.
-      - name: Weekly puzzles from main
+      - name: Weekly puzzles and scenarios from main
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
-          if git cat-file -e FETCH_HEAD:site/puzzles/weekly 2>/dev/null; then
-            rm -rf site/puzzles/weekly
-            git checkout FETCH_HEAD -- site/puzzles/weekly
-            echo "Weekly puzzles: $(ls site/puzzles/weekly | grep -c '^[0-9].*\.json$')"
-          fi
+          for d in site/puzzles/weekly site/scenarios/weekly; do
+            if git cat-file -e "FETCH_HEAD:$d" 2>/dev/null; then
+              rm -rf "$d"
+              git checkout FETCH_HEAD -- "$d"
+              echo "$d: $(ls "$d" | grep -c '^[0-9].*\.json$')"
+            fi
+          done
       - run: npm ci
       # This release's prices may no longer fit a week already published: --check regenerates every week not over
       # yet whose budget no longer verifies (deterministically, so main's next weekly run commits the same files),
@@ -89,11 +91,12 @@ jobs:
           # A release from before the weekly puzzles ships the files without reading them: nothing to check.
           if [ ! -f scripts/weekly-puzzle.js ]; then echo "This release does not read weekly puzzles yet."; exit 0; fi
           node scripts/weekly-puzzle.js --check
+          if [ -f scripts/weekly-scenario.js ]; then node scripts/weekly-scenario.js --check; fi
       - run: npm test
         if: ${{ !inputs.weekly }}
       - name: Test the weekly puzzles against this release
         if: ${{ inputs.weekly && hashFiles('scripts/weekly-puzzle.js') != '' }}
-        run: npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js
+        run: npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js $(ls tests/weekly-scenario.test.js 2>/dev/null)
       - name: Build site
         run: VERSION="${TAG#v}" REQUIRE_NOTES=1 npm run build
       - uses: actions/upload-pages-artifact@v5

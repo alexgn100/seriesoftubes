@@ -15,6 +15,7 @@ const SCN_PROG={stg:()=>[{l:tr('common.reach'),v:R.reach,max:0.5,txt:`${pct(R.re
   flood:()=>{const ok=S.stats.ddosOk||0,big=S.stats.ddosOkBig||0,attacks=ddosAll();
     return [{l:tr('common.floods_held'),v:ok,max:20,txt:`${ok} / 20`},{l:tr('progress.terabit_floods_held'),v:big,max:5,txt:`${big} / 5`},{l:tr('progress.floods_that_got_through'),v:0,max:0,txt:String(S.stats.ddosLost||0)}].concat(attacks.map(a=>({l:tr('progress.under_attack_now'),v:0,max:0,txt:`${fmtG(a.gbps)} · ${CITY[a.city].name} · ${pct(a.worst===undefined?1:a.worst)}`})));},baltic:()=>[{l:tr('progress.days_in_a_row_with_99'),v:S.stats.clean||0,max:90,txt:tr('progress.n_of_m',{n:S.stats.clean||0,m:90})}]};
 function scnProg(){const sc=S&&S.scn;if(!sc)return null;
+  if(sc.wk){const G=sc.wk.goal;let items=[];try{items=WS_GOALS[G.t].prog(G.p);}catch(e){}const meas=items.filter(x=>x.max);return {goal:wsGoalTxt(sc.wk),items,f:sc.done?1:meas.length?meas.reduce((a,x)=>a+Math.min(1,x.v/x.max),0)/meas.length:0};}
   if(sc.id==='weekly')return {goal:tr('common.serve_as_much_traffic_as_you'),items:[{l:tr('progress.your_score_peak_traffic'),v:0,max:0,txt:fmtG(S.stats.peak||0)}],f:Math.min(1,S.day/sc.days)};
   const def=SCN.find(x=>x.id===sc.id),fn=SCN_PROG[sc.id];if(!def)return null;let items=[];try{items=fn?fn():[];}catch(e){items=[];}
   const meas=items.filter(x=>x.max),f=sc.done?1:meas.length?meas.reduce((a,x)=>a+Math.min(1,x.v/x.max),0)/meas.length:0;return {goal:def.goal,items,f};}

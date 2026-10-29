@@ -1,8 +1,8 @@
 name: Weekly puzzle
 
-# Every Sunday morning: make this week's puzzle (scripts/weekly-puzzle.js), commit it to main as a data-only
-# change, and redeploy the live release with it. Puzzle weeks start Sunday 06:00 Berlin time; 03:37 UTC is
-# 04:37 in winter and 05:37 in summer, so the file is live before the week starts either way.
+# Every Sunday morning: make this week's puzzle (scripts/weekly-puzzle.js) and scenario (scripts/weekly-scenario.js),
+# commit them to main as a data-only change, and redeploy the live release with them, once. Weeks start Sunday
+# 06:00 Berlin time; 03:37 UTC is 04:37 in winter and 05:37 in summer, so the files are live before the week starts.
 #
 # No version bump, so no release: auto-release.yml only runs when package.json changes (and pushes made with
 # the workflow token start no workflows at all). The deploy itself is release.yml, still the only workflow
@@ -47,27 +47,29 @@ jobs:
       - run: npm ci
       # Weeks already out that main's prices no longer fit are regenerated first, so the new week's history is current.
       - name: Fit the published weeks to main
-        run: node scripts/weekly-puzzle.js --check
-      - name: Make the puzzle
+        run: node scripts/weekly-puzzle.js --check && node scripts/weekly-scenario.js --check
+      - name: Make the puzzle and the scenario
         run: |
           set -euo pipefail
           if [ -n "$KEY" ]; then
             [[ "$KEY" =~ ^[0-9]{4}-W[0-9]{2}$ ]] || { echo "::error::$KEY is not a week key"; exit 1; }
             node scripts/weekly-puzzle.js --key "$KEY"
+            node scripts/weekly-scenario.js --key "$KEY"
           else
             node scripts/weekly-puzzle.js
+            node scripts/weekly-scenario.js
           fi
       - name: Check every weekly puzzle
-        run: node scripts/weekly-puzzle.js --check && npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js
+        run: node scripts/weekly-puzzle.js --check && node scripts/weekly-scenario.js --check && npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js tests/weekly-scenario.test.js
       - name: Commit it to main
         run: |
           set -euo pipefail
-          git add site/puzzles/weekly
+          git add site/puzzles/weekly site/scenarios/weekly
           # Data only: anything else changed means something is wrong.
-          if git status --porcelain | grep -v ' site/puzzles/weekly/' | grep -q .; then git status --porcelain; echo "::error::unexpected changes"; exit 1; fi
+          if git status --porcelain | grep -v -e ' site/puzzles/weekly/' -e ' site/scenarios/weekly/' | grep -q .; then git status --porcelain; echo "::error::unexpected changes"; exit 1; fi
           if git diff --cached --quiet; then echo "Nothing new to commit."; exit 0; fi
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "Weekly puzzle $(git diff --cached --name-only | grep -o '[0-9]\{4\}-W[0-9]\{2\}' | sort -u | paste -sd ' ')"
+            commit -m "Weekly puzzle and scenario $(git diff --cached --name-only | grep -o '[0-9]\{4\}-W[0-9]\{2\}' | sort -u | paste -sd ' ')"
           git push origin HEAD:main
       - name: Redeploy the live release with it
         if: github.event_name == 'schedule' || inputs.deploy
