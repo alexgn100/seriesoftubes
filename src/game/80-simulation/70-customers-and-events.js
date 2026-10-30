@@ -4,6 +4,7 @@ function bizSfOf(r,c){const d=r.bizDem&&r.bizDem[c];return teRules()&&teRules().
 function bCities(o){return o.sites?o.sites.slice():[o.city,o.city2].filter(Boolean);}
 function bHas(o){return !!BIZ_T[o.type].cap||bCities(o).every(c=>S.pops[c]);}
 function eventLive(b){return BIZ_T[b.type].event&&S.day>=b.start&&S.day<b.start+b.dur;}
+function bRisk(b){return BIZ_T[b.type]?.gaming?`<div class="meta">⚠️ ${tr('customers_and_events.gaming_attracts_attacks')}</div>`:'';}
 function bTerms(o){const T=BIZ_T[o.type];if(T.cap)return capTerms(o);
   if(T.event){const live=S.day>=o.start;return tr('customers_and_events.bw_extra_for_d_days_when',{bw:fmtG(o.bw),d:o.dur,when:live?tr('customers_and_events.day_n_of_d',{n:S.day-o.start+1,d:o.dur}):tr('customers_and_events.starting_in_n_d',{n:o.start-S.day}),fee:fmt$(o.fee)});}
   if(T.sdwan)return tr('customers_and_events.n_sites_list_bw_per_site',{n:o.sites.length,list:o.sites.map(c=>CITY[c].name).join(', '),bw:fmtG(o.bw),price:fmt$(o.bw*o.rate)});
@@ -30,7 +31,7 @@ function spawnMega(t,T,nm,mine){
   if(t==='pairs'){const ls=S.links.filter(l=>l.kind==='df'&&l.own&&l.ready<=S.day&&!S.biz.some(b=>(b.type==='pairs'||b.type==='dfpair')&&b.link===l.id)&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;const l=pick(ls),n=100+50*Math.floor(Math.random()*7);
     S.offers.push({id:uid(),city:l.a,city2:l.b,link:l.id,what:tr('customers_and_events.n_fiber_pairs_in_your_a',{n,a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(dfLeaseMo(l.km)*n*0.2),reqs:[],exp:S.day+30,mega:true});}
 }
-function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops),lv=S.lvl||1;
+function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops),lv=lvl();
   const nm=()=>{const list=T.names.filter(n=>!S.usedNames.includes(n));const n=list.length?pick(list):pick(T.names);useName(n);return n;};
   if(T.mega){spawnMega(t,T,nm,mine);return;}
   if(T.event){const city=Math.random()<0.85&&mine.length?pick(mine):pick(OFFC);const bw=pick(T.opts.slice(0,Math.min(T.opts.length,lv+2)));const dur=3+Math.floor(Math.random()*5),start=S.day+12+Math.floor(Math.random()*14);

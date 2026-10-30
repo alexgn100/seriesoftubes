@@ -114,7 +114,8 @@ test('cloud sync carries a network from one device to another', async () => {
     assert.equal(b.ev('UI.started'), true);
     assert.equal(b.ev('S.day'), a.ev('S.day'));
     assert.equal(b.ev('S.name'), a.ev('S.name'));
-    assert.equal(b.ev("JSON.parse(localStorage.getItem('sot-save-v1')).day"), a.ev('S.day'), 'and saves it locally too');
+    assert.equal(b.ev("JSON.parse(slotRaw(UI.slot)).day"), a.ev('S.day'), 'and saves it locally too');
+    assert.equal(b.ev('CL.slot'), b.ev('UI.slot'), 'and links it');
 
     // B plays on; when A comes back (the tab shows again) it loads B's progress, since A did nothing new.
     b.ev('for(let i=0;i<7;i++)dayTick();save()');
@@ -175,7 +176,7 @@ test('without a sync server the game hides cloud sync and plays on as before', a
   assert.match(a.ev("document.getElementById('modalCard').textContent"), /Cloud sync is not available on this server/);
   assert.equal(a.ev("document.getElementById('clUser')"), null);
   assert.equal(a.ev("localStorage.getItem('sot-cloud')"), null);
-  assert.ok(a.ev("localStorage.getItem('sot-save-v1')"), 'the local save works as always');
+  assert.ok(a.ev("slotRaw(UI.slot)"), 'the local save works as always');
   assert.deepEqual(a.errors, []);
 });
 
@@ -187,8 +188,8 @@ test('a revoked login is forgotten, the game is kept', async () => {
     await a.ev("cloudAuth('register','gina','password1')");
     const cl = a.ev("localStorage.getItem('sot-cloud')");
     await s.call('POST', '/api/logout', undefined, a.ev('CL.t'));
-    // Reloading with the stale login: boot asks the server, which says no.
-    const b = device(s.base, { 'sot-cloud': cl, 'sot-save-v1': a.ev("localStorage.getItem('sot-save-v1')") });
+    // Reloading with the stale login (a new browser session, so not A's open window): boot asks the server, which says no.
+    const b = device(s.base, JSON.parse(a.ev("JSON.stringify(Object.fromEntries(Object.keys(localStorage).filter(k=>!k.startsWith('sot-open:')).map(k=>[k,localStorage.getItem(k)])))")));
     await b.ev('UI.clBoot');
     assert.equal(b.ev('CL'), null);
     assert.equal(b.ev('UI.started'), true);
@@ -208,7 +209,7 @@ test('cloud sync opens from its own button right under "Import a save", in the m
   const acts = () => ev("[...document.querySelectorAll('#modalCard [data-act]')].map(b=>b.dataset.act).join(',')");
   assert.match(acts(), /importPick,cloud,/, 'title screen');
   ev("ACT.start({});ACT.menu({})");
-  assert.match(acts(), /importPick,cloud,/, 'menu');
+  assert.match(acts(), /importPick,cloud,/, 'menu, right after Import');
   ev("ACT.settings({})");
   assert.doesNotMatch(ev("document.getElementById('modalCard').textContent"), /Cloud sync/, 'no longer in Settings');
   ev("ACT.cloud({})");
@@ -216,4 +217,69 @@ test('cloud sync opens from its own button right under "Import a save", in the m
   ev("ACT.cloudClose({})");
   assert.equal(ev("document.getElementById('modal').hidden"), true, 'closing returns to the map');
   assert.deepEqual(errors, []);
+});
+
+// Cloud sync and several networks (2.0): the account holds one network, linked to one slot on each device.
+test('only the linked network syncs; other networks on the device and puzzles never touch the cloud', async () => {
+  const s = await server();
+  try {
+    const a = device(s.base);
+    a.ev("ACT.start({});S.name='Cloudnet';for(let i=0;i<10;i++)dayTick();save(true)");
+    await a.ev("cloudAuth('register','hana','password1')");
+    const linked = a.ev('UI.slot');
+    assert.equal(a.ev('CL.slot'), linked);
+    assert.equal(a.ev('CL.rev'), 1);
+    assert.match(a.ev("ACT.cloud({});document.getElementById('modalCard').textContent"), /keeps Cloudnet in step on all your devices/);
+    // A second network on the same device: played, saved, but never pushed.
+    a.ev("ACT.toTitle();ACT.start({});S.name='Localnet';for(let i=0;i<30;i++)dayTick();save(true)");
+    assert.notEqual(a.ev('UI.slot'), linked);
+    assert.equal(a.ev('clLocal()'), false);
+    a.ev('cloudTick()');
+    await a.ev('cloudPull()');
+    assert.equal(a.ev('CL.rev'), 1);
+    assert.equal((await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j.save.name, 'Cloudnet');
+    assert.match(a.ev("ACT.cloud({});document.getElementById('modalCard').textContent"), /keeps Cloudnet in step\. It syncs while it is open/);
+    // Sync now from the other network takes the player to the linked one.
+    await a.ev('ACT.cloudSync({})');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(a.ev('UI.slot'), linked);
+    assert.equal(a.ev('S.name'), 'Cloudnet');
+    assert.equal(a.ev("slotIdx().length"), 2, 'both networks are still on the device');
+    // A puzzle is not a network: nothing goes up while one runs.
+    a.ev('S.day+=1');
+    a.ev("UI.pzKeep=S;S={...S,mode:'puzzle',pz:{}}");
+    assert.equal(a.ev('clLocal()'), false);
+    assert.deepEqual(a.errors, []);
+  } finally { await s.close(); }
+});
+
+test('a device with its own networks gets the cloud network as a new one, and keeps its own', async () => {
+  const s = await server();
+  try {
+    const a = device(s.base);
+    a.ev("ACT.start({});S.name='Cloudnet';for(let i=0;i<10;i++)dayTick();save(true)");
+    await a.ev("cloudAuth('register','ivan','password1')");
+    const b = device(s.base);
+    b.ev("ACT.start({});S.name='Phonenet';for(let i=0;i<4;i++)dayTick();save(true)");
+    const own = b.ev('UI.slot');
+    await b.ev("cloudAuth('login','ivan','password1')");
+    assert.equal(b.ev('S.name'), 'Cloudnet');
+    assert.notEqual(b.ev('UI.slot'), own);
+    assert.equal(b.ev('CL.slot'), b.ev('UI.slot'));
+    assert.deepEqual(b.ev("slotIdx().map(e=>e.name).sort().join()"), 'Cloudnet,Phonenet');
+    assert.equal(b.ev("JSON.parse(slotRaw('" + own + "')).name"), 'Phonenet', 'its own network is saved untouched');
+    // Logging in again with the synced network open links it again instead of copying it.
+    b.ev('ACT.cloudLogout({})');
+    await b.ev("cloudAuth('login','ivan','password1')");
+    assert.equal(b.ev("slotIdx().length"), 2);
+    assert.equal(b.ev('CL.slot'), b.ev('UI.slot'));
+    // With the linked network deleted on this device, Sync now brings the cloud copy back as a new network.
+    b.ev("ACT.toTitle();slotDrop(CL.slot)");
+    assert.equal(b.ev('clSlot()'), null);
+    await b.ev('ACT.cloudSync({})');
+    assert.equal(b.ev('S.name'), 'Cloudnet');
+    assert.equal(b.ev("slotIdx().length"), 2);
+    assert.deepEqual(a.errors, []);
+    assert.deepEqual(b.errors, []);
+  } finally { await s.close(); }
 });
