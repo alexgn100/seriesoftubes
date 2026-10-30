@@ -970,8 +970,7 @@ test('#69 embedded caches can sit in either metro building, so one dark building
   assert.equal(up(), 1);
   assert.equal(ev("R.useCache[S.caches.find(x=>x.site==='a').id]||0"), 0, 'the box in the dark building carries nothing');
   assert.ok(ev("R.useCache[S.caches.find(x=>x.site==='b').id]||0") > 0, 'the box in B still serves');
-  ev("selectCity('fra');ACT.tab({t:'peer'})");
-  assert.equal(ev(`[...document.querySelectorAll('[data-act=siteSet].pink')].filter(b=>JSON.parse(b.dataset.args).k==='p').map(b=>JSON.parse(b.dataset.args).s).join()`), 'ab', 'Both is shown as chosen');
+  ev("UI.sel={type:'city',id:'fra'};UI.tab='peer';renderPanel()");
   assert.match(ev("$('panelBody').textContent"), /Boxes: 1 in A · 1 in B/);
   // old saves: caches without a site are in A; dropping the second site moves them back
   ev("delete S.caches[0].site;S=migrate(JSON.parse(JSON.stringify(S)))");
@@ -1359,6 +1358,8 @@ test('#219 splitting a one-member PNI across both sites splits it when the augme
   ev("ACT.siteSet({k:'p',id:'x',s:'ab'})");
   assert.equal(ev('S.cash'), paid);
   // the panel shows Both as chosen meanwhile
+  ev("selectCity('fra');ACT.tab({t:'peer'})");
+  assert.equal(ev(`[...document.querySelectorAll('[data-act=siteSet].pink')].filter(b=>JSON.parse(b.dataset.args).k==='p').map(b=>JSON.parse(b.dataset.args).s).join()`), 'ab', 'Both is shown as chosen');
   assert.equal(ev("(()=>{const m=siteCtl('p','x','fra',S.pni[0].up&&S.pni[0].up.site==='ab'?'ab':S.pni[0].site).match(/<button[^>]*class=\"[^\"]*pink[^>]*>(.*?)<\\/button>/);return m&&m[1].includes(tr('common.site'))?'':m&&m[1]})()").startsWith('Both'), true);
   // survives a save and load
   ev('S=migrate(JSON.parse(JSON.stringify(S)));compute()');
