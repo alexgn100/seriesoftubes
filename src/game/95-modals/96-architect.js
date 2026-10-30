@@ -5,8 +5,8 @@ function arRender(el){const A=S.ar,run=arRun(),b=arBrief(),e=arEval(),sh=UI.arSh
   let h=`<div class="grab" data-grab="pz" aria-hidden="true"></div><div class="pzh"><div class="grow"><div class="eyebrow">🏗️ ${esc(run.n)}</div><h3>${tr('architect.brief_n_of_m',{n:A.bi+1,m:n})}</h3></div>${btn('☰','puzzleMenu',{},'ghost sm')}</div>`;
   h+=`<div class="arsteps">${run.briefs.map((x,i)=>`<i class="${i<A.bi||(i===A.bi&&e.passed)?'done':i===A.bi?'on':''}"></i>`).join('')}</div>`;
   h+=`<p class="arbrief">${esc(b.t)}</p>`;
-  h+=`<div class="arsites">${e.sites.map(s=>`<span class="arsite${s.ok&&s.full?' ok':''}${s.ok&&!s.full?' thin':''}${s.gold?' gold':''}">${s.hq?'🏠':s.gold?'🥇':s.ok?'✓':'○'} ${nm(s.c)}${s.hq?'':` <small>${s.ok&&!s.full?arG(s.got)+'/':''}${arG(s.dem)}</small>`}</span>`).join('')}</div>`;
-  if(A.gold.length)h+=`<div class="arline">🥇 ${tr('architect.gold_must_survive',{list:A.gold.map(nm).join(', ')})}</div>`;
+  h+=`<div class="arsites">${e.sites.map(s=>`<span class="arsite${s.ok&&s.full?' ok':''}${s.ok&&!s.full?' thin':''}${s.gold?' gold':''}">${s.hq?'🏠':s.gold?'🚨':s.ok?'✓':'○'} ${nm(s.c)}${s.hq?'':` <small>${s.ok&&!s.full?arG(s.got)+'/':''}${arG(s.dem)}</small>`}</span>`).join('')}</div>`;
+  if(A.gold.length)h+=`<div class="arline">🚨 ${tr('architect.gold_must_survive',{list:A.gold.map(nm).join(', ')})}</div>`;
   for(const r of e.rings)h+=`<div class="arline ${r.ok?'ok':'bad'}">💍 ${tr('architect.ring_list',{list:r.cs.map(nm).join(' · ')})} ${r.ok?'✓':''}</div>`;
   if(e.lat)h+=`<div class="arline ${e.lat.ok?'ok':'bad'}">⏱ ${nm(e.lat.a)} ⇄ ${nm(e.lat.b)}: ${e.lat.ms==null?tr('common.no_path'):e.lat.ms.toFixed(1)+' ms'} / ${e.lat.cap} ms</div>`;
   for(const c of S.pz.avoid)h+=`<div class="arline ${S.pops[c]?'bad':'ok'}">🚫 ${tr('architect.closed_city',{city:nm(c)})}</div>`;
@@ -23,7 +23,7 @@ function arRender(el){const A=S.ar,run=arRun(),b=arBrief(),e=arEval(),sh=UI.arSh
 function arPanel(sel){const A=S.ar,head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   const old=x=>(x.br|0)<A.bi?`<p class="note">${tr('architect.built_in_an_earlier_brief')}</p>`:'';
   if(sel.type==='city'){const c=sel.id,k=pzKind(c),p=S.pops[c];if(!k)return '';
-    const tg=arTags(c),eb=c===A.hq?'🏠 '+tr('architect.hq'):A.gold.includes(c)?'🥇 '+tr('architect.gold_site'):k==='goal'?'🎯 '+tr('architect.site'):k==='via'&&tg.length?'🔜 '+tr('architect.joins_in_brief_n',{n:tg[0].n}):k==='via'?'🪨 '+tr('puzzles.stepping_stone_optional'):k==='avoid'?'🚫 '+tr('architect.closed'):'📍 '+tr('puzzles.not_in_the_plan');
+    const tg=arTags(c),eb=c===A.hq?'🏠 '+tr('architect.hq'):A.gold.includes(c)?'🚨 '+tr('architect.gold_site'):k==='goal'?'🎯 '+tr('architect.site'):k==='via'&&tg.length?'🔜 '+tr('architect.joins_in_brief_n',{n:tg[0].n}):k==='via'?'🪨 '+tr('puzzles.stepping_stone_optional'):k==='avoid'?'🚫 '+tr('architect.closed'):'📍 '+tr('puzzles.not_in_the_plan');
     let h=head(eb,esc(CITY[c].name),p?`<span class="fact mine">${tr('common.your_pop')}</span><span class="fact">${tr('puzzles.price_per_year',{price:fmt$(arPopCost(c))})}</span>`:'')+'<div class="scroll">';
     if(c===A.hq)h+=`<p class="lead">${tr('architect.hq_lead')}</p>`;else if(A.gold.includes(c))h+=`<p class="lead">${tr('architect.gold_lead')}</p>`;
     if(tg.length)h+=`<div class="arplan"><div class="eyebrow">${tr('architect.coming_up')}</div>${tg.map(t=>`<div><b>${t.n}</b> ${esc(arSum(arRun().briefs[t.n-1]))}</div>`).join('')}</div>`;

@@ -95,9 +95,9 @@ function arShape(){const ns=Object.keys(S.pops),n=ns.length;if(n<2||!S.links.len
     k=cs.length<n&&cs.every(c=>core[c].size===2)?'lolli':cs.length===n&&n>=6&&n%2===0&&cm===3*n/2-2&&d2===4&&cs.every(c=>core[c].size<=3)?'ladder':m>=n*1.8?'spaghetti':'mesh';}
   return {k,i:AR_SHAPES[k][0],n:tr(AR_SHAPES[k][1])};}
 // What later briefs do to a city, for the map: [{n: brief number, i: icon}], earliest first.
-function arTags(c){const A=S.ar,out=[];arRun().briefs.forEach((b,j)=>{if(j<=A.bi)return;const i=(b.gold||[]).includes(c)?'🥇':(b.add||[]).includes(c)?'📍':(b.drop||[]).includes(c)?'🚫':b.dem&&b.dem[c]?'📈':(b.ring||[]).includes(c)?'💍':b.lat&&b.lat.slice(0,2).includes(c)?'⏱':'';if(i)out.push({n:j+1,i});});return out;}
+function arTags(c){const A=S.ar,out=[];arRun().briefs.forEach((b,j)=>{if(j<=A.bi)return;const i=(b.gold||[]).includes(c)?'🚨':(b.add||[]).includes(c)?'📍':(b.drop||[]).includes(c)?'🚫':b.dem&&b.dem[c]?'📈':(b.ring||[]).includes(c)?'💍':b.lat&&b.lat.slice(0,2).includes(c)?'⏱':'';if(i)out.push({n:j+1,i});});return out;}
 // One line per brief for the plan on the card.
-function arSum(b){const nm=c=>CITY[c].name,t=[],d=b.dem||{};if(b.add)t.push(b.add.map(c=>'+'+nm(c)+(d[c]?' '+arG(d[c]):'')).join(' '));for(const c in d)if(!(b.add||[]).includes(c))t.push('📈 '+nm(c)+' '+arG(d[c]));if(b.gold)t.push('🥇 '+b.gold.map(nm).join(', '));
+function arSum(b){const nm=c=>CITY[c].name,t=[],d=b.dem||{};if(b.add)t.push(b.add.map(c=>'+'+nm(c)+(d[c]?' '+arG(d[c]):'')).join(' '));for(const c in d)if(!(b.add||[]).includes(c))t.push('📈 '+nm(c)+' '+arG(d[c]));if(b.gold)t.push('🚨 '+b.gold.map(nm).join(', '));
   if(b.ring)t.push('💍 '+b.ring.map(nm).join('–'));if(b.lat)t.push(`⏱ ${nm(b.lat[0])}⇄${nm(b.lat[1])} < ${b.lat[2]} ms`);if(b.drop)t.push('🚫 '+b.drop.map(nm).join(', '));
   if(b.tubes!=null)t.push(trn('architect.n_tubes',b.tubes));return t.join(' · ');}
 // ---------- starting, briefs and the end ----------

@@ -4,7 +4,7 @@
 .arbrief{margin:2px 0 8px;font-size:14.5px;font-weight:800;line-height:1.35}
 .arsites{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 6px}
 .arsite{font-weight:900;font-size:12px;border:2px solid var(--line);border-radius:999px;padding:1px 8px;background:#fff;color:var(--ink2)}
-.arsite.ok{border-color:var(--ok);color:var(--ink)}.arsite.gold{border-color:#E0A000;background:#FFF3C4}
+.arsite.ok{border-color:var(--ok);color:var(--ink)}.arsite.gold{border-color:#E5484D;background:#FFE8E8}
 .arline{font-size:12.5px;font-weight:800;margin:3px 0;color:var(--ink2)}.arline.ok{color:var(--ink)}.arline.bad{color:var(--bad)}
 .arshape{font-size:12.5px;font-weight:900;margin:4px 0}
 .arrev{font-size:12.5px;font-weight:800;margin:6px 0;padding:5px 8px;border:2px solid var(--line);border-radius:10px;color:var(--ink2)}

@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
-- Architect runs (preview), under Puzzles: grow one network brief by brief, from a single tube to a ring that shrugs off any cut. Your build carries over between briefs, gold sites must survive any single trench or cable cut with room on the detour, and a backhoe checks every design before the next customer signs. Three runs to start: Euro Run, Coast to Coast and Pacific Rim.
+- Architect runs (preview), under Puzzles: grow one network brief by brief, from a single tube to a ring that shrugs off any cut. Your build carries over between briefs, mission-critical sites must survive any single trench or cable cut with room on the detour, and a backhoe checks every design before the next customer signs. Three runs to start: Euro Run, Coast to Coast and Pacific Rim.
 
 ## [2.0.0] — 2026-10-29
 

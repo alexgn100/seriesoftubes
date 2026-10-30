@@ -38,7 +38,7 @@ test('architect runs: the backhoe finds a shared trench, edits clear the cut, ol
   const { ev, errors } = load();
   ev("ACT.pzArStart({id:'euro'})");
   assert.equal(ev("arHide('lis')&&arHide('bru')"), true, 'cities outside the run are hidden');
-  assert.deepEqual(JSON.parse(ev("JSON.stringify([arHide('dus'),arTags('dus'),arTags('fra').map(t=>t.n+t.i)])")), [false, [{ n: 6, i: '🥇' }], ['3🥇', '6🚫']], 'later briefs show on the map, numbered');
+  assert.deepEqual(JSON.parse(ev("JSON.stringify([arHide('dus'),arTags('dus'),arTags('fra').map(t=>t.n+t.i)])")), [false, [{ n: 6, i: '🚨' }], ['3🚨', '6🚫']], 'later briefs show on the map, numbered');
   ev('ACT.pzArAll()');
   assert.equal(ev("arHide('lis')"), false, 'and shown on request');
   ev('ACT.pzArAll()');
