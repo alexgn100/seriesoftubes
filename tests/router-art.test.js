@@ -1,0 +1,27 @@
+// Every router model has its own picture, shown where you pick and compare models.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { load } = require('./harness');
+
+test('every router model has a picture, and each one is valid SVG', () => {
+  const { ev, dom } = load();
+  assert.equal(ev('RG_ART.length'), ev('RG.length'), 'one picture per model, in RG order');
+  const n = ev('RG.length');
+  for (let g = 0; g < n; g++) {
+    const s = ev(`rgArt(${g})`);
+    const doc = new dom.window.DOMParser().parseFromString(s.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '), 'image/svg+xml');
+    assert.equal(doc.getElementsByTagName('parsererror').length, 0, `model ${g} parses`);
+    assert.ok(doc.querySelectorAll('path,rect,circle,ellipse').length > 8, `model ${g} draws something`);
+  }
+  assert.equal(new Set(Array.from({ length: n }, (_, g) => ev(`rgArt(${g})`))).size, n, 'no two models look the same');
+  assert.equal(ev('rgArt(99)'), '');
+});
+
+test('the POP panel shows the model\'s picture, and the other models show theirs', () => {
+  const { ev, errors, dom } = load();
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;selectCity(S.home);UI.tab='links';UI.models=true;renderAll()");
+  const pics = dom.window.document.querySelectorAll('#panel .rgpic');
+  assert.equal(pics.length, ev('RG.length'), 'the model in use plus every other one');
+  assert.ok(dom.window.document.querySelector('#panel .rgpic.big svg.rgart'), 'the one in use, big');
+  assert.deepEqual(errors, []);
+});
