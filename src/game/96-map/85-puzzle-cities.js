@@ -14,7 +14,3 @@ function pzDrawCity(v,sc,now){const k=pzKind(v.C.id);
 // In a puzzle every line says what it is ("2×100G · 70%"), and a selected POP lights up every pair it has links on.
 function pzLinkLab(grp,up,load,cap){if(S.ar)return groupLabel(grp,up)+(cap?` · ${Math.round(load/cap*100)}%`:'');return groupLabel(grp,up)+(cap?` · ${Math.round(load/cap*100)}%`:'');}
 const pzLinkHot=grp=>!!(UI.sel&&UI.sel.type==='city'&&grp.some(x=>x.a===UI.sel.id||x.b===UI.sel.id));
-// Architect runs: what later briefs do here, as small numbered tags beside the city ("4🥇", "6🚫").
-function arDrawTags(v,sc){const tg=arTags(v.C.id).slice(0,2);if(!tg.length||!pzKind(v.C.id))return;const r=(CM.far?16:34)*sc,y=v.sy-(CM.far?0:6*sc);const t=tg.map(x=>x.n+x.i).join(' ');
-  ctx.save();ctx.font=`900 ${Math.round((CM.far?10:12)*Math.max(0.9,Math.min(1.3,sc)))}px "Baloo 2", sans-serif`;const w=ctx.measureText(t).width+12,h=18,x=v.sx-r-w*0.35,yy=y-r-4;
-  ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(x,yy,w,h,9);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x+w/2,yy+h/2+1);ctx.restore();}

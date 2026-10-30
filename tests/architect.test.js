@@ -38,7 +38,11 @@ test('architect runs: the chaos monkey finds a shared trench, edits clear the cu
   const { ev, errors } = load();
   ev("ACT.pzArStart({id:'euro'})");
   assert.equal(ev("arHide('lis')&&arHide('bru')"), true, 'cities outside the run are hidden');
-  assert.deepEqual(JSON.parse(ev("JSON.stringify([arHide('dus'),arTags('dus'),arTags('fra').map(t=>t.n+t.i)])")), [false, [{ n: 6, i: '🚨' }], ['3🚨', '6🚫']], 'later briefs show on the map, numbered');
+  assert.equal(ev("arHide('dus')"), false);
+  // Later briefs stay a surprise: nothing on the map or a city card says where the run goes next.
+  assert.equal(ev("typeof arTags"), 'undefined');
+  ev("UI.sel={type:'city',id:'fra'};renderPanel()");
+  assert.doesNotMatch(ev("document.getElementById('panelBody')?.textContent||''"), /brief \d|Coming up/i);
   ev('ACT.pzArAll()');
   assert.equal(ev("arHide('lis')"), false, 'and shown on request');
   ev('ACT.pzArAll()');
@@ -99,7 +103,6 @@ test('architect runs: a ring goal needs one cycle through its cities', () => {
   assert.match(ev('arEval().why'), /ring/i);
   lay(ev, 'lon', 'par', 'pasdc');
   assert.equal(ev("arRingOk(['ams','par','lon'])&&arEval().ready"), true);
-  assert.ok(ev("arSum(arRun().briefs[5])").includes('Frankfurt'), 'the plan shows what is coming');
   assert.deepEqual(errors, []);
 });
 

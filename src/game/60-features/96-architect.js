@@ -95,11 +95,6 @@ function arShape(){const ns=Object.keys(S.pops),n=ns.length;if(n<2||!S.links.len
     k=cs.length<n&&cs.every(c=>core[c].size===2)?'lolli':cs.length===n&&n>=6&&n%2===0&&cm===3*n/2-2&&d2===4&&cs.every(c=>core[c].size<=3)?'ladder':m>=n*1.8?'spaghetti':'mesh';}
   return {k,i:AR_SHAPES[k][0],n:tr(AR_SHAPES[k][1])};}
 // What later briefs do to a city, for the map: [{n: brief number, i: icon}], earliest first.
-function arTags(c){const A=S.ar,out=[];arRun().briefs.forEach((b,j)=>{if(j<=A.bi)return;const i=(b.gold||[]).includes(c)?'🚨':(b.add||[]).includes(c)?'📍':(b.drop||[]).includes(c)?'🚫':b.dem&&b.dem[c]?'📈':(b.ring||[]).includes(c)?'💍':b.lat&&b.lat.slice(0,2).includes(c)?'⏱':'';if(i)out.push({n:j+1,i});});return out;}
-// One line per brief for the plan on the card.
-function arSum(b){const nm=c=>CITY[c].name,t=[],d=b.dem||{};if(b.add)t.push(b.add.map(c=>'+'+nm(c)+(d[c]?' '+arG(d[c]):'')).join(' '));for(const c in d)if(!(b.add||[]).includes(c))t.push('📈 '+nm(c)+' '+arG(d[c]));if(b.gold)t.push('🚨 '+b.gold.map(nm).join(', '));
-  if(b.ring)t.push('💍 '+b.ring.map(nm).join('–'));if(b.lat)t.push(`⏱ ${nm(b.lat[0])}⇄${nm(b.lat[1])} < ${b.lat[2]} ms`);if(b.drop)t.push('🚫 '+b.drop.map(nm).join(', '));
-  if(b.tubes!=null)t.push(trn('architect.n_tubes',b.tubes));return t.join(' · ');}
 // ---------- starting, briefs and the end ----------
 const arDem=c=>S.ar.dem[c]||10;
 // Short Gbps for chips and tags: 40G, 1.2T.
@@ -129,7 +124,7 @@ function arApply(i){const A=S.ar,P=S.pz,b=arRun().briefs[i];A.bi=i;
   P.via=[...new Set(arRun().briefs.slice(i+1).flatMap(x=>[...(x.add||[]),...(x.gold||[]),...(x.ring||[])]))].filter(c=>!P.cities.includes(c)&&!P.avoid.includes(c));
   arDemand();A.start=arSnapStr();UI.pzHist=[];UI.sel=null;UI.arFail=null;
   compute();pzCam();renderAll();
-  toast(`<b>${tr('architect.brief_n_of_m',{n:i+1,m:arRun().briefs.length})}</b><br>${esc(b.t)}${i===0&&arRun().briefs.length>1?'<br><small>'+tr('architect.numbers_on_the_map_show')+'</small>':''}`,'goal');sfx('click');}
+  toast(`<b>${tr('architect.brief_n_of_m',{n:i+1,m:arRun().briefs.length})}</b><br>${esc(b.t)}`,'goal');sfx('click');}
 function arNext(){if(!arOn())return;const e=arEval();if(!e.passed)return;if(arLast()){arResults(true);return;}S.ar.over+=e.tubes.over;arApply(S.ar.bi+1);}
 function arReset(){const o=JSON.parse(S.ar.start);S.pops=o.p;S.links=o.l;S.pairMet=o.m||{};S.ar.sunk=o.k||0;arDemand();UI.sel=null;}
 // Tubes over plan in the run so far, this brief included.

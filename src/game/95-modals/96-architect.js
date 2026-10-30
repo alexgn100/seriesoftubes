@@ -23,10 +23,9 @@ function arRender(el){const A=S.ar,run=arRun(),b=arBrief(),e=arEval(),sh=UI.arSh
 function arPanel(sel){const A=S.ar,head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   const old=x=>(x.br|0)<A.bi?`<p class="note">${tr('architect.built_in_an_earlier_brief')}</p>`:'';
   if(sel.type==='city'){const c=sel.id,k=pzKind(c),p=S.pops[c];if(!k)return '';
-    const tg=arTags(c),eb=c===A.hq?'🏠 '+tr('architect.hq'):A.gold.includes(c)?'🚨 '+tr('architect.gold_site'):k==='goal'?'🎯 '+tr('architect.site'):k==='via'&&tg.length?'🔜 '+tr('architect.joins_in_brief_n',{n:tg[0].n}):k==='via'?'🪨 '+tr('puzzles.stepping_stone_optional'):k==='avoid'?'🚫 '+tr('architect.closed'):'📍 '+tr('puzzles.not_in_the_plan');
+    const eb=c===A.hq?'🏠 '+tr('architect.hq'):A.gold.includes(c)?'🚨 '+tr('architect.gold_site'):k==='goal'?'🎯 '+tr('architect.site'):k==='via'?'🪨 '+tr('puzzles.stepping_stone_optional'):k==='avoid'?'🚫 '+tr('architect.closed'):'📍 '+tr('puzzles.not_in_the_plan');
     let h=head(eb,esc(CITY[c].name),p?`<span class="fact mine">${tr('common.your_pop')}</span><span class="fact">${tr('puzzles.price_per_year',{price:fmt$(arPopCost(c))})}</span>`:'')+'<div class="scroll">';
     if(c===A.hq)h+=`<p class="lead">${tr('architect.hq_lead')}</p>`;else if(A.gold.includes(c))h+=`<p class="lead">${tr('architect.gold_lead')}</p>`;
-    if(tg.length)h+=`<div class="arplan"><div class="eyebrow">${tr('architect.coming_up')}</div>${tg.map(t=>`<div><b>${t.n}</b> ${esc(arSum(arRun().briefs[t.n-1]))}</div>`).join('')}</div>`;
     if(k==='avoid'&&!p)return h+`<p class="lead">${tr('puzzles.not_this_one_find_a_way_around')}</p></div>`;
     if(!p){const pc=pzPopCost(c)+pzRtCost(0,1);return h+`<div class="btns">${btn(tr('puzzles.open_a_pop_cost',{cost:fmt$(pc)}),'pzPop',{city:c},'pink big')}</div><p class="note">${tr('architect.or_drag_a_tube_here')}</p></div>`;}
     if(k==='avoid')h+=`<p class="lead">${tr('architect.closed_lead')}</p>`;
