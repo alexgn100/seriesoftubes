@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Architect runs (preview), under Puzzles: grow one network brief by brief, from a single tube to a ring that shrugs off any cut. Your build carries over between briefs, gold sites must survive any single trench or cable cut with room on the detour, and a backhoe checks every design before the next customer signs. Three runs to start: Euro Run, Coast to Coast and Pacific Rim.
+
 ## [2.0.0] — 2026-10-29
 
 - The peering inbox is gone: your peering policy now answers every peering request for you. Open accepts everyone, Selective accepts small networks on the exchange and newcomers with an up-to-date PeeringDB and quietly declines the rest, and Closed declines them all; once a week the NOC log sums it up, like "Peering desk: 7 new sessions at DE-KICKS and HAMS-IX, 3 declined (Selective)". Max-prefix alerts, the button that raised every limit at once, max-prefix outages at exchanges, your peering reputation and the Large Peering Model are gone too. The policy picker sits in the Networks tab, saved games keep their policy, and a game that hired the AI simply stops paying for it.
