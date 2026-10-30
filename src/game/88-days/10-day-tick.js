@@ -3,7 +3,7 @@ function dayTick(){
   if(!S||S.lost||!rule('clock'))return; // no clock (puzzles): no days, no bills, nothing fires
   S.day++;
   const d=S.day;
-  dkTick(d);ixPriceWar(d);inboxDay(d);pniDay(d);mergerDay(d);
+  dkTick(d);ixPriceWar(d);peeringDeskDay(d);pniDay(d);mergerDay(d);
   if(!S.phpDone&&d>45&&Math.random()<1/400)elephant();
   if(R&&R.teMoved)S.stats.teMax=Math.max(S.stats.teMax||0,R.teMoved);
   {const t1=!!S.won&&isTier1();if(S.t1Now&&!t1)toast(tr('day_tick.you_are_no_longer_tier_1',{why:t1Why()}),'bad');S.t1Now=t1;}
@@ -11,7 +11,8 @@ function dayTick(){
   for(const a of ddosAll(S,false))if(a.until>=d&&R&&S.pops[a.city])a.worst=Math.min(a.worst===undefined?1:a.worst,ddosSf(a));
   ddosExpire();
   ddosTick();
-  if(R&&R.demand>0)S.stats.clean=R.served/R.demand>=0.995?(S.stats.clean||0)+1:0;
+  // What the Great Firewall drops is not your outage: it alone kept Anchors Away's 99.5% out of reach (playtest).
+  if(R&&R.demand>0)S.stats.clean=(R.served+(R.gfwLost||0))/R.demand>=0.995?(S.stats.clean||0)+1:0;
   if(S.scn&&S.scn.id==='redsea')S.stats.asiaRun=asiaG()>=RS_G?(S.stats.asiaRun||0)+1:0;
   if(S.ev.php===d)toast(tr('day_tick.the_internet_is_back_half_of'),'good');
   for(const k in S.peers){const [id,c]=k.split('@'),sn=snub(id,c);if(!sn)continue;delete S.peers[k];S.stats.depeered=(S.stats.depeered||0)+1;
@@ -63,14 +64,17 @@ function dayTick(){
   // Chaos (the rules) scales how often: calm waits about three times as long, spicy comes almost twice as often, none never.
   let dirty=false;const cm=chaosMul();
   if(cm&&d>=S.nextFail){dirty=true;fireFailure();const size=S.links.length+Object.keys(S.pops).length;S.nextFail=d+Math.round((Math.max(22,50-size*1.5)+Math.floor(Math.random()*25))*(scnRule('chaos')?0.5:1)/cm);}
+  // Anchors Away: on top of the usual failures, ships drag anchors over each Baltic seabed link (about three cuts a link-year).
+  if(cm&&d>45&&scnRule('anchors')){const n=S.links.filter(l=>l.kind!=='vxc'&&!linkDown(l)&&anchorProne(l)).length;if(n&&Math.random()<Math.min(5,+S.scn.rules.anchors||1)*n/365){dirty=true;fireFailure('cut');}}
   if(cm&&d>=S.nextEvent){dirty=true;fireEvent();S.nextEvent=d+Math.round((45+Math.floor(Math.random()*45))/cm);}
   if(dirty)compute();
   opsDay(d);
   // payday floaters
-  if(d%30===0){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-(CITY[c].arpu||1));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
+  if(d%30===0){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-arpuOf(c));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
   checkGoals();
   scnTick(d);
   confTick(d);
+  specDay(d);
   // money trouble
   if(S.cash<0){S.neg++;if(S.neg===1)toast(tr('day_tick.you_are_in_the_red_cancel'),'bad');}
   else S.neg=0;
@@ -89,7 +93,10 @@ function spawnOffer(){
   // Countries with thousands of ASNs (Brazil's provedores, US regionals) are full of small ISPs shopping for transit.
   const dense=mine.filter(c=>(CITY_PDB[c]||[])[2]>=2000);if(lv>=2&&dense.length)types.push('isp');
   const fabC=mine.filter(c=>FABS.some(f=>f.cities.includes(c)));if(lv>=2&&fabC.length){types.push('fabip','fabip');if(mine.length>=2)types.push('fabl2');}
+  // What your network can already serve calls too, at a lower weight and the smallest size (#187).
+  const sp=spots(),spT=[...new Set(sp.map(s=>s.t))],bq=charter()==='boutique';for(const x of spT){types.push(x);if(x==='hft'&&bq)types.push(x,x);}if(bq&&lv>=2)types.push('hft','hft');
   const t=pick(types),T=BIZ_T[t];
+  if(T.lv>lv&&spT.includes(t)){spawnSpot(t,pick(sp.filter(s=>s.t===t)));return;}
   if(T.event||T.sdwan||T.fiber||T.mega){spawnSpecial(t);return;}
   if(T.nni){const city=pick(fabC),prov=pick(FABS.filter(f=>f.cities.includes(city))).id,bw=pick(T.opts),others=mine.filter(c=>c!==city),city2=T.l2&&others.length?pick(others):null;if(T.l2&&!city2)return;
     const base=pick(BIZ_N.filter(n=>!S.usedNames.includes(n)).concat(BIZ_N)).replace(/ (Inc\.|Co\.|Ltd)$/,'');const name=tr('day_tick.name_via_fab',{name:base,fab:FAB[prov].name});useName(base);
@@ -104,7 +111,7 @@ function spawnOffer(){
   if(t==='provedor')city=pick(br);
   if(t==='isp'&&dense.length&&Math.random()<0.5)city=pick(dense);
   if(t==='hft'){const fin=['nyc','chi','lon','fra','tok','sin','hkg','ams','ash'],mf=mine.filter(c=>fin.includes(c));city=mf.length?pick(mf):pick(mine);city2=pick(fin.filter(c=>c!==city));}
-  let rate=T.l2?Math.round((150+kmBetween(city,city2)*0.08)*T.km):T.rate;
+  let rate=T.l2?Math.round((150+kmBetween(city,city2)*0.08)*T.km*(T.lat?latPay():1)):T.rate;
   if(CITY[city].au&&!T.l2&&!T.fiber&&!T.event){rate=Math.round(rate*AU_ARPU);bw=Math.min(bw,pick(T.opts.slice(0,2)));}
   if(T.div&&!reqCan('diverse',{city,city2}))return;
   const reqs=T.div?['diverse']:T.lat?['lat']:[];if((t==='hyper'||t==='ai'||t==='gpu')&&Math.random()<0.4)reqs.push('metro');const pool=Object.keys(REQS).filter(k=>!reqs.includes(k)&&!REQS[k].only&&(!REQS[k].l2||T.l2)&&(!REQS[k].ip||!T.l2)&&reqCan(k,{city,city2}));

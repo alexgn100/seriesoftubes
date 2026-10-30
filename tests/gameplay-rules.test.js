@@ -163,7 +163,7 @@ test('N2: names are puns: no network, cable, exchange, data center, router or op
   const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'").replace(/\s+/g, ' ').trim();
   const real = new Set(REAL_NAMES.map(norm));
   const names = J(`[...NETS.map(n=>['network',n.name]),...CABLES.map(c=>['cable',c.name]),...XIX.map(x=>['exchange',x.name]),
-    ...CITIES.flatMap(c=>[['exchange',c.ix],['data center',c.dc],['data center',c.dc2]]),...RG.map(r=>['router',r.n]),...Object.values(OPT).map(o=>['optic',o.n])].filter(x=>x[1])`);
+    ...CITIES.flatMap(c=>[['exchange',c.ix],['data center',c.dc],['data center',c.dc2]]),...RG.map(r=>['router',r.n]),...Object.values(OPT).map(o=>['optic',o.n]),...Object.values(SEAT_ROUTES).flat().map(r=>['cable',r[2]])].filter(x=>x[1])`);
   fail('N2', names.filter(([, n]) => real.has(norm(n))).map(([k, n]) => `${k} “${n}” is a real name`), 'find a pun');
   fail('N2', names.filter(([, n]) => /-ish\b/i.test(n)).map(([k, n]) => `${k} “${n}”`), 'no lazy -ish names: find a real pun, or keep the plain word');
 });
@@ -215,8 +215,8 @@ test('M2: presets are ordered: Change Freeze never harsher than On-call, BGP at 
   const P = J('PRESETS'), C = J('CHAOS'), lead = { quick: 0, real: 1 };
   assert.ok(C[P.freeze.chaos].m <= C[P.oncall.chaos].m && C[P.oncall.chaos].m <= C[P.bgp.chaos].m, 'M2: chaos');
   assert.ok(lead[P.freeze.lead] <= lead[P.oncall.lead] && lead[P.oncall.lead] <= lead[P.bgp.lead], 'M2: lead times');
-  for (const k of ['market', 'inbox']) assert.ok(!P.freeze[k] || P.oncall[k], `M2: ${k}`);
-  assert.ok(P.bgp.market && P.bgp.inbox && P.bgp.money === 'normal' && P.bgp.gates === 'ladder', 'M2: BGP keeps every hardship');
+  assert.ok(!P.freeze.market || P.oncall.market, 'M2: market');
+  assert.ok(P.bgp.market && P.bgp.money === 'normal' && P.bgp.gates === 'ladder', 'M2: BGP keeps every hardship');
   // seeded: the same network for a year under each preset
   const n = {};
   for (const p of ['freeze', 'oncall', 'bgp']) {
@@ -230,15 +230,14 @@ test('M2: presets are ordered: Change Freeze never harsher than On-call, BGP at 
 
 test('M3: every subsystem that can annoy the player reads a rule', () => {
   // [function, what it must read]
-  const reads = [['dayTick', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'], ['inboxDay', "rule('inbox')"],
+  const reads = [['dayTick', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'],
     ['soldOut', "rule('market')"], ['hwMul', "rule('market')"], ['leadDays', "rule('lead')"], ['pniLead', 'leadDays'],
     ['dfBuildDays', 'leadDays'], ['dayTick', "rule('clock')"], ['snub', "rule('market')"]];
   fail('M3', reads.filter(([f, r]) => !ev(`typeof ${f}==='function'&&${f}.toString().includes(${JSON.stringify(r)})`)).map(([f, r]) => `${f}() does not read ${r}`), 'gate it on the ruleset (src/game/40-progress/30-rules.js)');
-  // and in play: no chaos, no market, no inbox means a quiet year
+  // and in play: no chaos and no market means a quiet year
   const g = load();
-  g.ev("beginGame('Quiet','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.rules=makeRules('oncall',{chaos:'none',market:false,inbox:false});S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyIx({city:'fra',tier:1,signed:true});for(let i=0;i<360;i++)dayTick()");
+  g.ev("beginGame('Quiet','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.rules=makeRules('oncall',{chaos:'none',market:false});S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyIx({city:'fra',tier:1,signed:true});for(let i=0;i<360;i++)dayTick()");
   assert.equal(g.ev('S.inc.length+(S.stats.incidents||0)'), 0, 'M3: nothing breaks without chaos');
-  assert.equal(g.ev('S.inbox.items.length+S.inbox.seq'), 0, 'M3: no mail without the inbox');
   assert.equal(g.ev("hwMul('rt')"), 1, 'M3: no hardware inflation without the market');
   assert.equal(g.ev("CITIES.slice(0,40).some(c=>soldOut('fra',c.id,1))"), false, 'M3: no sold-out routes without the market');
   assert.deepEqual(g.errors, []);
@@ -341,6 +340,25 @@ test('F2: a simple build in a start city makes money within three months on On-c
     assert.deepEqual(g.errors, []);
   }
   fail('F2', bad, 'a balance change made the start too hard; fix the balance, or argue for a new N in the gameplay-rules skill');
+});
+
+test('F3: a specialist path only brings customers you can already serve', () => {
+  const g = load();
+  g.ev("ACT.start({});S.cash=1e9;S.lvl=1;for(const c of ['nyc','chi','ash'])S.pops[c]=S.pops[c]||{day:0,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0}");
+  g.ev("S.links.push({id:'w',a:'nyc',b:'chi',kind:'wave',tier:2,km:kmBetween('nyc','chi'),cut:0,mo:0},{id:'d',a:'chi',b:'ash',kind:'df',own:true,sys:'roadm',ch:['zr4','zr4','zr4','zr4'],km:kmBetween('chi','ash'),sub:false,cable:null,mo:0,trench:'d',cut:0,day:0,ready:0,spares:false},{id:'e',a:'nyc',b:'ash',kind:'df',own:true,sys:'roadm',ch:['zr4'],km:kmBetween('nyc','ash'),sub:false,cable:null,mo:0,trench:'e',cut:0,day:0,ready:0,spares:false});compute()");
+  const Jg = (x) => JSON.parse(g.ev(`JSON.stringify(${x})`));
+  const sp = Jg('spots()');
+  assert.ok(sp.length > 0, 'F3: the reference network is spotted');
+  const bad = [];
+  for (const s of sp) {
+    const T = Jg(`BIZ_T.${s.t}`);
+    if (!(T.lv > 1)) bad.push(`${s.t} needs no spotting at level 1`);
+    if (![s.a, s.b].filter(Boolean).every((c) => g.ev(`!!S.pops['${c}']`))) bad.push(`${s.t} names a city without a POP`);
+    if (s.k === 'lat' && !(g.ev(`bestLat('${s.a}','${s.b}')<=latMaxOf('${s.a}','${s.b}')`))) bad.push(`${s.t} ${s.a}–${s.b} is too slow`);
+    if (s.k === 'df' && !(s.n >= T.opts[0] * 0.75)) bad.push(`${s.t} ${s.a}–${s.b} asks for far more than the fiber carries`);
+  }
+  fail('F3', bad, 'spots0() must only name what the network can serve, or nearly');
+  assert.deepEqual(g.errors, []);
 });
 
 test('no page errors while checking the rules', () => {

@@ -30,7 +30,7 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `40-progress/` | Customer types (`BIZ_T`), `LEVELS` and their requirements, `GOALS`; the per-save ruleset (`S.rules`, `rule()`, `PRESETS`, `chaosMul()`, `leadDays()`) |
 | `50-state.js` | The globals `S`, `R`, `UI`; `emptyR()` |
 | `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
-| `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering inbox, peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
+| `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering desk (requests answered by policy), peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
 | `80-simulation/` | Dijkstra, RouteScript, `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
 | `85-incidents/` | `addInc()`, DDoS and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()` |
 | `88-days/` | `dayTick()`, new offers, badges, `checkGoals()` |

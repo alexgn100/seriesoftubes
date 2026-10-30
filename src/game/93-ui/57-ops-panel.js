@@ -23,8 +23,7 @@ function opsModal(){if(!S)return;const hired=opsHired();let h=`<div style="displ
   h+=`<div class="ops-o on"><div class="ops-h"><span class="ops-i" aria-hidden="true">${I.i}</span><div class="grow"><div class="nm">${tr(I.n)}</div><div class="meta">${tr('ops.salary',{price:fmt$(INTERN_MO),d:dateStr(O.hired)})}</div></div>
     ${btn(UI.confirm==='opsFire'?tr('ops.really_fire'):tr('ops.fire'),'opsFire',{},'ghost sm')}</div>
     <p class="ops-mood">${esc(opsMood())}</p>${opsReportHtml()}
-    ${O.log.length?`<pre class="term ops-log">${O.log.slice(0,6).map(e=>esc(tr('peering_inbox.day_d',{d:e.d})+': '+opsEntry(e))).join('\n')}</pre>`:''}
-    <p class="meta">${ibx().bot?tr('ops.lpm_on',{name:opsName()}):tr('ops.lpm_off',{name:opsName()})}</p>
+    ${O.log.length?`<pre class="term ops-log">${O.log.slice(0,6).map(e=>esc(tr('ops.day_d',{d:e.d})+': '+opsEntry(e))).join('\n')}</pre>`:''}
     <div class="ops-p">${btn(`${tr('ops.floor')}: <b>${O.floor?fmt$(O.floor):tr('ops.no_cap')}</b>`,'opsFloor',{},'ghost sm')}</div></div>`;
   h+=`<p class="note">${tr('ops.how_it_works',{name:opsName()})}</p>`+OPS.map(opsOrderHtml).join('');
   // Per POP: switch single orders off where the player wants to decide by hand.

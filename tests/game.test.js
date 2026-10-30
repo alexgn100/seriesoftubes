@@ -469,10 +469,6 @@ test('notifications: the NOC keeps the last ten minutes, folds repeats and opens
   const os = JSON.parse(ev("JSON.stringify(S.log.map(e=>e.o))"));
   assert.deepEqual(os, [null, { a: 'city', v: 'lon' }, { a: 'link', v: linkId }, { a: 'city', v: 'fra' }]);
   assert.equal(ev("S.log[0].h"), 'Raffle'); assert.equal(ev("S.log[0].t"), 'Raffle You won a T-shirt.');
-  // the peering inbox's own button opens the peering inbox
-  ev("toast('<b>Peering request</b><br>From a small network.','',[{l:'Inbox',act:'inbox',args:{}}])");
-  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.log[0].o)')), { a: 'inbox' });
-  ev('ACT.logOpen({id:S.log[0].id})'); assert.equal(ev("$('modal').hidden"), false, 'the inbox opens');ev('closeModal();S.log.shift()');
   // an incident points at what broke
   assert.deepEqual(JSON.parse(ev(`JSON.stringify(incOpen({ref:'${linkId}'}))`)), { a: 'link', v: linkId });
   assert.deepEqual(JSON.parse(ev("JSON.stringify(incOpen({ref:S.links[0].trench||S.links[0].id}))")), { a: 'link', v: ev('S.links[0].id') });
@@ -483,14 +479,13 @@ test('notifications: the NOC keeps the last ten minutes, folds repeats and opens
   assert.equal(ev("S.log.length"), 6, 'a minute later it starts a new line');
   // the NOC shows them right after the incidents, with Open where there is something to open
   assert.equal(ev("logUnread()"), 6);
-  ev("renderHUD()"); assert.equal(doc.getElementById('hNocNew').hidden, false); assert.equal(doc.getElementById('hNocNew').textContent, '6');
+  ev("renderHUD()"); assert.equal(doc.getElementById('hNocNew').hidden, true, 'no unread count on the NOC button (2.0)');
   ev("UI.left='noc';UI.leftOpen=true;UI.sel=null;renderLeft();renderHUD()");
   const body = doc.getElementById('leftBody').textContent;
   assert.match(body, /Notifications\s*last 10 minutes/);
   assert.ok(body.indexOf('Notifications') < body.indexOf('DDoS scrubbing'), 'near the top, not at the bottom');
   assert.match(body, /×5/); assert.match(body, /just now/);
   assert.equal(doc.querySelectorAll('#leftBody [data-act=logOpen]').length, 2, 'Open only where it leads somewhere (2 of the 5 shown)');
-  assert.equal(doc.getElementById('hNocNew').hidden, true, 'read once the NOC is open');
   assert.equal(ev("logUnread()"), 0);
   ev("ACT.logAll()"); assert.equal(doc.querySelectorAll('#leftBody .note').length, 6); assert.equal(doc.querySelectorAll('#leftBody [data-act=logOpen]').length, 3);
   // Open goes there
@@ -506,12 +501,15 @@ test('notifications: the NOC keeps the last ten minutes, folds repeats and opens
   ev("S.log.push({t:'old',k:'weird',o:{a:'city',v:'atlantis'},n:'many'},{t:5},{t:'x',o:{a:'tab',v:'evil'}},{t:'y',o:{a:'link',v:'l1'},at:'soon'});S=sanitize(S)");
   const tail = JSON.parse(ev("JSON.stringify(S.log.slice(-3))"));
   assert.deepEqual(tail.map(e => [e.t, e.k, e.o, e.n, e.at]), [['old', '', null, 1, 0], ['x', '', null, 1, 0], ['y', '', { a: 'link', v: 'l1' }, 1, 0]]);
-  // phones: the NOC tab carries the count
+  // phones: the NOC tab shows no numbers, only a red dot while something is broken
   ev("__tick(1000);toast('<b>Router crashed</b><br>Your router in London is rebooting.','bad');UI.left='goals';UI.leftOpen=false");
   dom.window.innerWidth = 360; ev("renderAll&&renderAll()");
   const nocTab = [...doc.querySelectorAll('#tabbar [data-act=phoneTab]')].find(b => JSON.parse(b.dataset.args).t === 'noc');
-  assert.equal(nocTab.querySelector('.cnt').textContent, '1', 'one unread notification on the NOC tab');
-  assert.equal(nocTab.querySelector('.cnt').classList.contains('red'), false, 'not red: red is for incidents');
+  assert.equal(nocTab.querySelector('.cnt'), null, 'no number for unread notifications on the NOC tab');
+  ev("S.inc.push({id:'x1',type:'crash',city:'lon',msg:'',until:S.day+3});renderAll()");
+  const nocTab2 = [...doc.querySelectorAll('#tabbar [data-act=phoneTab]')].find(b => JSON.parse(b.dataset.args).t === 'noc');
+  assert.ok(nocTab2.querySelector('.cnt.dot.red'), 'a live incident shows a red dot');
+  assert.equal(nocTab2.querySelector('.cnt').textContent, '', 'and no number');
   assert.deepEqual(errors, []);
 });
 

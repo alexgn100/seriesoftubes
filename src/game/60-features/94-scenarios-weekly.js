@@ -27,7 +27,7 @@ const WS_GOALS={
  path:{p:{a:['c'],b:['c'],g:['n',10,12800],n:['n',1,120]},daily:p=>fastPath(p.a,p.b,p.g),l:N_('wkscn.goal_g_on_every_hop_from'),ok:p=>wsRun()>=p.n,m:()=>wsRun(),
   prog:p=>[pChk(tr('wkscn.p_path_g_a_b',{g:fmtG(p.g),a:CITY[p.a].name,b:CITY[p.b].name}),fastPath(p.a,p.b,p.g)),{l:tr('wkscn.p_days_in_a_row'),v:wsRun(),max:p.n,txt:`${wsRun()} / ${p.n}`}]},
  ix:{p:{reg:['r'],n:['n',2,60]},l:N_('wkscn.goal_ports_on_n_exchanges_in'),ok:p=>wsIxN(p.reg)>=p.n,m:p=>wsIxN(p.reg),prog:p=>{const n=wsIxN(p.reg);return [{l:tr('wkscn.p_exchange_ports_in_reg',{reg:WAVE_NAME[p.reg]}),v:n,max:p.n,txt:`${n} / ${p.n}`}];}},
- pops:{p:{cs:['cs',1,8]},l:N_('wkscn.goal_a_connected_pop_in_list'),ok:p=>p.cs.every(c=>pathExists(S.scn.home,c)),m:p=>p.cs.filter(c=>pathExists(S.scn.home,c)).length,prog:p=>p.cs.map(c=>pChk(tr('progress.pop_in_city',{city:CITY[c].name}),pathExists(S.scn.home,c)))},
+ pops:{p:{cs:['cs',1,8]},l:N_('wkscn.goal_a_connected_pop_in_list'),ok:p=>p.cs.every(c=>pathExists(S.scn.home,c)),m:p=>p.cs.filter(c=>pathExists(S.scn.home,c)).length,prog:p=>p.cs.map(c=>pChk(tr('progress.city_on_your_network',{city:CITY[c].name}),pathExists(S.scn.home,c)))},
  event:{p:{city:['c'],g:['n',10,6400],day:['n',20,360],dur:['n',1,10]},l:N_('wkscn.goal_deliver_the_event_in_city'),ok:()=>(S.stats.evFull||0)>=1,m:()=>S.stats.evFull||0,
   setup:p=>S.biz.push({id:uid(),scripted:true,city:p.city,city2:null,reqs:[],name:tr('wkscn.event_name_city',{city:CITY[p.city].name}),type:'event',bw:p.g,rate:0,mood:100,since:0,start:p.day,dur:p.dur,fee:p.g*p.dur*70}),
   prog:p=>[pChk(tr('wkscn.p_event_delivered_in_full'),(S.stats.evFull||0)>=1),{l:tr('common.traffic_served'),v:0,max:0,txt:tr('wkscn.p_g_on_day_d',{g:fmtG(p.g),d:p.day})}]},

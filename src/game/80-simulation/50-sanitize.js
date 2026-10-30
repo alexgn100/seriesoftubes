@@ -35,12 +35,10 @@ function sanitize(s){
   {const H=s.hw&&typeof s.hw==='object'&&!Array.isArray(s.hw)?s.hw:{},o={};const sh=H.shock,lk=H.lock;
    if(sh&&typeof sh==='object'&&own(HW_SHOCK,sh.k))o.shock={k:sh.k,until:num(sh.until,0),mul:clamp(num(sh.mul,1),1,2)};
    if(lk&&typeof lk==='object')o.lock={until:num(lk.until,0),mul:clamp(num(lk.mul,1),1,HW_CAP)};s.hw=o;}
-  {const I=s.inbox&&typeof s.inbox==='object'&&!Array.isArray(s.inbox)?s.inbox:{},o=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{},str=(v,n)=>String(v==null?'':v).slice(0,n);
-   const items=(Array.isArray(I.items)?I.items:[]).filter(x=>x&&typeof x==='object'&&(x.k==='req'||x.k==='mp')&&typeof x.ix==='string'&&isIx(x.ix)&&(x.net===undefined||isNet(x.net))&&(x.net!==undefined||typeof x.nm==='string')).slice(0,INBOX_MAX).map(x=>({id:int(x.id,0,1e9,0),k:x.k,ix:x.ix,net:x.net,nm:x.net?undefined:str(x.nm,40),asn:x.net?undefined:int(x.asn,1,4294967294,64512),day:num(x.day,0),stale:!!x.stale,yrs:int(x.yrs,1,30,1),say:int(x.say,0,REQ_SAY.length-1,0),bump:x.bump?1:undefined,key:x.k==='mp'?str(x.key,80):undefined,lim:x.k==='mp'?int(x.lim,1,1e7,100):undefined,got:x.k==='mp'?int(x.got,1,1e7,100):undefined,leak:x.k==='mp'?!!x.leak:undefined}));
-   const down={};for(const [k,v] of Object.entries(o(I.down)))if(typeof k==='string'&&k.length<80)down[k]=num(v,0);
-   const tiny={};for(const [k,v] of Object.entries(o(I.tiny)).slice(0,200))if(/^\d{1,10}$/.test(k)&&v&&typeof v==='object'&&isIx(v.ix))tiny[k]={nm:str(v.nm,40),ix:v.ix,stale:!!v.stale};
-   const log=(Array.isArray(I.log)?I.log:[]).filter(e=>e&&typeof e==='object'&&typeof e.m==='string').slice(0,40).map(e=>{const a={};for(const [k,v] of Object.entries(o(e.a)).slice(0,6))a[str(k,12)]=typeof v==='number'?v:str(v,60);return {d:num(e.d,0),m:str(e.m,200),a};});
-   s.inbox={items,down,tiny,rep:clamp(num(I.rep,0),-10,5),bot:!!I.bot,pol:PPOL.includes(I.pol)?I.pol:'open',log,seq:Math.max(int(I.seq,0,1e9,0),...items.map(x=>x.id))};}
+  // 2.0 replaced the peering inbox with the peering desk: keep the policy, drop the mail, max-prefix state and the AI.
+  {const I=s.inbox&&typeof s.inbox==='object'&&!Array.isArray(s.inbox)?s.inbox:{},pol=s.ppol!==undefined?s.ppol:I.pol;s.ppol=PPOL.includes(pol)?pol:'open';delete s.inbox;
+   const wk=(x,rep)=>{if(!x||typeof x!=='object'||Array.isArray(x))return null;const o={w:int(x.w,0,1e7,0),a:int(x.a,0,1e5,0),d:int(x.d,0,1e5,0),ix:[...new Set((Array.isArray(x.ix)?x.ix:[]).filter(isIx))].slice(0,PDESK_IX)};if(rep)o.p=PPOL.includes(x.p)?x.p:'open';return o;};
+   s.pdesk=wk(s.pdesk);s.pdeskRep=wk(s.pdeskRep,1);}
   {const sp={};if(s.spares&&typeof s.spares==='object')for(const k in s.spares)if(own(OPT,k)){const v=Math.floor(+s.spares[k]);if(v>0)sp[k]=Math.min(999,v);}s.spares=sp;}
   s.caches=s.caches.filter(x=>x&&isCity(x.city)&&isNet(x.net)&&NET[x.net].cache).map(x=>(x.id=sid(x.id),x.site=x.site==='b'&&s.pops[x.city]&&s.pops[x.city].site2?'b':'a',x));
   for(const c of Object.keys(s.ixp)){if(!isIx(c))delete s.ixp[c];else s.ixp[c]=tier(s.ixp[c]);}
@@ -55,9 +53,9 @@ function sanitize(s){
   for(const k of Object.keys(s.confReg))s.confReg[k]=s.confReg[k]==='sp'?'sp':!!s.confReg[k];
   if(s.conf){const c=s.conf;if(typeof c!=='object'||!own(REG,c.reg))s.conf=null;else s.conf={until:num(c.until,0),reg:c.reg,name:String(c.name||'').slice(0,40),sp:!!c.sp};}
   s.capDeal=s.capDeal&&typeof s.capDeal==='object'&&own(CAP_ROUTES,s.capDeal.c)?{at:num(s.capDeal.at,0),c:s.capDeal.c}:null;
-  s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
+  s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.type==='maxpfx'&&(i.type='ixloop'),i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
   s.loans=s.loans.filter(l=>l&&own(BANKS,l.bank));for(const l of s.loans){if(l.model!==undefined&&!['balloon','storm','transit','astro'].includes(l.model))delete l.model;for(const k of ['apr0','cut','share'])if(l[k]!==undefined&&!isFinite(+l[k]))delete l[k];if(!Array.isArray(l.covs))l.covs=[];l.covs=l.covs.filter(c=>own(COVS,c));}s.loanOffers=s.loanOffers.filter(l=>l&&own(BANKS,l.bank));
-  s.usedNames=[...new Set(s.usedNames.filter(x=>typeof x==='string'))];s.log=s.log.filter(e=>e&&typeof e.t==='string').slice(0,LOG_KEEP).map(e=>{const o=e.o&&typeof e.o==='object'&&LOG_OPEN.includes(e.o.a)?(e.o.a==='bank'||e.o.a==='inbox'?{a:e.o.a}:typeof e.o.v==='string'&&e.o.v.length<=64&&(e.o.a!=='city'||isCity(e.o.v))&&(e.o.a!=='tab'||LOG_TABS.includes(e.o.v))?{a:e.o.a,v:e.o.v}:null):null;
+  s.usedNames=[...new Set(s.usedNames.filter(x=>typeof x==='string'))];s.log=s.log.filter(e=>e&&typeof e.t==='string').slice(0,LOG_KEEP).map(e=>{const o=e.o&&typeof e.o==='object'&&e.o.a==='inbox'?{a:'tab',v:'nets'}:e&&e.o&&typeof e.o==='object'&&LOG_OPEN.includes(e.o.a)?(e.o.a==='bank'?{a:e.o.a}:typeof e.o.v==='string'&&e.o.v.length<=64&&(e.o.a!=='city'||isCity(e.o.v))&&(e.o.a!=='tab'||LOG_TABS.includes(e.o.v))?{a:e.o.a,v:e.o.v}:null):null;
     return {id:typeof e.id==='string'&&e.id.length<=40?e.id:uid(),d:num(e.d,0),t:e.t.slice(0,600),h:typeof e.h==='string'?e.h.slice(0,200):'',k:LOG_KINDS.includes(e.k)?e.k:'',at:Number.isFinite(+e.at)?+e.at:0,o,n:int(e.n,1,9999,1)};});
   // One scrubbing center became a list (#117): older saves carry theirs over.
   if(!Array.isArray(s.scrubs))s.scrubs=s.scrubAt&&isCity(s.scrubAt)?[{city:s.scrubAt,tier:s.scrubTier}]:[];delete s.scrubAt;delete s.scrubTier;
@@ -83,13 +81,14 @@ function sanitize(s){
      three Normal presets, unchanged (its validated mods kept). So an edited or imported save cannot stop the clock or print money. */
   {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{};
    const m={mods:r.mods};s.rules=s.scn&&typeof s.scn==='object'?makeRules('oncall',m):s.mode==='sandbox'?makeRules('sandbox',{...m,chaos:r.chaos}):makeRules(NORMAL_PRESETS.includes(r.preset)?r.preset:'oncall',m);}
+  specSanitize(s);
   if(s.te){if(typeof s.te!=='object')s.te=null;else{s.te.on=!!s.te.on;s.te.script=typeof s.te.script==='string'?s.te.script.slice(0,4000):'';}}
   return s;}
 function migrate(s){sanitize(s);
   // Older saves have one contract per broker sale: fold a carrier's alien waves on one fiber into one contract.
   {const one=new Map();s.biz=s.biz.filter(b=>{if(b.type!=='wwave')return true;const k=b.link+'|'+b.name,a=one.get(k);if(!a){one.set(k,b);return true;}
     a.slots=(a.slots||0)+(b.slots||0);a.rate=(a.rate||0)+(b.rate||0);a.since=Math.min(a.since??0,b.since??0);a.mood=Math.min(a.mood??100,b.mood??100);a.folded=true;return false;});
-   for(const a of one.values())if(a.folded){delete a.folded;const l=s.links.find(x=>x.id===a.link);if(l)a.what=wwWhat(l,a.slots);}}if(s.scn&&s.scn.id==='stg'&&s.scn.rules&&typeof s.scn.rules==='object')s.scn.rules.local=true;
+   for(const a of one.values())if(a.folded){delete a.folded;const l=s.links.find(x=>x.id===a.link);if(l)a.what=wwWhat(l,a.slots);}}if(s.scn&&s.scn.id==='stg'&&s.scn.rules&&typeof s.scn.rules==='object')s.scn.rules.local=true;if(s.scn&&s.scn.id==='gangnam'&&s.scn.rules&&typeof s.scn.rules==='object')s.scn.rules.sender=true;
   // A published weekly scenario keeps its file in the save: checked again here; a bad one plays on as the in-browser weekly.
   if(s.scn&&typeof s.scn==='object'&&s.scn.wk!==undefined){const d=wsValid(s.scn.wk,s.scn.key);if(d){s.scn.wk=d;s.scn.home=d.city;s.scn.run=Number.isInteger(s.scn.run)&&s.scn.run>=0?s.scn.run:0;}else{delete s.scn.wk;delete s.scn.home;delete s.scn.run;}}
   for(const b of [...s.biz,...s.offers])if(Array.isArray(b.reqs))b.reqs=b.reqs.filter(k=>!REQS[k]||!REQS[k].can||(isCity(b.city)&&(!b.city2||isCity(b.city2))&&REQS[k].can(b,s)));if(s.ltv!==2){for(const l of s.links)if(l.kind==='wave'&&l.tier>=3)l.tier=Math.min(LT.length-1,l.tier+1);s.ltv=2;}if(s.dk){s.dk.m=s.dk.m||{};s.dk.add=s.dk.add||{};s.dk.ret=s.dk.ret||{};s.dk.retUsed=s.dk.retUsed||{};}s.hist=s.hist||[];s.loans=s.loans||[];s.loanOffers=s.loanOffers||[];s.loanStrikes=s.loanStrikes||0;for(const l of s.links||[])if(!l.kind)l.kind='wave';

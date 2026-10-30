@@ -22,10 +22,10 @@ function hwCard(){if(!S||!rule('market')||(S.day<=HW_FREE&&!hwShock()&&!hwLock()
    :`<p class="meta">${tr('supply_chain.routers_optics_and_new_builds_at')}</p><div class="btns">${btn(tr('supply_chain.lock_prices_for_a_year_cost',{cost:fmt$(hwLockCost())}),'hwLock',{},'sm',S.cash<hwLockCost())}</div>`}</div>`;}
 // Routers past the standard cage (#157) need a cage extension: pricier to install, and rent on top.
 const RCAGE=6,CAGE_MUL=1.5,CAGE_MO=2000;
-const routerCost=(g,rt)=>Math.round((ROUTER_COST+RG[g].cost*0.8)*((rt||1)>=RCAGE?CAGE_MUL:1)*hwMul('rt'));
+const routerCost=(g,rt)=>Math.round((ROUTER_COST+RG[g].cost*0.8)*((rt||1)>=RCAGE?CAGE_MUL:1)*hwMul('rt')*techMul(RG[g].lvl));
 const routerMo=g=>ROUTER_MO+RG[g].mo,cageMo=rt=>Math.max(0,(rt||1)-RCAGE)*CAGE_MO;
 // Old routers go on eBuy when you swap models or remove one (#82), like spare optics (#45). Chassis age faster.
-const ROUTER_RESALE=0.3,tradeIn=(g,n)=>Math.round(RG[g].cost*n*ROUTER_RESALE),swapCost=(c,g)=>{const p=S.pops[c],rt=p.routers||1;return Math.max(0,Math.round(RG[g].cost*rt*hwMul('rt'))-tradeIn(p.rgen||0,rt));};
+const ROUTER_RESALE=0.3,tradeIn=(g,n)=>Math.round(RG[g].cost*n*ROUTER_RESALE),swapCost=(c,g)=>{const p=S.pops[c],rt=p.routers||1;return Math.max(0,Math.round(RG[g].cost*rt*hwMul('rt')*techMul(RG[g].lvl))-tradeIn(p.rgen||0,rt));};
 const RMAX=16;
 // The plain, badge-less model of each class is the default upgrade path; the others are side-grades.
 const mainRG=k=>RG.findIndex(r=>r.cls===k&&!r.badge);

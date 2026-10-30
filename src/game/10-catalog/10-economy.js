@@ -6,6 +6,10 @@ const RU_BOX=40000, RU_BOX_MO=2000;
 const UAE_LIC=15000,KSA_LIC=25000;
 // Korea: "sender pays" interconnection makes transit into Seoul about four times the usual price.
 const KR_TRANSIT=4;
+/* Gangnam Style Peering (scenario rule `sender`) turns sender pays all the way up: every Gbps a carrier delivers into
+   Korea is billed again as a sender-pays fee, the incumbents take traffic only over a paid PNI, home gigabit is cheap,
+   and users notice every millisecond of a haul to Tokyo or Hong Kong. */
+const KR_FEE=180,KR_ARPU=0.85,KR_LAT_OK=8,KR_LAT_BAD=40;
 /* Australia: a long way from everywhere. Every gigabit out of the country rides a long, thin subsea
    cable, so transit and waves cost more than almost anywhere else. IX ports are the exception: a
    nonprofit exchange sells 10G for about AUD 350 a month. Retail broadband is dear, but the national

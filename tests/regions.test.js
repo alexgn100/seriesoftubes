@@ -563,8 +563,10 @@ test('the Amazon doubles overland fiber, and there is a national-operator scenar
   assert.equal(ev('S.scn.id'), 'ixbr');
   assert.equal(ev('brIxN()'), 0);
   ev("S.cash=1e9;for(const c of ['sao','rio','mao'])ACT.buildPop({city:c});S.ixp.sao=1;S.ixp.mao=1;compute()");
-  assert.equal(ev('brIxN()'), 2);
+  assert.equal(ev('brIxN()'), 1, 'a Manaus port on a POP the backbone does not reach does not count');
   assert.equal(ev("scnProg().items[1].v"), 1, 'Manaus step done');
+  ev("S.links.push({id:'y1',a:'sao',b:'mao',km:2700,sub:false,kind:'wave',tier:0,mo:1});compute()");
+  assert.equal(ev('brIxN()'), 2, 'joined up, it counts');
   assert.deepEqual(errors, []);
 });
 
@@ -670,8 +672,10 @@ test('Fibre to the Basement: own fibre skips the wholesale cut but pays the levy
   assert.equal(ev("SCN.find(s=>s.id==='fttb').ok()"), false, 'still needs cables overseas');
   ev("S.links.push({id:'x1',a:'syd',b:'tok',km:8000,sub:true,cable:'sushi',kind:'wave',tier:1,mo:1},{id:'x2',a:'per',b:'sin',km:4000,sub:true,cable:'avo',kind:'wave',tier:1,mo:1},{id:'x3',a:'mel',b:'hba',km:600,sub:true,cable:'ferry',kind:'wave',tier:1,mo:1})");
   assert.equal(ev('auExits()'), 2, 'Bass Strait does not count as overseas');
+  assert.equal(ev("SCN.find(s=>s.id==='fttb').ok()"), false, 'still needs the traffic');
+  ev('R.served=FTTB_G');
   assert.equal(ev("SCN.find(s=>s.id==='fttb').ok()"), true);
-  assert.equal(ev("SCN_PROG.fttb().length"), 6);
+  assert.equal(ev("SCN_PROG.fttb().length"), 7);
   assert.deepEqual(errors, []);
 });
 

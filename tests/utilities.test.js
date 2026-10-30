@@ -127,7 +127,7 @@ test('route-server batch leaves peering policy and player-owned exchanges alone'
   const { ev, errors } = setup(t);
   ev('ACT.utilityRouteServers()');
   assert.equal(ev('Object.keys(S.rs).length'), 0, 'does not join an IX without a port');
-  ev("ACT.buyIx({city:'fra',tier:0,signed:true});ACT.inboxPol({p:'closed'});ACT.utilityRouteServers()");
+  ev("ACT.buyIx({city:'fra',tier:0,signed:true});ACT.peerPol({p:'closed'});ACT.utilityRouteServers()");
   assert.equal(ev('ppol()'), 'closed');
   assert.equal(ev('S.rs.fra'), true);
   assert.equal(ev("ixSessions('fra').has('drz')"), false, 'does not bypass closed policy');

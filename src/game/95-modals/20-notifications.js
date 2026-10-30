@@ -1,9 +1,9 @@
 /* ---------- notifications: the NOC keeps the last ten minutes, readable and openable ---------- */
-const LOG_KEEP=60,LOG_MS=10*60*1000,LOG_KINDS=['','good','bad','goal'],LOG_OPEN=['city','link','cust','bank','tab','inbox'],LOG_TABS=['goals','deals','noc','nets'];
+const LOG_KEEP=60,LOG_MS=10*60*1000,LOG_KINDS=['','good','bad','goal'],LOG_OPEN=['city','link','cust','bank','tab'],LOG_TABS=['goals','deals','noc','nets'];
 // What a notification is about, from the button it came with: the same place its own button would take you.
 function openOf(actions){for(const a of actions||[]){const g=a.args||{};
   if(a.act==='focusCity'&&isCity(g.city))return {a:'city',v:g.city};if(a.act==='selLink'&&g.id)return {a:'link',v:String(g.id)};
-  if(a.act==='custGo'&&g.id)return {a:'cust',v:String(g.id)};if(a.act==='bank')return {a:'bank'};if(a.act==='inbox')return {a:'inbox'};if(a.act==='leftTab'&&LOG_TABS.includes(g.t))return {a:'tab',v:g.t};}return null;}
+  if(a.act==='custGo'&&g.id)return {a:'cust',v:String(g.id)};if(a.act==='bank')return {a:'bank'};if(a.act==='leftTab'&&LOG_TABS.includes(g.t))return {a:'tab',v:g.t};}return null;}
 // Otherwise from the text: a link between two of your cities it names, or the first of your cities it names.
 function openFromText(t){const cs=Object.keys(S.pops).map(c=>[c,t.indexOf(CITY[c].name)]).filter(([,i])=>i>=0).sort((a,b)=>a[1]-b[1]).map(([c])=>c);
   if(cs.length>=2){const l=S.links.find(l=>(l.a===cs[0]&&l.b===cs[1])||(l.a===cs[1]&&l.b===cs[0]));if(l)return {a:'link',v:l.id};}return cs.length?{a:'city',v:cs[0]}:null;}

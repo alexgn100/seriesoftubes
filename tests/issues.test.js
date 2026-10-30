@@ -571,7 +571,8 @@ test('buttons behind an open modal stay quiet, and a declined PNI clears its sta
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e7;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'mrs'});ACT.buyTransit({city:'mrs',net:'cog',tier:1});compute()");
   // the PNI button was drawn while Tangerine still wanted our traffic; by the click it doesn't
-  ev("R.demTo.tng=50;UI.sel={type:'city',id:'mrs'};UI.tab='peer';renderAll();R.demTo.tng=0;window.__n=0;const o=toast;toast=function(h){if(/declined/.test(h))window.__n++;return o.apply(this,arguments);}");
+  // Tier 2 is folded when nothing there is worth a PNI (#175): open it, as a player would.
+  ev("UI.pniOpen={t2:true};R.demTo.tng=50;UI.sel={type:'city',id:'mrs'};UI.tab='peer';renderAll();R.demTo.tng=0;window.__n=0;const o=toast;toast=function(h){if(/declined/.test(h))window.__n++;return o.apply(this,arguments);}");
   const btn = "document.querySelector('#panel [data-act=pni][data-args*=tng]')";
   assert.ok(ev(`!!${btn}`), 'a stale button to start with');
   ev(`${btn}.focus();${btn}.click()`);
@@ -1310,7 +1311,7 @@ test('#134 an exchange named after its city does not repeat the city in messages
   const labs = JSON.parse(ev("JSON.stringify(lagsN().filter(o=>o.k==='ix').map(o=>o.lab))"));
   assert.ok(labs.includes('IX.brrr Campinas LAG'), labs.join(' | '));
   assert.ok(labs.some(l => / LAG in Frankfurt$/.test(l)), labs.join(' | '));
-  ev("S.inc=[];eval('('+fireFailure.toString().replace('type=pick(f);}',\"type='maxpfx';}\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
+  ev("S.inc=[];eval('('+fireFailure.toString().replace(\"if(only)type=only;\",\"type='ixloop';\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
   const msg = ev("S.inc.map(i=>i.msg).join(' ')");
   assert.match(msg, /IX\.brrr Campinas/);
   assert.doesNotMatch(msg, /in Campinas/);

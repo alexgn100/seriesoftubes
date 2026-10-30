@@ -26,6 +26,8 @@ const BADGES=[
  {id:'giants',i:'🏭',t:tr('badges.friend_of_giants'),d:tr('badges.hold_deals_at_3_different_ai'),r:'e',ok:()=>new Set(S.biz.filter(b=>BIZ_T[b.type]&&BIZ_T[b.type].mega).flatMap(b=>bCities(b))).size>=3},
  {id:'landlord',i:'🧵',t:tr('common.trench_landlord'),d:tr('badges.lease_hundreds_of_fiber_pairs_to'),r:'e',ok:()=>S.biz.some(b=>b.type==='pairs')},
  {id:'t1',i:'👑',t:tr('common.tier_1'),d:tr('badges.go_transit_free'),r:'e',ok:()=>!!S.won},
+ {id:'sol',i:'⚡',t:tr('specialist.speed_of_light'),d:tr('specialist.win_as_a_low_latency_boutique'),r:'e',ok:()=>!!S.solWon},
+ {id:'seat',i:'🚢',t:tr('specialist.part_owner_of_the_sea'),d:tr('specialist.take_a_seat_on_a_consortium'),r:'r',ok:()=>S.links.some(l=>l.seat)},
  {id:'bait',i:'🎣',t:tr('common.shark_bait'),d:tr('badges.get_bitten_by_sharks_3_times'),r:'l',ok:()=>(st().sharks||0)>=3},
  {id:'nines',i:'💎',t:tr('common.five_nines'),d:tr('badges.serve_99_5_of_demand_every'),r:'l',ok:()=>(st().clean||0)>=365},
  {id:'fifty',i:'🗺️',t:tr('badges.everywhere_at_once'),d:tr('badges.have_pops_in_50_cities'),r:'l',ok:()=>Object.keys(S.pops).length>=50},

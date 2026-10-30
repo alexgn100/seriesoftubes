@@ -20,7 +20,7 @@ function renderHUD(){
   $('hDate').textContent=dateStr(S.day);
   {const bo=(S.loanOffers||[]).length,hb=$('hBank');hb.hidden=!bo;hb.textContent=bo;}
   {const st=custStats(),hc=$('hCust');hc.hidden=!st.n;if(st.n){$('hCustVal').innerHTML=`${st.avg>=80?'😀':st.avg>=60?'🙂':st.avg>=30?'😟':'😡'} ${Math.round(st.avg)}%${st.unhappy?` <span class="cnt red">${st.unhappy}</span>`:''}`;hc.classList.toggle('hot',st.furious>0);}}
-  const n=S.inc.length;$('hNoc').classList.toggle('hot',n>0);{const u=UI.left==='noc'&&UI.leftOpen?0:logUnread(),b=$('hNocNew');if(b){b.hidden=!u;b.textContent=u>99?'99+':String(u);b.title=trn('hud_and_panels.n_new_notification',u);}}$('hNocVal').textContent=n?trn('hud_and_panels.n_incident',n):tr('common.all_quiet');
+  const n=S.inc.length;$('hNoc').classList.toggle('hot',n>0);{const b=$('hNocNew');if(b)b.hidden=true;}$('hNocVal').textContent=n?trn('hud_and_panels.n_incident',n):tr('common.all_quiet');
   if(!window.__TUBES_TEST__)fitHud();
   renderTabbar();
 }
@@ -31,21 +31,21 @@ function renderLeft(){checkLayer();
   renderTabbar();
   if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
   const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
-  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red">${S.inc.length}</span>`:''}`],['nets',`${tr('common.networks')}${ibxOpen()?`<span class="cnt${ibxUrgent()?' red':''}">${ibxOpen()}</span>`:''}`]];
+  const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',tr('common.networks')]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
   let h='';
   if(UI.left==='goals'){
-    h+=scnCard()+lvlCard()+t1Card();
+    h+=charterCard()+scnCard()+lvlCard()+t1Card();
     const cur=GOALS.find(g=>S.done[g.id]===undefined);
     h+=GOALS.map(g=>{const d=S.done[g.id]!==undefined,c=g===cur;return `<div class="goal ${d?'done':''} ${c?'cur':''}"><div class="ck">${d?'✓':''}</div><div><div class="gt">${esc(g.t)}</div>${c||!d?`<div class="gd">${esc(g.d)}</div>`:''}${!d&&g.r?`<div class="gr">${tr('hud_and_panels.reward_cash',{cash:fmt$(g.r)})}</div>`:''}</div></div>`;}).join('');
     h+=badgeGrid();
   }else if(UI.left==='deals'){
     {const st=custStats();if(st.n)h+=`<div class="row" style="margin-bottom:8px"><div class="grow"><div class="nm">${tr('common.your_customers')} <span class="meta">${st.n} · ${tr('hud_and_panels.happiness_p',{p:Math.round(st.avg)})}</span></div><div class="bar ${moodCls(st.avg)}"><i style="width:${st.avg}%"></i></div>${st.unhappy?`<div class="why">${trn('hud_and_panels.n_unhappy_customer_price_mo_at',st.unhappy,{price:fmt$(st.risk)})}</div>`:''}</div>${btn(st.unhappy?tr('common.see_who'):tr('common.all_customers'),'custOpen',{sad:st.unhappy?1:0},st.unhappy?'pink sm':'ghost sm')}</div>`;}
-    h+=confSection();
+    h+=confSection()+seatSection();
     {const lv=S.lvl||1,nx=LEVELS[lv];h+=`<div class="inc" style="background:#FFF6CF"><div class="nm">${tr('hud_and_panels.customer_level_lv_name',{lv,name:LEVELS[lv-1].n})}</div><div class="meta">${nx?tr('hud_and_panels.next_req_unlocks_what',{req:nx.req,what:lc1(nx.unlock)}):tr('common.every_customer_type_is_unlocked_go')}</div></div>`;}
     if(!S.offers.length)h+=`<p class="empty">${tr('hud_and_panels.no_open_offers_right_now_businesses')}</p>`;
     for(const o of S.offers.slice().sort((a,b)=>a.exp-b.exp)){const has=bHas(o);
-      h+=`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)} · ${CITY[o.city].name}${o.city2?' ⇄ '+CITY[o.city2].name:''} · <b>${bTerms(o)}</b> · ${tr('ui.n_d_left',{n:o.exp-S.day})}${(o.reqs||[]).length?` · ${trn('hud_and_panels.n_special_requirement',o.reqs.length)}`:''}</div>${bRisk(o)}${reqList(o)}
+      h+=`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)} · ${CITY[o.city].name}${o.city2?' ⇄ '+CITY[o.city2].name:''} · <b>${bTerms(o)}</b> · ${tr('ui.n_d_left',{n:o.exp-S.day})}${(o.reqs||[]).length?` · ${trn('hud_and_panels.n_special_requirement',o.reqs.length)}`:''}</div>${spotWhy(o)}${bRisk(o)}${reqList(o)}
       <div class="btns">${has?btn(tr('common.accept'),'accept',{id:o.id},'green sm'):btn(tr('common.go_there'),'focusCity',{city:bCities(o).find(c=>!S.pops[c])},'ghost sm')}${btn(tr('common.decline'),'decline',{id:o.id},'ghost sm')}</div>${has?'':`<div class="why">${tr('hud_and_panels.needs_a_pop_in_cities',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}</div></div>`;}
   }else if(UI.left==='noc'){
     h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.open_noc_dashboard'),'dash',{},'pink')}${btn(tr('common.connections'),'connOpen',{},'')}${btn(tr('common.traceroute'),'trace',{},'')}</div>`;
@@ -72,7 +72,7 @@ function renderLeft(){checkLayer();
     if(!S.inc.length&&!hot.length&&!hotR.length&&!slow.length)h+=`<p class="empty">${tr('hud_and_panels.all_systems_green_enjoy_it_while')}</p>`;
     h+=`<div class="kv" style="margin-top:8px"><span>${tr('hud_and_panels.incidents_so_far')}</span><b>${S.stats.incidents}</b></div><div class="kv"><span>${tr('hud_and_panels.survived_with_no_impact')}</span><b>${S.stats.survived}</b></div>`;
   }else{
-    if(rule('inbox')&&(Object.keys(S.ixp).length||ibxOpen()||(S.inbox&&S.inbox.bot))){const n=ibxOpen(),u=ibxUrgent();h+=`<div class="ibx ibxcard"><div class="nm">📬 ${tr('common.peering_inbox')} ${n?`<span class="cnt${u?' red':''}">${n}</span>`:''}</div><div class="meta">${S.inbox&&S.inbox.bot?tr('hud_and_panels.large_peering_model_is_on_it'):u?trn('hud_and_panels.n_session_is_down_on_its',u):n?trn('hud_and_panels.n_message_waiting_for_an_answer',n):tr('common.inbox_zero')}</div><div class="btns">${btn(tr('common.open_inbox'),'inbox',{},'sm')}</div></div>`;}
+    if(Object.keys(S.ixp).length||ppol()!=='open')h+=pdeskCard();
     h+=`<p class="lead">${tr('hud_and_panels.every_network_on_the_map_traffic')}</p>`;
     {const nc=conns().length;if(nc)h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.all_connections_n',{n:nc}),'connOpen',{},'pink sm')}</div>`;}
     const where=netWhereIdx(),tl=NETS.filter(n=>n.tail),tlOn=tl.filter(n=>where(n.id).some(x=>x[2]==='ix')).length;
@@ -82,7 +82,7 @@ function renderLeft(){checkLayer();
     // Shown 100 at a time like the dashboard lists: every country's own eyeballs made this list long (2.0).
     const nl=(foc?[foc]:out?ntLost():NETS).filter(n=>!n.tail||UI.tailOpen||foc||out);
     for(const n of nl.slice(0,listN('nets'))){
-      h+=`<div class="row">${logo(n)}<div class="grow"><div class="nm">${esc(n.name)} <span class="meta">AS${n.asn}</span></div><div class="meta"><span class="tag ${n.type}">${TYPE_L[n.type]}</span> <span class="tag ${n.pol}">${n.pol}</span> · ${tr('hud_and_panels.p_of_traffic',{p:(NSH[n.id]*100).toFixed(1)})}${n.price?` · ${tr('hud_and_panels.transit_price_gbps',{price:(n.price*S.priceMul).toFixed(2)})}`:''}</div><div class="meta">${esc(n.blurb)}</div>${netWhere(n,where)}${(foc||out)&&!R.nt[n.id]?`<p class="why">${esc(offTransitHint(n.id))}</p>`:''}${(foc||out)&&coneVia(n.id)&&(R.cone[n.id]||!R.nt[n.id])?`<p class="meta">${R.cone[n.id]?tr('hud_and_panels.reached_through_the_customer_cone_of',{net:esc((NET[R.cone[n.id]]||coneVia(n.id)).name)}):tr('hud_and_panels.buys_transit_from_net_peer_with',{net:esc(coneVia(n.id).name)})}</p>`:''}${foc||out&&!R.nt[n.id]?meetLine(n,foc?24:4):''}</div></div>`;}
+      h+=`<div class="row">${logo(n)}<div class="grow"><div class="nm">${esc(n.name)} <span class="meta">AS${n.asn}</span></div><div class="meta"><span class="tag ${n.type}">${TYPE_L[n.type]}</span> <span class="tag ${n.pol}">${n.pol}</span> · ${tr('hud_and_panels.p_of_traffic',{p:(NSH[n.id]*100).toFixed(1)})}${n.price?` · ${tr('hud_and_panels.transit_price_gbps',{price:(n.price*S.priceMul).toFixed(2)})}`:''}</div><div class="pchips">${pniChip(n.id,null)}</div><div class="meta">${esc(n.blurb)}</div>${netWhere(n,where)}${(foc||out)&&!R.nt[n.id]?`<p class="why">${esc(offTransitHint(n.id))}</p>`:''}${(foc||out)&&coneVia(n.id)&&(R.cone[n.id]||!R.nt[n.id])?`<p class="meta">${R.cone[n.id]?tr('hud_and_panels.reached_through_the_customer_cone_of',{net:esc((NET[R.cone[n.id]]||coneVia(n.id)).name)}):tr('hud_and_panels.buys_transit_from_net_peer_with',{net:esc(coneVia(n.id).name)})}</p>`:''}${foc||out&&!R.nt[n.id]?meetLine(n,foc?24:4):''}</div></div>`;}
     h+=listMore('nets',nl.length,n=>trn('hud_and_panels.n_more_networks',n));
     if(!foc&&!out)h+=`<div class="row"><div class="grow"><div class="nm">${tr('hud_and_panels.the_long_tail')} <span class="meta">${tr('hud_and_panels.n_small_networks',{n:tl.length})}</span></div><div class="meta">${tr('hud_and_panels.p_of_traffic_between_them_scattered',{p:(tl.reduce((a,n)=>a+NSH[n.id],0)*100).toFixed(1),n:tlOn})}</div></div>${btn(UI.tailOpen?tr('common.hide'):tr('common.show'),'tailTog',{},'ghost sm')}</div>`;
   }

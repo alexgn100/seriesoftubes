@@ -43,8 +43,8 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | Id | Rule | Why |
 | --- | --- | --- |
 | M1 | On-call is the classic game: it equals `RULE_DEF`, and a save without rules loads as On-call. The seeded suites (`tests/game.test.js`, `tests/rules.test.js`) are its behaviour. | Old saves never change under them. |
-| M2 | Presets are ordered: Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler (chaos, lead times, market, inbox; and a seeded year of incidents). | The names promise it. |
-| M3 | Every subsystem that can annoy the player reads a rule: outages and events (`chaos`), DDoS, the peering inbox, sold-out routes, de-peering and hardware prices (`market`), lead times (`lead`), the clock. A quiet ruleset gives a quiet year. | Rules are presets of flags, not separate code. |
+| M2 | Presets are ordered: Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler (chaos, lead times, market; and a seeded year of incidents). | The names promise it. |
+| M3 | Every subsystem that can annoy the player reads a rule: outages and events (`chaos`), DDoS, sold-out routes, de-peering and hardware prices (`market`), lead times (`lead`), the clock. A quiet ruleset gives a quiet year. | Rules are presets of flags, not separate code. |
 | M4 | Scenarios and the weekly challenge always run On-call plus their own `S.scn.rules`. | Fair scores. |
 | M5 | Sandbox has no locked feature: open gates, every level, own cables, endless money. | It is a sandbox. |
 
@@ -62,3 +62,4 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | --- | --- | --- |
 | F1 | A new network gets a gentle start: no outage before day 45, no event before day 40 and only good news before day 50, nothing sold out for 90 days, hardware prices hold for 180, and a new customer loses no mood for 15 days. | New players learn before they get punished. |
 | F2 | On On-call, a simple build in a start city (broadband, the cheapest 100G transit, an exchange port with the route server) makes money within 3 months, in Frankfurt, New York, Singapore and Johannesburg. | Seeded today it turns a profit in month 1 or 2; a balance change that breaks this makes the start too hard. |
+| F3 | A specialist path (#187) only brings a customer type in below its level when the network can already serve it, or nearly: the spotted cities have POPs, the latency is met, the fiber carries at least three quarters of the smallest order. | Capability, not luck: an offer you cannot fulfil with a reasonable build is a trap. |
