@@ -13,7 +13,8 @@ function mkRun(l,dur,bad){const m=UI.mk;if(!m)return;const [x,y]=mkMid(l);m.fx=m
 function mkSpray(m){for(let i=0;i<(m.bad?26:16);i++){const a=Math.PI*2*i/(m.bad?26:16)+((i*37)%10)/10,v=0.05+((i*53)%10)/180;
   m.spray.push({x:m.tx,y:m.ty,vx:Math.cos(a)*v,vy:Math.sin(a)*v-0.06,c:m.bad?(i%3?'#FF4D5E':'#FFD23F'):MK_COLS[i%MK_COLS.length],t:animT,s:i%4===0?(m.bad?'💥':'✂️'):null});}}
 // It is over: a cheer when everything held, a tantrum where it broke; with bye it then leaves the map.
-function mkEnd(ok,bye){const m=UI.mk;if(!m)return;m.mood=ok?'cheer':'dance';m.t0=animT;m.bye=bye?animT:0;}
+function mkEnd(ok,bye){const m=UI.mk;if(!m)return;// a pending spray (the review was skipped mid-run) would override the cheer
+  m.sprayAt=null;m.mood=ok?'cheer':'dance';m.t0=animT;m.bye=bye?animT:0;}
 function mkStop(){UI.mk=null;}
 function mkDraw(ks){const m=UI.mk;if(!m)return;if(m.bye&&animT-m.bye>2600){mkStop();return;}
   if(m.mood==='snip'&&animT-m.t0>1500){m.mood='stand';m.t0=animT;}

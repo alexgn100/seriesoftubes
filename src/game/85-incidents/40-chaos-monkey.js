@@ -26,6 +26,7 @@ function mkTick(d){const M=S.monkey;if(!M)return;
   if(d>=M.until){mkLeave();return;}
   if(d>=M.snip){mkSnip();M.snip=d+(mkSpicy()?rint(9,7):rint(14,11));}}
 function mkArrive(d){const M=S.monkey,cs=Object.keys(S.pops),len=mkSpicy()?rint(180,61):rint(120,121);
+  S.stats.mkMet=(S.stats.mkMet||0)+1;
   Object.assign(M,{on:1,start:d,until:d+len,snip:d+3,n:0,hurt:0,c:cs.length?pick(cs):S.home});
   toast(tr('chaos_monkey.arrived',{n:len}),'bad',[{l:tr('chaos_monkey.banana',{cost:fmt$(mkBananaCost())}),act:'mkBanana',args:{}}],{a:'tab',v:'noc'});sfx('alert');track('monkey_arrive');
   if(typeof mkStart==='function'&&CITY[M.c])mkStart(M.c);}

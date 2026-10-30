@@ -97,3 +97,13 @@ test('saves keep the monkey; old and broken saves are repaired', () => {
   ev('for(let i=0;i<5;i++)dayTick()');
   assert.deepEqual(errors, []);
 });
+
+test('"Met the Chaos Monkey" comes from a visit, not from an ordinary fiber cut', () => {
+  const { ev, errors } = net('oncall');
+  ev("fireFailure('cut');checkBadges()");
+  assert.equal(ev('S.ach.backhoe===undefined'), true, 'a cut alone is not the monkey');
+  ev('S.monkey.next=S.day;dayTick();checkBadges()');
+  assert.notEqual(ev('S.ach.backhoe'), undefined);
+  assert.equal(ev("BADGES.find(b=>b.id==='backhoe').t"), 'Met the Chaos Monkey');
+  assert.deepEqual(errors, []);
+});
