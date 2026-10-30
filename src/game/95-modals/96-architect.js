@@ -12,7 +12,7 @@ function arRender(el){const A=S.ar,run=arRun(),b=arBrief(),e=arEval(),sh=UI.arSh
   for(const c of S.pz.avoid)h+=`<div class="arline ${S.pops[c]?'bad':'ok'}">🚫 ${tr('architect.closed_city',{city:nm(c)})}</div>`;
   const T=e.tubes;if(T.max!=null)h+=`<div class="artubes${T.over?' over':''}"><span>${tr('architect.tubes_this_brief')}</span><b>${'●'.repeat(Math.min(T.u,T.max))}${'○'.repeat(Math.max(0,T.max-T.u))}${T.over?` <em>${tr('architect.n_over_plan',{n:T.over})}</em>`:''}</b></div>`;
   h+=`<div class="pzbud"><div class="kv"><span>${tr('architect.spent_x_of_y',{x:fmt$(e.spend),y:fmt$(e.budget)})}</span><b>${e.cheap?'⭐':'☆'}</b></div><div class="bar ${e.cheap?(e.spend>e.budget*0.9?'warn':''):'bad'}"><i style="width:${Math.min(100,e.spend/e.budget*100).toFixed(1)}%"></i></div>${A.sunk?`<div class="meta">${tr('architect.x_paid_for_and_gone',{x:fmt$(A.sunk)})}</div>`:''}</div>`;
-  if(sh)h+=`<div class="arrev on">🚜 ${tr('architect.cut_n_of_m',{n:sh.i+1,m:sh.units.length})}${sh.dark.length?`<br><small>${tr('architect.dark_list',{list:sh.dark.map(nm).join(', ')})}</small>`:''}</div>`;
+  if(sh)h+=`<div class="arrev on">🐒 ${tr('architect.cut_n_of_m',{n:sh.i+1,m:sh.units.length})}${sh.dark.length?`<br><small>${tr('architect.dark_list',{list:sh.dark.map(nm).join(', ')})}</small>`:''}</div>`;
   else if(f)h+=`<div class="arrev bad">💥 ${f.gold.length?tr('architect.cut_on_x_cuts_off_y',{x:pzUnitName(f.u),y:f.gold.map(nm).join(', ')}):tr('architect.cut_on_x_no_room',{x:pzUnitName(f.u),y:f.short.map(nm).join(', ')})}<br><small>${tr('architect.fix_it_and_send_it_again')}</small></div>`;
   else if(e.passed)h+=`<div class="arrev ok">✅ ${tr('architect.review_passed')}</div>`;
   else if(!e.ready)h+=`<div class="arrev">${esc(e.why)}</div>`;

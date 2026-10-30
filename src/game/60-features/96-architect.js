@@ -1,14 +1,14 @@
 /* ================= ARCHITECT RUNS (prototype) =================
    One network, built brief by brief. A brief adds sites, makes some of them gold (a gold site must stay connected to HQ
    whichever single trench or cable is cut), sets a latency cap, or closes a city. The build carries over: what earlier
-   briefs built is paid for, so removing it gives nothing back. ▶ sends the backhoe: it cuts every trench and cable one
+   briefs built is paid for, so removing it gives nothing back. ▶ lets the chaos monkey loose: it cuts every trench and cable one
    at a time, and the brief is done when every gold site survives. Runs on the puzzle machinery (S.mode 'puzzle' with
    S.ar), so there is no clock, no bills, no incidents, and the main save is never touched.
    Capacity: every site pulls its traffic from HQ, and the review also checks that the detour has room: after any single
    cut, everything still connected gets all of its traffic. Tubes come in three sizes; routers follow by themselves (the
    cheapest model that takes the tubes), and traffic finds the detour by itself (Auto-TE): models, ports and metrics are
    someone else's job. */
-const AR_KEY='sot-architect',AR_TIER=1,AR_TIERS=[0,1,2],AR_STEP=650;
+const AR_KEY='sot-architect',AR_TIER=1,AR_TIERS=[0,1,2],AR_STEP=1000;
 // A brief: add (new sites), gold (sites that must survive any single cut), ring (sites that must sit on one ring), drop
 // (close a city: no POP allowed there any more), dem {city: Gbps} (what a site pulls from HQ, 10G unless set; a later
 // brief can raise it), lat [a,b,ms] (the fastest path between two sites under ms), tubes (the
@@ -136,23 +136,23 @@ function arReset(){const o=JSON.parse(S.ar.start);S.pops=o.p;S.links=o.l;S.pairM
 const arOver=()=>S.ar.over+arTubes().over;
 function arStars(sp){return 1+(arOver()?0:1)+(sp<=arRun().budget+1e-6?1:0);}
 function arShareText(st,sp){const sh=arShape();return tr('architect.share_line',{what:arRun().n,stars:pzStarStr(st),spend:fmt$(sp),shape:sh?sh.i+' '+sh.n:''});}
-// ---------- ▶ the backhoe review ----------
+// ---------- ▶ the chaos monkey review ----------
 // Every trench and cable is cut in turn, routed by compute() so the traffic visibly moves; a gold site losing HQ stops
 // the review with the cut still on the map, until the next edit.
-function arStop(quiet){const sh=UI.arShow;if(sh&&sh.t)clearTimeout(sh.t);UI.arShow=null;if(!S||!S.links)return;let any=false;for(const l of S.links)if(l.cut){l.cut=0;any=true;}
+function arStop(quiet){mkStop();const sh=UI.arShow;if(sh&&sh.t)clearTimeout(sh.t);UI.arShow=null;if(!S||!S.links)return;let any=false;for(const l of S.links)if(l.cut){l.cut=0;any=true;}
   if(UI.arFail){UI.arFail=null;any=true;}if(any&&!quiet)compute();}
 function arShowStart(){if(!arOn()||UI.arShow)return;const e=arEval();if(!e.ready){toast(esc(e.why),'bad');sfx('err');return;}
-  arStop(true);UI.sel=null;closeModal();UI.arBaseGot=arGot();UI.arShow={units:[...new Set(S.links.map(pzUnit))],i:-1,t:0,dark:[],short:[]};arStep();}
+  arStop(true);UI.sel=null;closeModal();UI.arBaseGot=arGot();UI.arShow={units:[...new Set(S.links.map(pzUnit))],i:-1,t:0,dark:[],short:[]};mkStart(S.ar.hq);arStep();}
 // One cut, routed: who goes dark, which gold sites with it, and who is still connected but short of room.
 function arCut(u){const ls=S.links.filter(l=>pzUnit(l)===u);for(const l of ls)l.cut=1;compute();const dark=arDark(u);return {ls,dark,gold:dark.filter(c=>S.ar.gold.includes(c)),short:arShort(dark)};}
 function arStep(){const sh=UI.arShow;if(!sh||!arOn())return;for(const l of S.links)l.cut=0;sh.i++;
   if(sh.i>=sh.units.length){UI.arShow=null;compute();S.ar.passed=pzSig();renderAll();sfx('star');haptic(15);
-    toast(`✅ <b>${tr('architect.review_passed')}</b><br>${arLast()?tr('architect.last_brief_done'):tr('architect.next_brief_waiting')}`,'good');if(arLast())setTimeout(()=>{if(arOn()&&S.ar.passed===pzSig())arResults(true);},900);return;}
+    mkEnd(true);toast(`✅ <b>${tr('architect.review_passed')}</b><br>${arLast()?tr('architect.last_brief_done'):tr('architect.next_brief_waiting')}`,'good');if(arLast())setTimeout(()=>{if(arOn()&&S.ar.passed===pzSig())arResults(true);},900);return;}
   const u=sh.units[sh.i],{ls,dark,gold,short}=arCut(u),l0=ls[0],got=arGot();sh.dark=dark;sh.short=short;sh.u=u;
   floater((CITY[l0.a].x+CITY[l0.a].x+wrapDx(CITY[l0.a].x,CITY[l0.b].x))/2,(CITY[l0.a].y+CITY[l0.b].y)/2-26,l0.sub?tr('architect.anchor'):tr('architect.backhoe'),'#FF8A3D');
   for(const c of dark)floater(CITY[c].x,CITY[c].y-34,gold.includes(c)?'💥 '+CITY[c].name:tr('architect.city_goes_dark',{city:CITY[c].name}),gold.includes(c)?'#FF4D5E':'#9AA3BE');
   for(const c of short)floater(CITY[c].x,CITY[c].y-34,tr('architect.city_short_g',{city:CITY[c].name,g:arG(arDem(c)-(got[c]||0))}),'#FF4D5E');
-  const bad=gold.length||short.length;sfx(bad?'err':'click');
+  const bad=gold.length||short.length;mkRun(l0,dark.length?AR_STEP*1.6:AR_STEP,bad);sfx(bad?'err':'click');
   if(bad){UI.arShow=null;UI.arFail={u,gold,dark,short};renderAll();haptic(30);return;}
   renderAll();sh.t=setTimeout(arStep,dark.length?AR_STEP*1.6:AR_STEP);}
 // Skip the show: check every cut at once, and stop at the first that breaks a gold site.

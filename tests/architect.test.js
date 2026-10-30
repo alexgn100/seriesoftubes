@@ -1,4 +1,4 @@
-// Architect runs (prototype): one network built brief by brief, reviewed by a backhoe.
+// Architect runs (prototype): one network built brief by brief, reviewed by a chaos monkey.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
@@ -34,7 +34,7 @@ test('architect runs: every reference passes each brief, on plan and within budg
   assert.deepEqual(errors, []);
 });
 
-test('architect runs: the backhoe finds a shared trench, edits clear the cut, old builds are paid for', () => {
+test('architect runs: the chaos monkey finds a shared trench, edits clear the cut, old builds are paid for', () => {
   const { ev, errors } = load();
   ev("ACT.pzArStart({id:'euro'})");
   assert.equal(ev("arHide('lis')&&arHide('bru')"), true, 'cities outside the run are hidden');
