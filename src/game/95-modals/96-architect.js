@@ -56,7 +56,7 @@ function arLinkModal(a,b,keep){const kb=pzKind(b);
   if(pl.length)h+=`<p class="pzhave">${tr('puzzles.already_here_list',{list:[...new Set(pl.map(pzTrench))].join(', ')})}</p>`;
   h+=`<h4 class="sub4">${tr('common.route')}</h4><div class="seg">${rs.map(x=>btn(`${x.cab?esc(CAB[x.cab].name):tr('common.overland')} <small>${x.ms.toFixed(1)} ms · ${tr('architect.from_x',{x:fmt$(pzLinkCost(x,0,false))})}${pl.some(l=>(l.cable||'land')===x.via)?' · ✓':''}</small>`,'pzVia',{v:x.via},x.via===r.via?'pink':'ghost')).join('')}</div>`;
   if(r.cab)h+=`<p class="note">${esc(CAB[r.cab].blurb)}${pl.some(l=>l.cable===r.cab)?' '+tr('puzzles.same_cable_same_anchor'):''}</p>`;
-  if(land)h+=`<div class="seg" style="margin-top:8px">${btn(tr('puzzles.diverse_route_40_survives_a_backhoe'),'pzDiv',{v:1},div?'pink':'ghost')}${btn(tr('puzzles.same_trench_cheaper_one_backhoe_cuts'),'pzDiv',{v:0},div?'ghost':'pink')}</div>`;
+  if(land)h+=`<div class="seg" style="margin-top:8px">${btn(tr('puzzles.diverse_route_40_survives_the_monkey'),'pzDiv',{v:1},div?'pink':'ghost')}${btn(tr('puzzles.same_trench_cheaper_one_snip_cuts'),'pzDiv',{v:0},div?'ghost':'pink')}</div>`;
   if(pop)h+=`<p class="lead" style="margin-top:8px">${tr('puzzles.includes_a_new_pop_in_city',{city:esc(CITY[b].name),price:fmt$(pop)})}</p>`;
   const T=arTubes();if(T.max!=null&&T.u>=T.max)h+=`<p class="why">${tr('architect.this_tube_is_over_the_plan')}</p>`;
   h+=`<h4 class="sub4">${tr('architect.size')}</h4><div class="tiers">${AR_TIERS.map(i=>{const why=subWaveWhy(i,r.km,r.sub),rt=arRouterDelta(a,i)+(S.pops[b]?arRouterDelta(b,i):arRouterDelta(b,i)),c=pzLinkCost(r,i,div);
