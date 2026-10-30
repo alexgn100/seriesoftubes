@@ -1344,3 +1344,40 @@ test('link redundancy trials distinguish a bridge, a full fallback and a healthy
  ev("window.saveRef=S;window.liveRef=R;window.originalCompute=compute;compute=()=>{throw Error('trial failed')}");assert.throws(()=>ev("linkTrial('main')"),/trial failed/);ev('compute=originalCompute');assert.equal(ev('S===saveRef&&R===liveRef'),true,'even a failed trial restores the live state');
  assert.deepEqual(errors,[]);
 });
+
+test('#219 splitting a one-member PNI across both sites splits it when the augment lands', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e8;UI.speed=0;for(const g of GOALS)S.done[g.id]=0;Object.assign(S.pops.fra,{site2:true,routers:4});S.pni.push({id:'x',net:'nfx',city:'fra',tier:1,ready:0});compute()");
+  const cash = ev('S.cash');
+  ev("ACT.siteSet({k:'p',id:'x',s:'ab'})");
+  assert.equal(ev('S.pni[0].up.n'), 2, 'second member ordered');
+  assert.equal(ev('S.pni[0].up.site'), 'ab', 'remembers the split');
+  assert.ok(ev('S.cash') < cash, 'paid once');
+  // clicking again while it is on order buys nothing more
+  const paid = ev('S.cash');
+  ev("ACT.siteSet({k:'p',id:'x',s:'ab'})");
+  assert.equal(ev('S.cash'), paid);
+  // the panel shows Both as chosen meanwhile
+  ev("selectCity('fra');ACT.tab({t:'peer'})");
+  assert.equal(ev(`[...document.querySelectorAll('[data-act=siteSet].pink')].filter(b=>JSON.parse(b.dataset.args).k==='p').map(b=>JSON.parse(b.dataset.args).s).join()`), 'ab', 'Both is shown as chosen');
+  assert.equal(ev("(()=>{const m=siteCtl('p','x','fra',S.pni[0].up&&S.pni[0].up.site==='ab'?'ab':S.pni[0].site).match(/<button[^>]*class=\"[^\"]*pink[^>]*>(.*?)<\\/button>/);return m&&m[1].includes(tr('common.site'))?'':m&&m[1]})()").startsWith('Both'), true);
+  // survives a save and load
+  ev('S=migrate(JSON.parse(JSON.stringify(S)));compute()');
+  assert.equal(ev('S.pni[0].up.site'), 'ab');
+  ev('S.day=S.pni[0].up.ready-1;dayTick()');
+  assert.equal(ev('S.pni[0].n'), 2);
+  assert.equal(ev('S.pni[0].site'), 'ab', 'one member in each building');
+  assert.equal(ev("liveN('fra','ab',2)"), 2);
+  assert.deepEqual(errors, []);
+});
+
+test('#219 choosing one site again while the augment is on order keeps the LAG in that site', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e8;UI.speed=0;for(const g of GOALS)S.done[g.id]=0;Object.assign(S.pops.fra,{site2:true,routers:4});S.pni.push({id:'x',net:'nfx',city:'fra',tier:1,ready:0});compute()");
+  ev("ACT.siteSet({k:'p',id:'x',s:'ab'})");
+  ev("ACT.siteSet({k:'p',id:'x',s:'b'})");
+  assert.equal(ev('S.pni[0].up.site'), undefined);
+  ev('S.day=S.pni[0].up.ready-1;dayTick()');
+  assert.equal(ev('S.pni[0].site'), 'b');
+  assert.deepEqual(errors, []);
+});

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Choosing Both for a PNI with one member now really splits it: the second member arrives in the other building when the augment lands, instead of joining the first (#219).
+
 ## [2.0.0] — 2026-10-30
 
 **Series of Tubes 2.0: one game, four doors.** Some of you wanted a calmer game, some a harder one, some a quick puzzle over coffee and some a playground where nothing can go wrong. So now every network starts behind a door, and the rules you pick stay with that network for good. Your saved games carry on exactly as they were.
