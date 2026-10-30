@@ -125,7 +125,7 @@ function arApply(i){const A=S.ar,P=S.pz,b=arRun().briefs[i];A.bi=i;
   arDemand();A.start=arSnapStr();UI.pzHist=[];UI.sel=null;UI.arFail=null;
   compute();pzCam();renderAll();
   toast(`<b>${tr('architect.brief_n_of_m',{n:i+1,m:arRun().briefs.length})}</b><br>${esc(b.t)}`,'goal');sfx('click');}
-function arNext(){if(!arOn())return;const e=arEval();if(!e.passed)return;if(arLast()){arResults(true);return;}S.ar.over+=e.tubes.over;arApply(S.ar.bi+1);}
+function arNext(){if(!arOn())return;const e=arEval();if(!e.passed)return;mkStop();if(arLast()){arResults(true);return;}S.ar.over+=e.tubes.over;arApply(S.ar.bi+1);}
 function arReset(){const o=JSON.parse(S.ar.start);S.pops=o.p;S.links=o.l;S.pairMet=o.m||{};S.ar.sunk=o.k||0;arDemand();UI.sel=null;}
 // Tubes over plan in the run so far, this brief included.
 const arOver=()=>S.ar.over+arTubes().over;

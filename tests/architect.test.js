@@ -23,7 +23,7 @@ test('architect runs: every reference passes each brief, on plan and within budg
     plan.forEach((steps, i) => {
       for (const s of steps) if (s[0] === '@rm') ev(`ACT.pzRmPop({city:'${s[1]}'})`); else lay(ev, ...s);
       assert.equal(review(ev), true, `${id} brief ${i + 1}: ${ev('arEval().why')} ${ev('JSON.stringify(UI.arFail)')}`);
-      if (i < plan.length - 1) ev('ACT.pzArNext()');
+      if (i < plan.length - 1) { ev('ACT.pzArNext()'); assert.equal(ev('UI.mk'), null, `${id}: the monkey leaves with the next brief`); }
     });
     assert.equal(ev('arOver()'), 0, `${id}: never over a brief's tubes`);
     assert.equal(ev('arSpend()<=arRun().budget'), true, `${id}: within budget`);
