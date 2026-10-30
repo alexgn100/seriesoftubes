@@ -29,6 +29,7 @@ function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hi
   const w=e.worst;
   h+=!e.goal?`<div class="pzn1">🛡 ${tr('puzzles.n_1_deliver_everything_first')}</div>`:e.n1?`<div class="pzn1 on">🛡 ${tr('puzzles.survives_any_single_cut_under_load')}</div>`
     :`<div class="pzn1 bad">⚠️ ${tr('puzzles.a_cut_on_where_drops_g',{where:pzUnitName(w.u),g:fmtG(w.g)})}<br><small>${w.lost.map(x=>esc(pzFlowName(P.dem[x.i]))).join(', ')}</small></div>`;
+  if(UI.pzMk)h+=`<div class="btns">${btn('⏩ '+tr('puzzles.skip_the_monkey'),'pzMkSkip',{},'big')}</div>`;else if(e.goal)h+=`<div class="btns">${btn(tr('puzzles.let_the_chaos_monkey_loose'),'pzMonkey',{},'sm')}</div>`;
   h+=`<div class="btns">${btn('↶ '+tr('puzzles.undo'),'pzUndo',{},'ghost sm',!(UI.pzHist&&UI.pzHist.length))}${btn(tr('puzzles.reset'),'pzReset',{},'ghost sm',!S.links.length&&!Object.keys(S.pops).length)}${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'ghost sm')}</div>`;
   if(h!==UI._pzh){UI._pzh=h;morph(el,h);}}
 // Trenches on a pair get numbers, cables their names, so parallel links say where they run.
@@ -91,13 +92,13 @@ function pzLinkModal(a,b,keep){const kb=pzKind(b);
   h+=`<h4 class="sub4">${tr('common.route')}</h4><div class="seg">${rs.map(x=>btn(`${x.cab?esc(CAB[x.cab].name):tr('common.overland')} <small>${x.ms.toFixed(1)} ms${pl.some(l=>(l.cable||'land')===x.via)?' · ✓':''}</small>`,'pzVia',{v:x.via},x.via===r.via?'pink':'ghost',P.noSub&&x.sub)).join('')}</div>`;
   if(P.noSub&&r.sub)h+=`<p class="why">${tr('puzzles.the_sharks_say_no')}</p>`;
   if(r.cab)h+=`<p class="note">${esc(CAB[r.cab].blurb)}${pl.some(l=>l.cable===r.cab)?' '+tr('puzzles.same_cable_same_anchor'):''}</p>`;
-  if(land)h+=`<div class="seg" style="margin-top:8px">${btn(tr('puzzles.diverse_route_40_survives_a_backhoe'),'pzDiv',{v:1},div?'pink':'ghost')}${btn(tr('puzzles.same_trench_cheaper_one_backhoe_cuts'),'pzDiv',{v:0},div?'ghost':'pink')}</div>`;
+  if(land)h+=`<div class="seg" style="margin-top:8px">${btn(tr('puzzles.diverse_route_40_survives_the_monkey'),'pzDiv',{v:1},div?'pink':'ghost')}${btn(tr('puzzles.same_trench_cheaper_one_snip_cuts'),'pzDiv',{v:0},div?'ghost':'pink')}</div>`;
   if(pop)h+=`<p class="lead" style="margin-top:8px">${tr('puzzles.includes_a_new_pop_in_city',{city:esc(CITY[b].name),price:fmt$(pop)})}</p>`;
   const full=[a,b].filter(c=>!pzPortsFree(c));if(full.length)h+=`<p class="why">${tr('puzzles.no_free_ports_in_list',{list:full.map(c=>esc(CITY[c].name)).join(', ')})}</p>`;
   h+=`<div class="tiers">${PZ_TIERS.map(i=>{const why=pzWaveWhy(a,b,i,r),c=pzLinkCost(r,i,div)+pop;return `<button class="tierbtn" data-act="pzLink" data-args='{"tier":${i}}'${why||full.length||(P.noSub&&r.sub)?' disabled':''}><span class="sz">${LT[i].n}</span><span class="grow meta">${why?esc(why):pop?tr('puzzles.with_the_pop_price',{price:fmt$(c)}):''}</span><span class="pr num">${tr('puzzles.price_per_year',{price:fmt$(pzLinkCost(r,i,div))})}</span></button>`;}).join('')}</div>`;
   openModal(h);}
 // ---------- results ----------
-function pzLine(e){return e.stars>=3?tr('puzzles.a_backhoe_walks_into_your_network'):!e.n1&&!e.cheap?tr('puzzles.it_works_finance_and_the_backhoe'):!e.n1?tr('puzzles.one_backhoe_away_from_a_very'):tr('puzzles.rock_solid_and_gold_plated_the');}
+function pzLine(e){return e.stars>=3?tr('puzzles.a_chaos_monkey_walks_into_your_network'):!e.n1&&!e.cheap?tr('puzzles.it_works_finance_and_the_monkey'):!e.n1?tr('puzzles.one_monkey_away_from_a_very'):tr('puzzles.rock_solid_and_gold_plated_the');}
 // Stars still to win in this puzzle's pack, from the progress just saved.
 function pzPackLeft(P){const d=pzDef(P.id);if(!d)return null;const p=pzLoad(),xs=PZ.filter(x=>x.pack===d.pack);return xs.length*3-xs.reduce((a,x)=>a+((p.s[x.id]||{}).st|0),0);}
 function pzConfetti(){if(!animOn())return '';const cols=['#FF4F9A','#FFD23F','#22C47A','#2F8CFF','#FF8A3D','#7B61FF'];let h='';

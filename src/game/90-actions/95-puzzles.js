@@ -3,6 +3,9 @@
 function pzWaveWhy(a,b,tier,r){if(r&&subWaveWhy(tier,r.km,r.sub))return tr('common.too_far_for_this_cable');if(!waveOk(a,b,tier))return tr('puzzles.needs_what',{what:waveNeed(tier)});return '';}
 const pzPortsFree=c=>!S.pops[c]||portsUsed(c)+1<=portsMax(c)+1e-9;
 Object.assign(ACT,{
+ // The chaos monkey acts out the N-1 check, or is told to get on with it.
+ pzMonkey:()=>{if(pzOn()&&pzEval().goal)pzMonkey();},
+ pzMkSkip:()=>{if(pzOn())pzMkSkip();},
  // The puzzle list. The ruleset's title-screen door calls this.
  puzzleMenu:()=>{if(S&&UI.started&&!pzOn())UI.nm=S.name;pzMenu();},
  pzStart:({id})=>{const d=pzDef(id);if(!d||!pzPackOpen(d.pack))return;pzBegin(d);},
