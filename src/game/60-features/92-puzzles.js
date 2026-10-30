@@ -81,7 +81,7 @@ const pzSig=()=>JSON.stringify([S.pops,S.links,S.pairMet||null,S.biz.map(b=>b.ro
 /* ⭐ every flow delivered in full (circuits within their latency cap), and the twists; ⭐⭐ the year's spend within
    budget; ⭐⭐⭐ N-1 under load: whichever single trench or cable is cut, every priority flow still gets all of its traffic
    (best-effort flows may drop). The cut is routed by compute() like the real thing. */
-function pzEval(){const sig=pzSig(),c0=UI.pzEv;if(c0&&c0.sig===sig)return c0.e;
+function pzEval(){const sig=pzSig(),c0=UI.pzEv;if(c0&&(c0.sig===sig||UI.pzMk))return c0.e;// mid-scene the monkey's cuts are not the build
   const P=S.pz,hot=UI.hotMap;compute();const R0=R,got=pzGot(),spend=pzSpend(),peak={},pk=()=>{for(const c in R.nodeLoad)peak[c]=Math.max(peak[c]||0,R.nodeLoad[c]);};pk();
   const flows=P.dem.map((f,i)=>({f,i,g:got[i].g,ms:got[i].ms,full:pzFull(f,got[i]),fast:pzFast(f,got[i])}));
   const tw=[];if(P.noSub)tw.push({k:'sub',ok:!S.links.some(l=>l.sub)});
@@ -118,7 +118,7 @@ const pzToastsClear=()=>{$('toasts').textContent='';};
 // The running game gets its usual save first and is kept in memory, set aside: save() keeps writing it to its slot
 // (leaving the page mid-puzzle), and leaving the puzzle picks it up again.
 function pzFlush(){save(true);UI.pzKeep=S;}
-function pzBegin(def){if(!def)return;
+function pzBegin(def){if(!def)return;pzMkStop();mkStop();
   const go=()=>{const cs=pzCities(def);newGame(pzName(def),cs[0]);S.pops={};S.mode='puzzle';S.rules=makeRules('puzzle');S.nextFail=S.nextEvent=1e9;S.tut=null;
     S.pz={id:def.id,key:def.key||null,cities:cs,src:(def.src||[]).slice(),dem:def.dem.map(f=>({t:f.t,a:f.a,b:f.t==='l2'?f.b:null,g:f.g,ms:f.ms||0,be:!!f.be})),
       via:(def.via||[]).slice(),avoid:(def.avoid||[]).slice(),budget:def.budget||0,noSub:!!def.noSub,ring:!!def.ring,wn:def.wn||null,wj:def.wj||null,theme:def.theme||null,rev:def.rev||1};
@@ -130,7 +130,7 @@ function pzBegin(def){if(!def)return;
   if(pzOn()){go();return;}
   const live=!!(S&&UI.started&&!S.lost);UI.pzFrom=live?'game':'title';
   if(live)pzFlush();go();}
-function pzLeave(){if(S&&S.ar)arStop(true);const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;UI.pzEv=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
+function pzLeave(){pzMkStop();if(S&&S.ar)arStop(true);mkStop();const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;UI.pzEv=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
     if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){console.error('[tubes] loading the network failed',e);S=null;UI.started=false;}}
     // It cannot be loaded back: marked damaged (kept, so it can be exported), and the player is told.
@@ -142,14 +142,14 @@ function pzCam(){const cs=[...S.pz.cities,...S.pz.via].map(c=>CITY[c]),x0=cs[0].
   const ph=isPhone(),side=ph&&CW>CH,pl=side?-Math.min(360,CW*0.52):ph?0:S.ar&&CW>760&&CH>500?410:330,pb=ph&&!side?Math.min(230,CH*0.4):0,aw=Math.max(120,CW-Math.abs(pl)-90),ah=Math.max(120,CH-pb-150);
   cam.z=clamp(Math.min(aw/Math.max(40,b-a),ah/Math.max(40,d-c)),0.5,4);cam.x=(a+b)/2-pl/2/cam.z;cam.y=(c+d)/2+(pb/2-30)/cam.z;wrapCam();}
 // ---------- building ----------
-function pzSnap(){if(S.ar)arStop();const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},r:S.biz.map(b=>b.route),k:S.ar?S.ar.sunk:0}));if(h.length>60)h.shift();}
+function pzSnap(){pzMkStop();if(S.ar)arStop();const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},r:S.biz.map(b=>b.route),k:S.ar?S.ar.sunk:0}));if(h.length>60)h.shift();}
 function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI.sel.id))||(UI.sel.type==='city'&&!pzKind(UI.sel.id))))UI.sel=null;
   if(S.ar)arRouters();compute();renderAll();pzCheck();}
 // Stars count the moment they are earned.
 // Every solved state is recorded, so a cheaper build at the same stars counts too.
 // A new star below three is a cheer and a nudge, and play goes on; the results card opens at three stars, or when the
 // player says they are done (the card's Finish button).
-function pzCheck(){if(arOn())return null;const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;if(e.stars>=3)pzResults(e,prev);else{pzCheer(e,prev);renderAll();}return e;}
+function pzCheck(){if(arOn())return null;const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;const show=()=>{if(e.stars>=3)pzResults(e,prev);else{pzCheer(e,prev);renderAll();}};if(pzMkCan())pzMonkey(show);else show();return e;}
 // The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
 function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=(P.id==='weekly'?pzWkRec(p,P):bag[k])||{st:0,sp:null};
   if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;

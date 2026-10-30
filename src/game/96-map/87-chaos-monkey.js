@@ -1,7 +1,7 @@
-/* ---------- the chaos monkey: Architect's review, as a monkey running round the map ----------
-   It hops from cut to cut, sprays chaos where it snips, and dances on the spot that breaks a mission-critical site.
-   Pure decoration on the animation clock: the review's result never depends on it, and with animations off the monkey
-   just sits at the cut. */
+/* ---------- the chaos monkey, on the map ----------
+   It hops from cut to cut, sprays chaos where it snips, and dances where a snip really hurt. It visits normal games
+   (85-incidents/40-chaos-monkey.js) and reviews Architect runs. Pure decoration on the animation clock: nothing
+   depends on it, and with animations off the monkey just sits at the cut. */
 const MK_RUN=0.62; // share of a review step the monkey spends running to the next cut
 const MK_COLS=['#FF4F9A','#FFD23F','#22C47A','#2F8CFF','#FF8A3D','#7B61FF'];
 // Where a link's middle is, in world coordinates (the shorter way round the date line).
@@ -12,11 +12,12 @@ function mkRun(l,dur,bad){const m=UI.mk;if(!m)return;const [x,y]=mkMid(l);m.fx=m
   m.face=wrapDx(m.fx,x)<0?-1:1;m.mood='run';m.sprayAt=animT+m.dur;m.bad=!!bad;if(!animOn()){m.x=x;m.y=y;}}
 function mkSpray(m){for(let i=0;i<(m.bad?26:16);i++){const a=Math.PI*2*i/(m.bad?26:16)+((i*37)%10)/10,v=0.05+((i*53)%10)/180;
   m.spray.push({x:m.tx,y:m.ty,vx:Math.cos(a)*v,vy:Math.sin(a)*v-0.06,c:m.bad?(i%3?'#FF4D5E':'#FFD23F'):MK_COLS[i%MK_COLS.length],t:animT,s:i%4===0?(m.bad?'💥':'✂️'):null});}}
-// The review is over: a cheer when everything held, a tantrum where it broke.
-function mkEnd(ok){const m=UI.mk;if(!m)return;// a pending spray (the review was skipped mid-run) would override the cheer
-  m.sprayAt=null;m.mood=ok?'cheer':'dance';m.t0=animT;}
+// It is over: a cheer when everything held, a tantrum where it broke; with bye it then leaves the map.
+function mkEnd(ok,bye){const m=UI.mk;if(!m)return;// a pending spray (the review was skipped mid-run) would override the cheer
+  m.sprayAt=null;m.mood=ok?'cheer':'dance';m.t0=animT;m.bye=bye?animT:0;}
 function mkStop(){UI.mk=null;}
-function mkDraw(ks){const m=UI.mk;if(!m)return;
+function mkDraw(ks){const m=UI.mk;if(!m)return;if(m.bye&&animT-m.bye>2600){mkStop();return;}
+  if(m.mood==='snip'&&animT-m.t0>1500){m.mood='stand';m.t0=animT;}
   const p=Math.min(1,(animT-m.t0)/m.dur),e=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
   if(m.mood==='run'){m.x=m.fx+wrapDx(m.fx,m.tx)*e;m.y=m.fy+(m.ty-m.fy)*e;}
   if(m.sprayAt!=null&&animT>=m.sprayAt){m.sprayAt=null;if(animOn())mkSpray(m);m.mood=m.bad?'dance':'snip';m.t0=animT;}
@@ -28,7 +29,7 @@ function mkDraw(ks){const m=UI.mk;if(!m)return;
     const dt=animT-q.t,wx=q.x+q.vx*dt/cam.z,wy=q.y+(q.vy*dt+0.00012*dt*dt)/cam.z;
     for(const k of ks){const [sx,sy]=toS(wx,wy,k);ctx.globalAlpha=1-a;if(q.s){ctx.font=`${Math.round(sz*0.7)}px sans-serif`;ctx.fillText(q.s,sx,sy);}else{ctx.fillStyle=q.c;ctx.beginPath();ctx.arc(sx,sy,Math.max(2,sz*0.13*(1-a*0.5)),0,Math.PI*2);ctx.fill();}}}
   ctx.globalAlpha=1;ctx.font=`${sz}px sans-serif`;
-  for(const k of ks){const [sx,sy]=toS(m.x,m.y,k);ctx.save();ctx.translate(sx,sy+sz*0.15);
+  for(const k of ks){const [sx,sy]=toS(m.x,m.y,k);m.sx=sx;m.sy=sy-sz*0.6;m.r=sz*0.8;ctx.save();ctx.translate(sx,sy+sz*0.15);
     ctx.fillStyle='rgba(30,38,64,.18)';ctx.beginPath();ctx.ellipse(0,0,sz*0.38,sz*0.12,0,0,Math.PI*2);ctx.fill();
     ctx.translate(0,-hop);const tilt=m.mood==='snip'?Math.sin((animT-m.t0)/60)*0.25:m.mood==='dance'?Math.sin((animT-m.t0)/80)*0.35:0;ctx.rotate(tilt);ctx.scale(m.face,1);
     mkSprite(sz*1.25,animT-m.t0,m.mood==='run'&&p>=1?'stand':m.mood);
@@ -69,3 +70,5 @@ function mkSprite(s,t,mood){const u=s/40,O='#1E2640',B='#A0673A',T='#F4CFA0',lw=
   ctx.fillStyle='#FFD23F';ctx.fillRect(-2.6*u,-5*u,5.2*u,2*u);ctx.fillStyle='#C9D1E6';ctx.beginPath();ctx.roundRect(-1.6*u,-10.5*u,3.2*u,2.6*u,0.8*u);ctx.fill();ctx.stroke();
   if(wave){ctx.fillStyle='rgba(255,79,154,.45)';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc((4+i*2.2)*u,(-11-i*1.4+Math.sin(t/40+i))*u,(0.9+i*0.4)*u,0,Math.PI*2);ctx.fill();}}
   ctx.restore();dot(fa[0],fa[1],2.2,T);}
+// Did a tap land on the monkey? (Where it was last drawn.)
+const mkHit=(x,y)=>!!(UI.mk&&UI.mk.sx!=null&&Math.hypot(x-UI.mk.sx,y-UI.mk.sy)<UI.mk.r);

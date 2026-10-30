@@ -4,7 +4,8 @@ const RARITY={c:{n:tr('common.common'),col:'#16A866'},r:{n:tr('common.rare'),col
 const st=()=>S.stats||{};
 const BADGES=[
  {id:'hello',i:'👋',t:tr('common.hello_neighbour'),d:tr('badges.bring_up_your_first_peering_session'),r:'c',ok:()=>R.sessions>=1},
- {id:'backhoe',i:'🚜',t:tr('badges.met_the_backhoe'),d:tr('badges.have_a_fiber_cut'),r:'c',ok:()=>(st().by||{}).cut>=1},
+ // Keeps its old id so badges already earned (in saves and the hall of fame) carry over.
+ {id:'backhoe',i:'🐒',t:tr('badges.met_the_chaos_monkey'),d:tr('badges.get_a_visit_from_the_chaos_monkey'),r:'c',ok:()=>(st().mkMet||0)>=1},
  {id:'debt',i:'🏦',t:tr('badges.in_debt_we_trust'),d:tr('badges.take_out_a_loan'),r:'c',ok:()=>(st().loans||0)>=1||(S.loans||[]).length>0},
  {id:'twins',i:'👯',t:tr('common.twins'),d:tr('badges.run_two_routers_in_one_pop'),r:'c',ok:()=>Object.values(S.pops).some(p=>(p.routers||1)>=2)},
  {id:'shark',i:'🦈',t:tr('common.shark_week'),d:tr('badges.get_a_subsea_cable_bitten_by'),r:'r',ok:()=>(st().sharks||0)>=1},
@@ -68,6 +69,7 @@ const BADGES=[
  {id:'toaster',i:'🍞',t:tr('common.toaster_wrangler'),d:tr('badges.weather_a_ddos_with_your_defences'),r:'c',ok:()=>(st().ddosHeld||0)>=1},
  {id:'cleanpipe',i:'🚿',t:tr('common.clean_pipes'),d:tr('badges.turn_on_a_transit_clean_pipe'),r:'r',ok:()=>S.transit.some(t=>t.clean)},
  {id:'lamb',i:'🐐',t:tr('common.sacrificial_lamb'),d:tr('badges.run_a_sacrificial_pni_choke_point'),r:'r',ok:()=>S.pni.some(p=>p.sacrif)},
+ {id:'monkey',i:'🛡️',t:tr('badges.monkey_proof'),d:tr('badges.outlast_a_chaos_monkey_visit'),r:'e',ok:()=>(st().mkSurv||0)>=1},
  {id:'flood',i:'🌊',t:tr('badges.held_the_flood'),d:tr('badges.weather_a_multi_terabit_ddos'),r:'e',ok:()=>(st().ddosMonster||0)>=1},
  {id:'skynot',i:'🤖',t:tr('common.skynot_smiles'),d:tr('badges.land_a_hackback_3000tm_that_actually'),r:'e',secret:true,ok:()=>(st().hackWin||0)>=1},
  {id:'zero',i:'🕳️',t:tr('badges.zero_peers_given'),d:tr('badges.reach_tier_2_with_every_single'),r:'l',secret:true,ok:()=>isTier2()&&!Object.keys(S.peers).length&&!S.pni.length},

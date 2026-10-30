@@ -154,7 +154,7 @@ test('rare badges hook into incidents and deals', () => {
   const { ev, errors } = load();
   base(ev);
   ev("addInc({type:'cut',ref:'x',until:S.day+1,msg:'A crocodile took a bite. A ship dragged its anchor.'});checkGoals()");
-  assert.ok(ev("S.ach.croc!==undefined&&S.ach.anchor!==undefined&&S.ach.backhoe!==undefined"));
+  assert.ok(ev("S.ach.croc!==undefined&&S.ach.anchor!==undefined&&S.ach.backhoe===undefined"), "a cut alone earns no Met the Chaos Monkey");
   ev("S.stats.survived=100;checkGoals()");
   assert.ok(ev("S.ach.unbreak!==undefined"));
   assert.equal(ev("BADGES.length>=46&&new Set(BADGES.map(b=>b.id)).size===BADGES.length"), true);

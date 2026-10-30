@@ -92,7 +92,8 @@ function drawFrame(now){
   if(pzOn()){for(const v of vis.slice().reverse())pzDrawCity(v,sc,now);}else for(const v of vis.slice().reverse())drawCity(v.C,v.sx,v.sy,sc,now,v.ly);
   // Architect runs: what the tubes between two cities are (one trench, or separate paths), above the cities.
   for(const [x,y,t,one] of AR_PILLS){ctx.font='800 11px "Baloo 2", sans-serif';const tw=ctx.measureText(t).width+12;ctx.fillStyle=one?'#FFE3C2':'#DDF7E7';ctx.strokeStyle=one?'#FF8A3D':'#16A866';ctx.lineWidth=2;rr(x-tw/2,y-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+1);}
-  if(UI.mk)mkDraw(ks);
+  // the chaos monkey (woken here after a reload, wherever it last snipped)
+  if(UI.mk)mkDraw(ks);else if(mkOn()&&!pzOn()&&CITY[S.monkey.c])mkStart(S.monkey.c);
   // floaters
   for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1){FLOATS.splice(i,1);continue;}
     for(const k of ks){const [sx,sy]=toS(f.x,f.y,k);ctx.globalAlpha=1-a*a;ctx.font='800 17px "Baloo 2", sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(f.text,sx,sy-a*40);ctx.fillStyle=f.col;ctx.fillText(f.text,sx,sy-a*40);ctx.globalAlpha=1;}}

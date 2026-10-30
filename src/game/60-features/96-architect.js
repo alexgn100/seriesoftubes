@@ -111,7 +111,7 @@ function arRouters(){for(const c in S.pops){const p=S.pops[c];p.routers=1;p.rgen
 // The yearly router cost a tube of this size would add at a city (0 when its router already takes it).
 function arRouterDelta(c,tier){const p=S.pops[c],cur=p?pzRtCost(p.rgen||0,1):0,need=Math.max(tier,...S.links.filter(l=>l.a===c||l.b===c).map(l=>l.tier)),g=AR_RG().find(i=>RG[i].maxLT>=need);return g==null?0:Math.max(0,pzRtCost(g,1)-cur);}
 const arSnapStr=()=>JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},k:S.ar.sunk});
-function arBegin(run){if(!run)return;const b0=run.briefs[0];
+function arBegin(run){if(!run)return;mkStop();const b0=run.briefs[0];
   pzBegin({id:'ar_'+run.id,n:run.n,src:[run.hq],dem:b0.add.map(c=>({t:'eye',a:c,g:1})),via:run.via,budget:0});
   pzToastsClear();S.pz.n=run.n;S.te={on:true,day:0};S.ar={id:run.id,hq:run.hq,bi:-1,sunk:0,over:0,dem:{},rings:[],gold:[],lat:null,passed:null,start:null};UI.arAll=false;arStop(true);
   S.pops[run.hq]=pzNewPop(run.hq);arApply(0);}

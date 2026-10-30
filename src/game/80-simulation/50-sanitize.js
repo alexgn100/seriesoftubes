@@ -13,6 +13,10 @@ function sanitize(s){
   s.priceMul=num(s.priceMul,1);s.nextFail=num(s.nextFail,s.day+45);s.nextEvent=num(s.nextEvent,s.day+40);s.lvl=int(s.lvl,1,LEVELS.length,1);s.neg=int(s.neg,0,1e7,0);s.loanStrikes=int(s.loanStrikes,0,1e3,0);
   for(const k of Object.keys(s.stats)){const v=s.stats[k];if(k==='by'||k==='f'){if(!v||typeof v!=='object')s.stats[k]={};else for(const j of Object.keys(v))v[j]=num(v[j],0);}else if(typeof v!=='boolean')s.stats[k]=num(v,0);}
   for(const k of ['survived','incidents','peak'])s.stats[k]=num(s.stats[k],0);
+  // The chaos monkey (2.0): saves without one get their first visit scheduled on the next day tick.
+  {const m=s.monkey&&typeof s.monkey==='object'&&!Array.isArray(s.monkey)?s.monkey:{},on=m.on?1:0,o={next:m.next==null?null:int(m.next,0,1e7,s.day+90),on};
+   if(on){o.start=int(m.start,0,s.day,s.day);o.until=int(m.until,o.start,o.start+400,s.day+30);o.snip=int(m.snip,0,1e7,s.day+3);o.n=int(m.n,0,1e4,0);o.hurt=int(m.hurt,0,o.n,0);o.c=isCity(m.c)?m.c:isCity(s.home)?s.home:null;}
+   s.monkey=o;}
   for(const c of Object.keys(s.pops)){const p=s.pops[c];if(!isCity(c)||!p||typeof p!=='object'){delete s.pops[c];continue;}p.routers=int(p.routers,1,RMAX,1);if(p.rupDay!==undefined)p.rupDay=num(p.rupDay,-1);if(p.rgen!==undefined)p.rgen=int(p.rgen,0,RG.length-1,0);p.down=num(p.down,0);if(p.bb&&typeof p.bb==='object')p.bb.d=num(p.bb.d,0);else p.bb=null;}
   if(!isCity(s.home))s.home=Object.keys(s.pops)[0]||'fra';
   opsSanitize(s);
