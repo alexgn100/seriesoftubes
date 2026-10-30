@@ -1,12 +1,13 @@
 Object.assign(ACT,{
  dfMode:({m})=>{UI.lmode=m;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
- seaPackage:({k})=>{if(!own(SUB_UPGRADES,k))return;UI['sea'+k]=!UI['sea'+k];if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
- subUpgrade:({id,k})=>{const l=S.links.find(l=>l.id===id);if(!l||l.kind!=='df'||!l.own||!l.sub||l.seat||!own(SUB_UPGRADES,k)||lvl()<4||l['sub'+k]!==undefined)return;if(!spend(subUpgradeCost(l,k)))return;l.paid=(l.paid>0?l.paid:ownCabCost(l.km))+subUpgradeCost(l,k);l['sub'+k]=Math.max(S.day,l.ready||0)+leadDays(SUB_UPGRADES[k].days);after();},
+ seaPackage:({k})=>{const p=UI.pending;if(!own(SUB_UPGRADES,k)||!p)return;const km=seaQuote(p.a,p.b,own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard').km,up=seaUps(km);
+   if(!up[k]&&!subHelps(km,k,up[subOther(k)]))return;UI.seaterminal=up.terminal;UI.seaengineering=up.engineering;UI['sea'+k]=!up[k];openLinkModal(p.a,p.b);},
+ subUpgrade:({id,k})=>{const l=S.links.find(l=>l.id===id);if(!l||l.kind!=='df'||!l.own||!l.sub||l.seat||!own(SUB_UPGRADES,k)||lvl()<4||l['sub'+k]!==undefined||!subHelps(l.km,k,l['sub'+subOther(k)]!==undefined))return;if(!spend(subUpgradeCost(l,k)))return;l.paid=(l.paid>0?l.paid:ownCabCost(l.km))+subUpgradeCost(l,k);l['sub'+k]=Math.max(S.day,l.ready||0)+leadDays(SUB_UPGRADES[k].days);after();},
  seaDesign:({v})=>{if(!own(SEA_DESIGNS,v))return;UI.seaDesign=v;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  ownCab:()=>{UI.lmode='df';UI.dfSrc='cable';UI.seaDesign='standard';UI.seaterminal=UI.seaengineering=false;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  dfSrc:({v})=>{UI.dfSrc=v;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
  dfSys:({v})=>{UI.dfSys=v;if(UI.pending)openLinkModal(UI.pending.a,UI.pending.b);},
- orderCable:()=>{const p=UI.pending;if(!p)return;const {a,b}=p;if(ownCabWhy(a,b))return;const design=own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard',up={terminal:!!UI.seaterminal,engineering:!!UI.seaengineering},q=seaQuote(a,b,design,up),km=q.km,cost=q.cost+(S.pops[b]?0:popCost(b));if(seaLack(km,up).length||!spend(cost))return;
+ orderCable:()=>{const p=UI.pending;if(!p)return;const {a,b}=p;if(ownCabWhy(a,b))return;const design=own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard',up=seaUps(seaQuote(a,b,design).km),q=seaQuote(a,b,design,up),km=q.km,cost=q.cost+(S.pops[b]?0:popCost(b));if(seaLack(km,up).length||!spend(cost))return;
    if(!S.pops[b])S.pops[b]={day:S.day,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0};
    const used=new Set(S.links.map(l=>l.cname).filter(Boolean)),cname=OWNCAB_NAMES.find(n=>!used.has(n))||`${pick(OWNCAB_NAMES)} ${used.size+1}`,ship=pick(OWNCAB_SHIPS),id=uid(),days=q.days;
    S.links.push({id,a,b,kind:'df',own:true,sub:true,seaDesign:design,seaPath:q.pts.map(p=>p.slice()),sys:'roadm',ch:[],km,cable:null,cname,mo:Math.round(km*OWNCAB_OM),trench:'own:'+id,cut:0,day:S.day,ready:S.day+days,spares:false,pairs:1});
