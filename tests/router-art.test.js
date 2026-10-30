@@ -17,11 +17,15 @@ test('every router model has a picture, and each one is valid SVG', () => {
   assert.equal(ev('rgArt(99)'), '');
 });
 
-test('only the POP overview shows a picture: the model in use', () => {
+test('only the POP overview shows a picture: its model, left of the city name', () => {
   const { ev, errors, dom } = load();
   ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;selectCity(S.home);UI.tab='links';UI.models=true;renderAll()");
   const pics = dom.window.document.querySelectorAll('#panel .rgpic');
   assert.equal(pics.length, 1, 'the model in use only, not the list of other models');
-  assert.ok(dom.window.document.querySelector('#panel .rgpic.big svg.rgart'), 'the one in use, big');
+  assert.ok(dom.window.document.querySelector('#panel .ph > .rgpic.big svg.rgart'), 'in the header, beside the name');
+  ev("UI.tab='cust';renderAll()");
+  assert.equal(dom.window.document.querySelectorAll('#panel .rgpic').length, 1, 'on every tab');
+  ev("selectCity(Object.keys(CITY).find(c=>!S.pops[c]&&!CITY[c].off));renderAll()");
+  assert.equal(dom.window.document.querySelectorAll('#panel .rgpic').length, 0, 'no POP, no router');
   assert.deepEqual(errors, []);
 });

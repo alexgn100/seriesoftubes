@@ -1,6 +1,8 @@
 function cityPanel(c){
   const C=CITY[c],p=S.pops[c],ix=ixName(c),down=p&&p.down>S.day;
-  let h=`<div class="ph"><div style="min-width:0"><div class="eyebrow">${REG[C.reg]} · ${esc(siteName(c,'a'))}</div><h2>${C.name}</h2>
+  // Your POP's router model, as a picture left of the name (10-catalog/25-router-art.js).
+  const art=p?rgArt(p.rgen||0):'';
+  let h=`<div class="ph">${art?`<span class="rgpic big phpic">${art}</span>`:''}<div style="min-width:0"><div class="eyebrow">${REG[C.reg]} · ${esc(siteName(c,'a'))}</div><h2>${C.name}</h2>
   <div class="facts"><span class="fact">${tr('city_panel.g_of_eyeballs',{g:fmtG(eyeP(c))})}</span>${grantFact(c)}${latSlow(c)?`<span class="fact bad">🐢 ${tr('city_panel.ms_ms_to_transit',{ms:Math.round(R.latFar[c].ms)})}</span>`:''}${regionMult(c)>1?`<span class="fact">${tr('city_panel.transit_x_pricier',{x:regionMult(c)})}</span>`:''}${C.kr&&scnRule('sender')?`<span class="fact">${tr('city_panel.sender_pays_fee_per_gbps',{fee:fmt$(KR_FEE)})}</span>`:''}${colo(c)>1?`<span class="fact">${tr('city_panel.few_data_centers_pops_x',{x:colo(c)})}</span>`:''}${C.reg==='AS'&&!C.cn?'<span class="fact ixf">'+tr('city_panel.underserved_users_grow_60_faster')+'</span>':''}${ix?`<span class="fact ixf">${tr('city_panel.ix_ix',{ix:esc(ix)})}</span>`:''}${p?`<span class="fact mine">${tr('common.your_pop')}</span><button class="fact trb" data-act="trace" data-args='{"city":"${c}"}'>🔍 ${tr('common.traceroute')}</button>`:''}${down?`<span class="fact down">DOWN</span>`:''}</div></div>
   <button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   if(!p){
@@ -65,7 +67,7 @@ function cityPanel(c){
     const ls=S.links.filter(l=>l.a===c||l.b===c);
     const rt=p.routers||1,g=p.rgen||0,G=RG[g],nl=R.nodeLoad[c]||0,nc=R.nodeCap[c]||nodeCap(c),Ni=g===mainRG(G.cls)?mainRG(G.cls+1):-1,N=Ni>=0?RG[Ni]:null,pu=portsUsed(c),pm=portsMax(c);
     h+=`<section><h3>${tr('common.routers')}</h3><p class="lead">${tr('city_panel.the_model_sets_your_fastest')}</p>
-    <div class="row rgrow">${rgArt(g)?`<span class="rgpic big">${rgArt(g)}</span>`:`<span class="logo" style="--c:${G.badge?'#2C7A7B':'#FF4F9A'}">${G.badge||'R'+(G.cls+1)}</span>`}<div class="grow"><div class="nm">${rt} × ${esc(G.n)}</div><div class="meta">${tr('city_panel.up_to_pn_interfaces_ports_ports',{pn:G.pn,ports:G.ports,cap:fmtG(G.cap)})} · ${esc(G.blurb)}</div></div></div>
+    <div class="row"><span class="logo" style="--c:${G.badge?'#2C7A7B':'#FF4F9A'}">${G.badge||'R'+(G.cls+1)}</span><div class="grow"><div class="nm">${rt} × ${esc(G.n)}</div><div class="meta">${tr('city_panel.up_to_pn_interfaces_ports_ports',{pn:G.pn,ports:G.ports,cap:fmtG(G.cap)})} · ${esc(G.blurb)}</div></div></div>
     <div class="kv"><span>${tr('common.router_ports')}</span><b>${tr('city_panel.used_max_in_use',{used:fmtPorts(pu),max:pm})}</b></div><div class="bar ${barCls(pu/pm)}"><i style="width:${Math.min(100,pu/pm*100)}%"></i></div>${pu>=pm?`<p class="why">${tr('city_panel.every_port_is_taken_add_a')}</p>`:''}
     <div class="kv"><span>${tr('common.forwarding_chip')}</span><b>${esc(G.chip)}</b></div><div class="kv"><span>${tr('common.boot_time')}</span><b>${slowBoot(c)?`<span style="color:var(--bad)">${tr('city_panel.n_min_a_slow_one',{n:bootMin(c)})}</span>`:tr('city_panel.n_min',{n:bootMin(c)})}</b></div>${slowBoot(c)?`<p class="note">${tr('city_panel.this_chassis_takes_forever_to_boot')}</p>`:''}
     <div class="kv"><span>${tr('common.forwarding_load')}</span><b>${fmtG(nl)} / ${fmtG(nc)}</b></div><div class="bar ${barCls(nl/nc)}"><i style="width:${Math.min(100,nl/nc*100)}%"></i></div>

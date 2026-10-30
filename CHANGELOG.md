@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The project follows
 
 ## [2.0.0] — 2026-10-29
 
-- Every router model has its own picture: open a POP's routers to meet the one it runs.
+- Every router model has its own picture: open one of your POPs and its router sits next to the city's name.
 - A new Architect run every week: every Sunday a fresh HQ somewhere in the world and six or seven briefs, each built around the network you already have, with its own stars. Sites can outgrow their tubes, so some briefs are about making room. Later briefs stay a surprise in every Architect run: their cities only appear when they come.
 - In puzzles, the map now shows whether the tubes between two cities share one trench or take separate paths, at any zoom: one trench is drawn as a bundle with a "2× one trench" tag, separate paths bow apart with a "2 paths" tag.
 - Every puzzle now has the chaos monkey: when your build earns a new star, it runs round the map snipping each trench and cable in turn, and the cities that lose traffic say how much. Let it loose again whenever you like, or skip straight to the stars.
