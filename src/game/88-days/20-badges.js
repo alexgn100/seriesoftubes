@@ -68,6 +68,7 @@ const BADGES=[
  {id:'toaster',i:'🍞',t:tr('common.toaster_wrangler'),d:tr('badges.weather_a_ddos_with_your_defences'),r:'c',ok:()=>(st().ddosHeld||0)>=1},
  {id:'cleanpipe',i:'🚿',t:tr('common.clean_pipes'),d:tr('badges.turn_on_a_transit_clean_pipe'),r:'r',ok:()=>S.transit.some(t=>t.clean)},
  {id:'lamb',i:'🐐',t:tr('common.sacrificial_lamb'),d:tr('badges.run_a_sacrificial_pni_choke_point'),r:'r',ok:()=>S.pni.some(p=>p.sacrif)},
+ {id:'monkey',i:'🐒',t:tr('badges.monkey_proof'),d:tr('badges.outlast_a_chaos_monkey_visit'),r:'e',ok:()=>(st().mkSurv||0)>=1},
  {id:'flood',i:'🌊',t:tr('badges.held_the_flood'),d:tr('badges.weather_a_multi_terabit_ddos'),r:'e',ok:()=>(st().ddosMonster||0)>=1},
  {id:'skynot',i:'🤖',t:tr('common.skynot_smiles'),d:tr('badges.land_a_hackback_3000tm_that_actually'),r:'e',secret:true,ok:()=>(st().hackWin||0)>=1},
  {id:'zero',i:'🕳️',t:tr('badges.zero_peers_given'),d:tr('badges.reach_tier_2_with_every_single'),r:'l',secret:true,ok:()=>isTier2()&&!Object.keys(S.peers).length&&!S.pni.length},

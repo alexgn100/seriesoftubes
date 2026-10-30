@@ -361,6 +361,27 @@ test('F3: a specialist path only brings customers you can already serve', () => 
   assert.deepEqual(g.errors, []);
 });
 
+test('F4: the chaos monkey only visits On-call and BGP at 3 a.m., late, for 120 to 240 days, instead of the ordinary failures', () => {
+  for (const preset of ['freeze', 'oncall', 'bgp']) {
+    const g = load();
+    g.ev(`beginGame('Monkey','fra',{mode:'normal',preset:'${preset}'});if(UI.pendGame)ACT.pitchSkip()`);
+    g.ev("S.cash=1e9;S.lvl=4;for(const c of ['ams','lon','par'])ACT.buildPop({city:c});for(const [a,b] of [['fra','ams'],['ams','lon'],['lon','par'],['par','fra']]){UI.pending={a,b};ACT.buildLink({tier:1});}closeModal()");
+    g.ev('for(let i=0;i<2;i++)dayTick()');
+    if (preset === 'freeze') { assert.equal(g.ev('mkElig()'), false, 'F4: never in Change Freeze'); continue; }
+    assert.ok(g.ev('S.monkey.next') >= 180, 'F4: not before day 180');
+    g.ev('S.monkey.next=S.day;dayTick();S.nextFail=S.day');
+    const len = g.ev('S.monkey.until-S.monkey.start');
+    assert.ok(len >= 120 && len <= 240, `F4: a visit of ${len} days`);
+    g.ev('for(let i=0;i<40;i++)dayTick()');
+    assert.ok(g.ev('S.nextFail') <= g.ev('S.day'), 'F4: no ordinary failure fired during the visit');
+    assert.ok(g.ev("S.inc.filter(i=>i.type==='cut').every(i=>i.until-i.start<=(rule('chaos')==='spicy'?11:7))"), 'F4: snips heal within a week (spicy stretches by half)');
+    assert.deepEqual(g.errors, []);
+  }
+  const g = load();
+  g.ev("beginGame('Monkey','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.mode='sandbox'");
+  assert.equal(g.ev('mkElig()'), false, 'F4: never in Sandbox');
+});
+
 test('no page errors while checking the rules', () => {
   assert.deepEqual(errors, []);
 });
