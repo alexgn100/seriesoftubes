@@ -25,8 +25,8 @@ self.addEventListener('fetch', (e) => {
   }
   const local = url.origin === location.origin, fonts = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
   if (!local && !fonts) return;
-  // Weekly puzzles and scenarios are published between releases: ask the network first, and keep a copy for offline.
-  if (local && (url.pathname.startsWith('/puzzles/weekly/') || url.pathname.startsWith('/scenarios/weekly/'))) {
+  // Weekly puzzles, scenarios and Architect runs are published between releases: ask the network first, and keep a copy for offline.
+  if (local && (url.pathname.startsWith('/puzzles/weekly/') || url.pathname.startsWith('/scenarios/weekly/') || url.pathname.startsWith('/architect/weekly/'))) {
     e.respondWith(fetch(req).then((r) => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return r; })
       .catch(() => caches.match(req).then((r) => r || Response.error())));
     return;

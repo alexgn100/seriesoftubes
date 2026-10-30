@@ -41,17 +41,17 @@ const AR_RUNS=[
  ]},
 ];
 const arOn=()=>pzOn()&&!!S.ar;
-const arRunDef=id=>AR_RUNS.find(r=>r.id===id)||null;
+const arRunDef=id=>AR_RUNS.find(r=>r.id===id)||arWkRun(id);
 const arRun=()=>arRunDef(S.ar.id);
 const arBrief=()=>arRun().briefs[S.ar.bi];
 const arLast=()=>S.ar.bi>=arRun().briefs.length-1;
 // ---------- progress: best stars, spend and briefs cleared per run, under its own key ----------
 function arLoad(){let j=null;try{j=JSON.parse(localStorage.getItem(AR_KEY)||'{}');}catch(e){}const o={runs:{}};
-  if(j&&j.runs&&typeof j.runs==='object')for(const k of Object.keys(j.runs)){const r=j.runs[k];if(!arRunDef(k)||!r||typeof r!=='object')continue;
-    o.runs[k]={st:int(r.st,0,3,0),br:int(r.br,0,99,0),sp:r.sp==null||!isFinite(+r.sp)||+r.sp<0?null:Math.round(+r.sp)};}
+  if(j&&j.runs&&typeof j.runs==='object')for(const k of Object.keys(j.runs)){const r=j.runs[k];if((!arRunDef(k)&&!AR_WK_ID.test(k))||!r||typeof r!=='object')continue;
+    o.runs[k]={st:int(r.st,0,3,0),br:int(r.br,0,99,0),sp:r.sp==null||!isFinite(+r.sp)||+r.sp<0?null:Math.round(+r.sp)};if(AR_WK_ID.test(k))o.runs[k].rv=int(r.rv,1,999,1);}
   return o;}
 function arStore(p){try{localStorage.setItem(AR_KEY,JSON.stringify(p));}catch(e){}}
-function arRecord(st,br,sp){const p=arLoad(),r=p.runs[S.ar.id]||{st:0,br:0,sp:null};
+function arRecord(st,br,sp){const p=arLoad(),run=arRun(),old=p.runs[S.ar.id],r=old&&(!run.wk||(old.rv||1)===run.rev)?old:{st:0,br:0,sp:null};if(run.wk)r.rv=run.rev;
   if(st>r.st||(st===r.st&&st>0&&(r.sp==null||sp<r.sp))){r.st=st;r.sp=st?sp:r.sp;}r.br=Math.max(r.br,br);p.runs[S.ar.id]=r;arStore(p);}
 // ---------- money ----------
 // What a POP or a link costs for the year, as the puzzles count it.
@@ -121,7 +121,8 @@ function arApply(i){const A=S.ar,P=S.pz,b=arRun().briefs[i];A.bi=i;
   for(const c of b.gold||[])if(!A.gold.includes(c))A.gold.push(c);
   if(b.ring)A.rings.push(b.ring.slice());Object.assign(A.dem,b.dem||{});
   if(b.lat)A.lat=b.lat.slice();A.passed=null;
-  P.via=[...new Set(arRun().briefs.slice(i+1).flatMap(x=>[...(x.add||[]),...(x.gold||[]),...(x.ring||[])]))].filter(c=>!P.cities.includes(c)&&!P.avoid.includes(c));
+  // Later briefs stay a surprise: their cities do not show until they come (Show all cities shows everything).
+  P.via=(arRun().via||[]).filter(c=>!P.cities.includes(c)&&!P.avoid.includes(c));
   arDemand();A.start=arSnapStr();UI.pzHist=[];UI.sel=null;UI.arFail=null;
   compute();pzCam();renderAll();
   toast(`<b>${tr('architect.brief_n_of_m',{n:i+1,m:arRun().briefs.length})}</b><br>${esc(b.t)}`,'goal');sfx('click');}

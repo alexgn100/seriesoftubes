@@ -39,7 +39,7 @@ test('architect runs: the chaos monkey finds a shared trench, edits clear the cu
   const { ev, errors } = load();
   ev("ACT.pzArStart({id:'euro'})");
   assert.equal(ev("arHide('lis')&&arHide('bru')"), true, 'cities outside the run are hidden');
-  assert.equal(ev("arHide('dus')"), false);
+  assert.equal(ev("arHide('dus')"), true, 'a city a later brief adds stays hidden until then');
   // Later briefs stay a surprise: nothing on the map or a city card says where the run goes next.
   assert.equal(ev("typeof arTags"), 'undefined');
   ev("UI.sel={type:'city',id:'fra'};renderPanel()");

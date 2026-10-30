@@ -65,7 +65,7 @@ function arLinkModal(a,b,keep){const kb=pzKind(b);
 // ---------- results ----------
 const arLine=st=>st>=3?tr('architect.line_3'):st===2?tr('architect.line_2'):tr('architect.line_1');
 function arResults(done){const A=S.ar,run=arRun(),sp=arSpend(),br=done?run.briefs.length:A.bi,st=done?arStars(sp):0,sh=arShape();arRecord(st,br,sp);
-  const nx=AR_RUNS[AR_RUNS.indexOf(run)+1]||null,stars=[0,1,2].map(i=>`<span class="pzbig${i<st?' on pop':''}" style="--d:${i*0.45}s">⭐</span>`).join('');
+  const ri=AR_RUNS.indexOf(run),nx=ri>=0?AR_RUNS[ri+1]||null:null,stars=[0,1,2].map(i=>`<span class="pzbig${i<st?' on pop':''}" style="--d:${i*0.45}s">⭐</span>`).join('');
   openModal(`<div class="pzres">${st>=3?pzConfetti():''}<div style="display:flex;align-items:center"><div class="grow"><div class="eyebrow">🏗️ ${done?tr('architect.run_complete'):tr('architect.run_over')}</div><h2 style="font-size:28px">${esc(run.n)}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>
   <div class="pzstars">${stars}</div><p class="tagline" style="text-align:center">${done?arLine(st):tr('architect.the_cfo_pulled_the_plug')}</p>
   <div class="kv"><span>${done?'⭐':'☆'} ${tr('architect.briefs_done')}</span><b>${br} / ${run.briefs.length}</b></div>
@@ -75,7 +75,7 @@ function arResults(done){const A=S.ar,run=arRun(),sp=arSpend(),br=done?run.brief
   <div class="btns cta" style="margin-top:12px">${nx&&done?btn(tr('architect.next_run')+' →','pzArStart',{id:nx.id},'pink big'):btn(tr('puzzles.more_puzzles'),'puzzleMenu',{},'pink big')}${btn(tr('architect.try_again'),'pzRetry',{},'')}${done?btn(tr('common.share_2cd9'),'pzShare',{},'ghost'):btn(tr('architect.keep_going'),'closeModal',{},'ghost')}</div></div>`);
   for(let i=0;i<st;i++)setTimeout(()=>{sfx('star');haptic(15);},i*450+150);if(st>=3)setTimeout(()=>sfx('fanfare'),3*450+250);}
 // ---------- the list ----------
-function arMenuRows(){const p=arLoad();let h=`<h3 class="pzpack">🏗️ ${tr('architect.architect_runs')} <span class="pznew">${tr('architect.new')}</span></h3><p class="meta" style="margin:0 0 2px">${tr('architect.runs_lead')}</p>`;
+function arMenuRows(){const p=arLoad();let h=`<h3 class="pzpack">🏗️ ${tr('architect.architect_runs')} <span class="pznew">${tr('architect.new')}</span></h3><p class="meta" style="margin:0 0 2px">${tr('architect.runs_lead')}</p>`;arWkEnsure();h+=arWkRow();
   for(const r of AR_RUNS){const x=p.runs[r.id];
     h+=`<div class="scn"><div class="grow"><div class="nm">${esc(r.n)} <span class="pzst">${pzStarStr(x?x.st:0)}</span></div><div class="meta">${esc(r.j)}</div><div class="meta">${tr('architect.n_briefs',{n:r.briefs.length})} · 🏠 ${esc(CITY[r.hq].name)}${' · '+tr('puzzles.budget_x',{x:fmt$(r.budget)})}${x&&x.sp!=null?' · '+tr('puzzles.best_x',{x:fmt$(x.sp)}):x&&x.br?' · '+tr('architect.best_n_briefs',{n:x.br}):''}</div></div>${btn(tr('common.play'),'pzArStart',{id:r.id},x&&x.st>=3?'ghost':'pink')}</div>`;}
   return h;}

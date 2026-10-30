@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
-          for d in site/puzzles/weekly site/scenarios/weekly; do
+          for d in site/puzzles/weekly site/scenarios/weekly site/architect/weekly; do
             if git cat-file -e "FETCH_HEAD:$d" 2>/dev/null; then
               rm -rf "$d"
               git checkout FETCH_HEAD -- "$d"
@@ -92,11 +92,12 @@ jobs:
           if [ ! -f scripts/weekly-puzzle.js ]; then echo "This release does not read weekly puzzles yet."; exit 0; fi
           node scripts/weekly-puzzle.js --check
           if [ -f scripts/weekly-scenario.js ]; then node scripts/weekly-scenario.js --check; fi
+          if [ -f scripts/weekly-architect.js ]; then node scripts/weekly-architect.js --check; fi
       - run: npm test
         if: ${{ !inputs.weekly }}
       - name: Test the weekly puzzles against this release
         if: ${{ inputs.weekly && hashFiles('scripts/weekly-puzzle.js') != '' }}
-        run: npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js $(ls tests/weekly-scenario.test.js 2>/dev/null)
+        run: npm test -- tests/weekly-puzzle.test.js tests/puzzles.test.js $(ls tests/weekly-scenario.test.js tests/weekly-architect.test.js 2>/dev/null)
       - name: Build site
         run: VERSION="${TAG#v}" REQUIRE_NOTES=1 npm run build
       - uses: actions/upload-pages-artifact@v5

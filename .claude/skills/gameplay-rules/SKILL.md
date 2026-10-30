@@ -55,6 +55,7 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | C1 | Every scenario has a name, a goal, an `ok()` its progress card (`SCN_PROG`) shows, and cannot be won on day 0; so does every committed weekly scenario (`site/scenarios/weekly/`, its goal type's card in `WS_GOALS`). | A goal must need play. |
 | C2 | Every puzzle has a 1-star and a 3-star reference solution in `REF` of `tests/puzzles.test.js`, which builds and scores them. | Every puzzle is solvable and every star reachable. |
 | C3 | Every player-facing string is translated in every language (`node scripts/i18n-check.js`: 0 missing, 0 unused, 0 broken). | CLAUDE.md; see `add-strings`. |
+| C4 | Every Architect run, handmade (`REF` in `tests/architect.test.js`) or weekly (`ref` in its file, `scripts/weekly-architect.js --check`), has a reference build that passes every brief's chaos monkey review and earns three stars; every weekly brief takes at least one tube, and later briefs' cities stay hidden until they come. | A run you cannot finish, or a brief that asks for nothing, is not a puzzle; knowing the next brief makes it a chore. |
 
 ## Fun and fairness
 
