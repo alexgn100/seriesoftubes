@@ -16,10 +16,26 @@ test('the generator makes the same run for the same week, and its reference earn
   const g = game(), a = AW.generate(g, '2026-W50', tmp()), b = AW.generate(g, '2026-W50', tmp());
   assert.deepEqual(a, b, 'deterministic');
   assert.ok(a.briefs.length >= 6 && a.briefs.length <= 7);
-  assert.ok(a.briefs.every((x) => x.tubes >= 1), 'every brief asks for at least one tube');
+  assert.ok(a.ref.steps.every((st) => st.length >= 1), 'every brief asks for a change: a tube, a bigger tube or a move');
   assert.ok(a.briefs.some((x) => x.gold), 'something is mission-critical');
   assert.ok(a.budget >= a.ref.spend && a.budget <= a.ref.spend * 1.1 + 10000, 'the budget sits just above the reference');
   assert.equal(AW.verify(g, a, '2026-W50').ok, true);
+});
+
+test('a grow brief makes the reference make room: a bigger tube or a second one', () => {
+  const g = game(), d = tmp(), runs = ['2026-W47', '2026-W49', '2026-W53'].map((k) => AW.generate(g, k, d));
+  const grows = runs.flatMap((j) => j.briefs.map((b, i) => [j, b, i]).filter(([, b]) => b.dem && !b.add));
+  assert.ok(grows.length >= 1, 'some weeks grow a site');
+  for (const [j, b, i] of grows) {
+    const [c, gb] = Object.entries(b.dem)[0];
+    assert.ok(gb > 100 || j.briefs.slice(0, i).some((x) => x.dem && x.dem[c] && x.dem[c] < gb), 'the site really grows');
+    assert.ok(j.ref.steps[i].length >= 1, 'and that brief takes a change');
+  }
+  const { ev } = load();
+  const [j, b] = grows[0];
+  ev(`UI.arWk={key:'${j.key}',def:arWkValid(${JSON.stringify(j)},'${j.key}'),at:Date.now()}`);
+  const c = Object.keys(b.dem)[0];
+  assert.ok(ev(`UI.arWk.def.briefs.some(x=>x.t.includes(CITY['${c}'].name+' grows to'))`), 'the brief says so');
 });
 
 test('every published week is accepted and its reference still earns three stars', () => {
@@ -59,7 +75,7 @@ test('this week\'s run shows in Puzzles, plays like a handmade one and keeps its
   assert.equal(ev(`arHide('${j.briefs[1].add[0]}')`), true, 'the next brief\'s cities stay hidden');
   // The reference, played through: three stars, stored under the week, and no handmade run offered as "next".
   j.ref.steps.forEach((st, i) => {
-    for (const s of st) if (s[0] === '@rm') ev(`ACT.pzRmPop({city:'${s[1]}'})`); else ev(`ACT.pzLinkTo({a:'${s[0]}',b:'${s[1]}'});ACT.pzVia({v:'${s[2]}'});ACT.pzDiv({v:1});ACT.pzLink({tier:AR_TIER});closeModal()`);
+    for (const s of st) AW.step(ev, s);
     ev('arShowStart();arShowSkip()');
     assert.ok(ev('S.ar.passed===pzSig()'), `brief ${i + 1} passes`);
     ev('ACT.pzArNext()');

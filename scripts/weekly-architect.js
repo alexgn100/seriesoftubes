@@ -23,7 +23,7 @@ const path = require('node:path');
 const { game, world } = require('./weekly-puzzle');
 
 const ROOT = path.join(__dirname, '..');
-const SCHEMA = 1, HISTORY = 4, ATTEMPTS = 40, DEM_MAX = 100;
+const SCHEMA = 1, HISTORY = 4, ATTEMPTS = 40, DEM_MAX = 380;
 const NAMES = ['architect_weekly.name_all_roads_lead_to_hq', 'architect_weekly.name_the_hq_job', 'architect_weekly.name_hq_and_friends'];
 const JOKES = ['architect_weekly.joke_hq_signed_the_lease', 'architect_weekly.joke_one_network_a_handful'];
 
@@ -40,13 +40,35 @@ const J = (ev, code) => JSON.parse(ev(`JSON.stringify(${code})`));
 function stage(ev, key, hq, briefs) {
   ev(`UI.arWk={key:'${key}',def:{id:arWkId('${key}'),key:'${key}',wk:true,n:'',j:'',hq:'${hq}',via:[],budget:2e7,briefs:${JSON.stringify(briefs)},rev:1},at:Date.now()}`);
 }
-// Lay one tube the way a player does: a diverse trench when the pair already has one overland.
-function lay(ev, a, b, via) {
+// Lay one tube the way a player does: a diverse trench when the pair already has one overland. The size is what all
+// the traffic needs (100G, or 400G once there is more than 100G), smaller where a long cable cannot take it.
+const tierFor = (ev) => (ev('S.pz.cities.reduce((a,c)=>a+(c===S.ar.hq?0:arDem(c)),0)') > 100 ? 2 : 1);
+function lay(ev, a, b, via, tier) {
   if (!ev(`!!S.pops['${a}']`)) [a, b] = [b, a];
   const n = ev('S.links.length');
-  ev(`ACT.pzLinkTo({a:'${a}',b:'${b}'});ACT.pzVia({v:'${via}'});ACT.pzDiv({v:1});ACT.pzLink({tier:AR_TIER});closeModal()`);
-  if (ev('S.links.length') !== n + 1) throw new Error(`could not lay ${a}-${b} ${via}`);
-  return [a, b, via];
+  for (let t = tier == null ? tierFor(ev) : tier; t >= 0; t--) {
+    ev(`ACT.pzLinkTo({a:'${a}',b:'${b}'});ACT.pzVia({v:'${via}'});ACT.pzDiv({v:1});ACT.pzLink({tier:${t}});closeModal()`);
+    if (ev('S.links.length') === n + 1) return [a, b, via, t];
+    if (tier != null) break;
+  }
+  throw new Error(`could not lay ${a}-${b} ${via}`);
+}
+// One step of a reference, as the file keeps it: a tube [a, b, route, size], ['@rm', city] closing a POP, or
+// ['@tier', n, size] resizing the n-th tube.
+function step(ev, s) {
+  if (s[0] === '@rm') { ev(`ACT.pzRmPop({city:'${s[1]}'})`); return; }
+  if (s[0] === '@tier') { const n = ev(`(()=>{const l=S.links[${s[1]}];ACT.pzTier({id:l.id,tier:${s[2]}});return S.links[${s[1]}].tier;})()`); if (n !== s[2]) throw new Error(`could not resize tube ${s[1]}`); return; }
+  lay(ev, s[0], s[1], s[2], s[3]);
+}
+// Room for the traffic: upsize the busiest tube that is not cut (or, when it cannot grow, lay a second one beside it).
+function makeRoom(ev, W, steps, cut) {
+  const ls = J(ev, `(()=>{${cut ? `for(const l of S.links)if(pzUnit(l)===${JSON.stringify(cut)})l.cut=1;` : ''}compute();const o=S.links.map((l,i)=>({i,a:l.a,b:l.b,cut:!!l.cut,tier:l.tier,u:(R.load[l.id]||0)/capOf(l)})).filter(x=>!x.cut).sort((x,y)=>y.u-x.u);for(const l of S.links)l.cut=0;compute();return o;})()`);
+  for (const l of ls.slice(0, 3)) {
+    if (l.tier < 2) { const t = ev(`(()=>{const l=S.links[${l.i}];ACT.pzTier({id:l.id,tier:${l.tier + 1}});return S.links[${l.i}].tier;})()`); if (t === l.tier + 1) { steps.push(['@tier', l.i, t]); return; } }
+    const o = W.opts(l.a, l.b).filter((x) => !x.second).sort((x, y) => x.cost - y.cost)[0];
+    if (o) { try { steps.push(lay(ev, o.a, o.b, o.via)); return; } catch (e) { /* try the next tube */ } }
+  }
+  throw new Error('no room to be made');
 }
 // What the review would say: the first cut that strands a mission-critical site or leaves a site short.
 const reviewFail = (ev) => J(ev, `(()=>{let f=null;for(const u of [...new Set(S.links.map(pzUnit))]){const x=arCut(u);for(const l of x.ls)l.cut=0;if(x.gold.length||x.short.length){f={u,gold:x.gold,short:x.short,dark:x.dark};break;}}compute();return f;})()`);
@@ -64,9 +86,9 @@ function solveBrief(ev, W, steps) {
     if (rg) { const cs = rg.cs, has = J(ev, 'S.links.map(l=>edgeKey(l))'); let done = false;
       for (let i = 0; i < cs.length && !done; i++) { const a = cs[i], b = cs[(i + 1) % cs.length]; if (has.includes(ev(`edgeKey({a:'${a}',b:'${b}'})`))) continue; const o = best([a], [b]); if (o) { steps.push(lay(ev, o.a, o.b, o.via)); done = true; } }
       if (!done) throw new Error('ring out of reach'); continue; }
-    if (!e.ready) throw new Error(`not ready: ${e.why}`);
+    if (!e.ready) { if (/thin/i.test(e.why) || J(ev, 'arEval().sites.some(s=>!s.full)')) { makeRoom(ev, W, steps, null); continue; } throw new Error(`not ready: ${e.why}`); }
     const f = reviewFail(ev); if (!f) return;
-    if (f.short.length) throw new Error('short of capacity');
+    if (f.short.length && !f.gold.length) { makeRoom(ev, W, steps, f.u); continue; }
     // A cut strands a mission-critical site: join the stranded side to the rest another way.
     const rest = J(ev, `Object.keys(S.pops).filter(c=>!${JSON.stringify(f.dark)}.includes(c))`), o = best(f.dark, rest, f.u);
     if (!o) throw new Error('no second way'); steps.push(lay(ev, o.a, o.b, o.via));
@@ -88,6 +110,8 @@ function design(kind, ev, W, r, s) {
       const ms = Math.min(...os.map((x) => x.ms)), cap = Math.ceil(ms * 1.12 * 10) / 10; if (cap < 2 || cap >= cur * 0.85) continue;
       if (!bestP || cur / cap > bestP.k) bestP = { a, b, cap, k: cur / cap }; }
     if (!bestP) return null; s.lat = [bestP.a, bestP.b]; return { lat: [bestP.a, bestP.b, bestP.cap] }; }
+  if (kind === 'grow') { const cs = pops.filter((c) => c !== hq).map((c) => [c, ev(`arDem('${c}')`)]).sort((x, y) => y[1] - x[1]); if (!cs.length || s.room < 60) return null;
+    const [c, d] = cs[0], g = d + Math.min(s.room, pick(r, [60, 90, 120])); s.room -= g - d; return { dem: { [c]: g } }; }
   if (kind === 'ring') { const cs = pops.filter((c) => c !== hq).sort((a, b) => W.km(hq, a) - W.km(hq, b)).slice(0, 2); if (cs.length < 2) return null;
     const ring = [hq, ...cs]; if (ev(`arRingOk(${JSON.stringify(ring)})`)) return null; return { ring }; }
   return null;
@@ -102,14 +126,14 @@ function play(g, W, key, hq, plan, r, sites) {
     if (plan[i] === 'add1') b = first();
     else if (plan[i] === 'add2') { if (s.todo.length < 2) throw new Error('not enough sites'); const a = s.todo.shift(), c = s.todo.shift(), ga = Math.min(s.room, 20); s.room -= ga; const gc = Math.min(s.room, pick(r, [10, 20])); s.room -= gc; b = { add: [a, c], dem: { [a]: ga, [c]: gc } }; }
     // A kind that cannot be made here gives way to one the run has not had yet, then to a new mission-critical site.
-    else for (const k of [plan[i], ...['lat', 'ring', 'move', 'gold'].filter((x) => !plan.slice(0, i).includes(x) && x !== plan[i]), 'addgold']) { b = design(k, ev, W, r, s); if (b) { plan[i] = k; break; } }
+    else for (const k of [plan[i], ...['lat', 'ring', 'move', 'grow', 'gold'].filter((x) => !plan.slice(0, i).includes(x) && x !== plan[i]), 'addgold']) { b = design(k, ev, W, r, s); if (b) { plan[i] = k; break; } }
     if (!b) throw new Error(`brief ${i + 1}: nothing left to ask`);
     b.tubes = 9; briefs.push(b); stage(ev, key, hq, briefs.map((x) => Object.assign({ t: '' }, x)));
     if (i === 0) ev(`ACT.pzArStart({id:arWkId('${key}')})`); else ev('ACT.pzArNext()');
     if (ev('S.ar.bi') !== i) throw new Error(`brief ${i + 1} did not start`);
     const st = []; solveBrief(ev, W, st); steps.push(st);
     b.tubes = ev('S.links.filter(l=>(l.br|0)===S.ar.bi).length');
-    if (!b.tubes) throw new Error(`brief ${i + 1} needs no tube`);
+    if (!st.length) throw new Error(`brief ${i + 1} asks for nothing new`);
     ev(`UI.arWk.def.briefs[${i}].tubes=${b.tubes}`);
     if (!passes(ev)) throw new Error(`brief ${i + 1}: the review does not pass`);
   }
@@ -125,7 +149,7 @@ function verify(g, j, key) {
     ev(`UI.arWk={key:'${key}',def:arWkValid(${JSON.stringify(j)},'${key}'),at:Date.now()}`);
     ev(`ACT.pzArStart({id:arWkId('${key}')})`);
     for (let i = 0; i < def.briefs.length; i++) {
-      for (const st of j.ref.steps[i]) if (st[0] === '@rm') ev(`ACT.pzRmPop({city:'${st[1]}'})`); else lay(ev, st[0], st[1], st[2]);
+      for (const st of j.ref.steps[i]) step(ev, st);
       if (!passes(ev)) return { ok: false, why: `brief ${i + 1} does not pass` };
       if (i < def.briefs.length - 1) ev('ACT.pzArNext()');
     }
@@ -146,7 +170,7 @@ function generate(g, key, dir) {
     const hq = pick(r, hqs).id;
     const near = W.cities.filter((c) => c.id !== hq && c.reg === W.C[hq].reg && W.km(hq, c.id) < 2500).sort((a, b) => W.km(hq, a.id) - W.km(hq, b.id)).slice(0, 8).map((c) => c.id);
     if (near.length < 6) continue;
-    const mid = shuffle(r, ['lat', 'ring', 'move', 'addgold']).slice(0, r() < 0.5 ? 2 : 3);
+    const mid = shuffle(r, ['lat', 'ring', 'move', 'addgold', 'grow']).slice(0, r() < 0.5 ? 2 : 3);
     const plan = ['add1', 'add2', 'gold', ...mid, 'gold'];
     const sites = [...near.slice(0, 3), ...shuffle(r, near.slice(3))];
     try {
@@ -191,9 +215,9 @@ function refresh(g, dir, now = Date.now()) {
 }
 const writeIndex = (dir) => fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({ v: SCHEMA, weeks: list(dir) }) + '\n');
 const writeWeek = (dir, j) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, j.key + '.json'), JSON.stringify(j) + '\n'); writeIndex(dir); };
-const say = (j) => `${j.key}: HQ ${j.hq}, ${j.briefs.length} briefs (${j.briefs.map((b) => Object.keys(b).filter((k) => k !== 'tubes' && k !== 'dem').join('+')).join(', ')}), budget ${j.budget}, reference ${j.ref.spend}`;
+const say = (j) => `${j.key}: HQ ${j.hq}, ${j.briefs.length} briefs (${j.briefs.map((b) => Object.keys(b).filter((k) => k !== 'tubes' && (k !== 'dem' || !b.add)).map((k) => (k === 'dem' ? 'grow' : k)).join('+')).join(', ')}), budget ${j.budget}, reference ${j.ref.spend}`;
 
-module.exports = { generate, verify, check, refresh, writeWeek, writeIndex, list, say };
+module.exports = { generate, verify, check, refresh, writeWeek, writeIndex, list, say, step };
 
 if (require.main === module) {
   const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };

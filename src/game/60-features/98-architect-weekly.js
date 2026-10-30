@@ -20,6 +20,7 @@ function arWkSay(b){const n=c=>CITY[c].name,t=[];
   if(ag)t.push(tr('architect_weekly.t_add_gold',{a:n(b.add[0])}));
   else if(b.add)t.push(b.add.length>1?tr('architect_weekly.t_add_two',{a:n(b.add[0]),b:n(b.add[1])}):tr('architect_weekly.t_add_one',{a:n(b.add[0])}));
   if(b.gold&&!ag)t.push(b.gold.length>1?tr('architect_weekly.t_gold_two',{a:n(b.gold[0]),b:n(b.gold[1])}):tr('architect_weekly.t_gold_one',{a:n(b.gold[0])}));
+  for(const c of Object.keys(b.dem||{}))if(!(b.add||[]).includes(c))t.push(tr('architect_weekly.t_grow',{a:n(c),g:arG(b.dem[c])}));
   if(b.ring)t.push(tr('architect_weekly.t_ring',{list:b.ring.map(n).join(', ')}));
   if(b.lat)t.push(tr('architect_weekly.t_lat',{a:n(b.lat[0]),b:n(b.lat[1]),ms:+b.lat[2].toFixed(1)}));
   return t.join(' ');}
@@ -34,7 +35,7 @@ function arWkBriefs(a,hq){if(!Array.isArray(a)||a.length<3||a.length>7)return nu
     const dem={};if(b.dem!=null){if(!pzObj(b.dem))return null;for(const c of Object.keys(b.dem)){const g=b.dem[c];if(!sites.has(c)||c===hq||!Number.isInteger(g)||g<10||g>400)return null;dem[c]=g;}}
     let lat=null;if(b.lat!=null){const l=b.lat;if(!Array.isArray(l)||l.length!==3||!sites.has(l[0])||!sites.has(l[1])||l[0]===l[1]||typeof l[2]!=='number'||!isFinite(l[2])||l[2]<1||l[2]>300)return null;lat=l.slice();}
     if(!Number.isInteger(b.tubes)||b.tubes<0||b.tubes>9)return null;
-    if(!add.length&&!gold.length&&!ring.length&&!lat)return null;
+    if(!add.length&&!gold.length&&!ring.length&&!lat&&!Object.keys(dem).length)return null;
     const o={tubes:b.tubes};if(add.length)o.add=add;if(gold.length)o.gold=gold;if(ring.length)o.ring=ring;if(drop.length)o.drop=drop;if(Object.keys(dem).length)o.dem=dem;if(lat)o.lat=lat;
     o.t=arWkSay(o);out.push(o);}
   return out[0].add?out:null;}
@@ -56,4 +57,7 @@ function arWkEnsure(){const key=pzWeekKey(new Date()),w=UI.arWk;if(w&&w.key===ke
 // Its row in the Puzzles menu, above the handmade runs; nothing while there is none.
 function arWkRow(){const w=UI.arWk,r=w&&w.key===pzWeekKey(new Date())?w.def:null;if(!r)return '<div id="arWk"></div>';
   const x=arLoad().runs[r.id],ok=x&&(x.rv||1)===r.rev?x:null;
-  return `<div class="scn pzwk" id="arWk"><div class="grow"><div class="eyebrow">🗓️ ${tr('architect_weekly.weekly_run')}</div><div class="nm">${esc(r.n)} <span class="pzst">${pzStarStr(ok?ok.st:0)}</span></div><div class="meta">${esc(r.j)}</div><div class="meta">${tr('architect.n_briefs',{n:r.briefs.length})} · 🏠 ${esc(CITY[r.hq].name)} · ${tr('puzzles.budget_x',{x:fmt$(r.budget)})}${ok&&ok.sp!=null?' · '+tr('puzzles.best_x',{x:fmt$(ok.sp)}):''}</div></div>${btn(tr('common.play'),'pzArStart',{id:r.id},ok&&ok.st>=3?'ghost':'pink')}</div>`;}
+  return `<div class="scn pzwk" id="arWk"><div class="grow"><div class="eyebrow">🗓️ ${tr('architect_weekly.weekly_run')} · ${arWkNext(new Date())}</div><div class="nm">${esc(r.n)} <span class="pzst">${pzStarStr(ok?ok.st:0)}</span></div><div class="meta">${esc(r.j)}</div><div class="meta">${tr('architect.n_briefs',{n:r.briefs.length})} · 🏠 ${esc(CITY[r.hq].name)} · ${tr('puzzles.budget_x',{x:fmt$(r.budget)})}${ok&&ok.sp!=null?' · '+tr('puzzles.best_x',{x:fmt$(ok.sp)}):''}</div></div>${btn(tr('common.play'),'pzArStart',{id:r.id},ok&&ok.st>=3?'ghost':'pink')}</div>`;}
+// "New run in 2 d 14 h": when next week's run comes out.
+function arWkNext(now){const t=pzWeekStart(pzKeyAdd(pzWeekKey(now),1))-now,m=Math.max(1,Math.ceil(t/60e3)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);
+  return d?tr('architect_weekly.next_run_in_d_h',{d,h}):tr('architect_weekly.next_run_in_h_m',{h,m:m%60});}
