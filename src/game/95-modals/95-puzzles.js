@@ -13,7 +13,7 @@ function pzFlowRow(x){const f=x.f,ok=x.full&&x.fast,u=f.g?Math.min(1,x.g/f.g):0;
   return `<div class="pzf${ok?' ok':''}"><div class="kv"><span>${f.t==='l2'?'🔗':'👀'} ${esc(pzFlowName(f))}${f.be?` <span class="tag st">${tr('puzzles.best_effort')}</span>`:''}</span><b>${fmtG(x.g)} / ${fmtG(f.g)}</b></div><div class="bar ${ok?'':u>=0.999?'warn':'bad'}"><i style="width:${(u*100).toFixed(1)}%"></i></div>${lat?`<div class="meta">${tr('puzzles.latency')}${lat}</div>`:''}${f.t==='l2'?pzRouteCtl(x.i):''}</div>`;}
 // A circuit's path: the metrics, or the lowest latency.
 function pzRouteCtl(i){const b=S.biz.find(x=>x.id===pzFlowId(i));if(!b)return '';return `<div class="seg pzrt">${['normal','fast'].map(m=>btn(RT[m],'pzRoute',{i,m},b.route===m?'pink sm':'ghost sm')).join('')}</div>`;}
-function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hidden=false;
+function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hidden=false;el.classList.toggle('ar',!!S.ar);if(S.ar){arRender(el);return;}
   const e=pzEval(),P=S.pz,d=pzDef(P.id),pk=d&&PZ_PACKS.find(x=>x.id===d.pack);
   const star=(on,l)=>`<span class="${on?'on':''}">⭐<small>${l}</small></span>`;
   let h=`<div class="grab" data-grab="pz" aria-hidden="true"></div><div class="pzh"><div class="grow"><div class="eyebrow">${pk?esc(pk.n):P.theme&&own(PZ_WK_THEMES,P.theme)?`${PZ_WK_THEMES[P.theme].i} ${tr('puzzles.weekly_puzzle')} · ${tr(PZ_WK_THEMES[P.theme].t)}`:tr('puzzles.weekly_puzzle')}</div><h3>${esc(pzName(d||P))}</h3></div>${btn('☰','puzzleMenu',{},'ghost sm')}</div>`;
@@ -43,7 +43,7 @@ function pzPopSection(c){const p=S.pops[c],g=p.rgen||0,rt=p.routers||1,G=RG[g],c
   <h4 class="sub4">${tr('puzzles.router_model')}</h4>`;
   h+=PZ_RG.map(i=>{const M=RG[i],why=i===g?'':modelFits(c,i);return `<div class="row${i===g?' on':''}"><div class="grow"><div class="nm">${esc(M.n)}${i===g?` <span class="tag st on">${tr('puzzles.installed')}</span>`:''}</div><div class="meta">${tr('puzzles.model_facts',{cap:fmtG(M.cap),ports:M.ports,wave:LT[M.maxLT].n})}</div>${why?`<div class="why">${esc(why)}</div>`:''}</div>${i===g?'':btn(dl(pzRtCost(i,rt)-cur),'pzRtModel',{city:c,g:i},'ghost sm',!!why)}</div>`;}).join('');
   return h;}
-function pzPanel(sel){const head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
+function pzPanel(sel){if(S.ar)return arPanel(sel);const head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   if(sel.type==='city'){const c=sel.id,k=pzKind(c),p=S.pops[c],C=CITY[c],P=S.pz;if(!k)return '';
     const eb=k==='goal'?tr('puzzles.goal_city'):k==='via'?tr('puzzles.stepping_stone_optional'):k==='off'?tr('puzzles.not_in_the_plan'):tr('puzzles.off_limits');
     let h=head(`${PZ_ICON[k]} ${eb}`,esc(C.name),p?`<span class="fact mine">${tr('common.your_pop')}</span>`:'')+'<div class="scroll">';
@@ -79,7 +79,7 @@ function pzPanel(sel){const head=(eb,name,facts)=>`<div class="ph"><div style="m
   h+=metricSection(l)+linkCheckControl(l);
   return h+`<div class="btns" style="margin-top:10px">${btn(tr('puzzles.remove_this_link'),'pzRmLink',{id:l.id},'red sm')}</div></div>`;}
 // The link picker: overland or one of the real cables between the two cities, and a size. Prices are for a year.
-function pzLinkModal(a,b,keep){const kb=pzKind(b);
+function pzLinkModal(a,b,keep){if(S.ar)return arLinkModal(a,b,keep);const kb=pzKind(b);
   if(!kb||kb==='avoid'||!pzKind(a)){toast(kb==='avoid'?tr('puzzles.not_this_one_find_a_way_around'):tr('puzzles.not_a_city_you_can_build_in'),'bad');sfx('err');return;}
   if(!keep){UI.pzVia=null;UI.pzDiv=true;UI.pzTrench=null;}UI.pending={a,b};const rs=pzRoutes(a,b),P=S.pz;
   const head=`<div style="display:flex;align-items:center"><div><div class="eyebrow">${kmBetween(a,b).toLocaleString()} km</div><h2 style="font-size:26px">${esc(CITY[a].name)} → ${esc(CITY[b].name)}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>`;
@@ -129,6 +129,7 @@ function pzMenu(){pzWkEnsure();const p=pzLoad(),tot=pzStarsTotal(p),max=PZ.lengt
   if(p.old&&!p.noted){h+=`<div class="pznote">🖼️ ${tr('puzzles.puzzles_got_traffic_note',{n:p.old})}</div>`;p.noted=1;pzStore(p);}
   h+=`<div class="pzprog"><div class="kv"><span>${tr('puzzles.your_stars')}</span><b>⭐ ${tot} / ${max}</b></div><div class="bar me"><i style="width:${(tot/max*100).toFixed(1)}%"></i></div>${nxP?`<div class="meta">${tr('puzzles.next_pack_unlocks_at_n',{n:nxP.need,pack:esc(nxP.n)})}</div>`:''}${p.old?`<div class="meta">🖼️ ${tr('puzzles.framed_n_stars_from_the_old',{n:p.old})}</div>`:''}</div>`;
   if(pzOn())h+=`<div class="btns" style="margin:8px 0">${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
+  h+=arMenuRows();
   h+=pzWkRow();
   for(const pk of PZ_PACKS){const open=tot>=pk.need,got=PZ.filter(x=>x.pack===pk.id).reduce((a,x)=>a+((p.s[x.id]||{}).st|0),0),n=PZ.filter(x=>x.pack===pk.id).length;
     h+=`<h3 class="pzpack">${open?'':'🔒 '}${esc(pk.n)} <span class="meta">⭐ ${got}/${n*3}</span></h3><p class="meta" style="margin:0 0 2px">${open?esc(pk.d):tr('puzzles.unlocks_at_n_stars',{n:pk.need})}</p>`;

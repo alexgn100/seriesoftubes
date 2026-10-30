@@ -11,7 +11,7 @@ const pzOn=()=>!!(S&&S.mode==='puzzle'&&S.pz);
 const pzDef=id=>PZ.find(p=>p.id===id)||null;
 // goal: a city the traffic starts or ends in; via: a suggested stepping stone; avoid: off limits; off: any other city
 // (the whole world is open, it just is not part of the plan).
-const pzKind=c=>!pzOn()?null:S.pz.cities.includes(c)?'goal':S.pz.via.includes(c)?'via':S.pz.avoid.includes(c)?'avoid':pzCityOk(c)?'off':null;
+const pzKind=c=>!pzOn()?null:S.ar?arKind(c):S.pz.cities.includes(c)?'goal':S.pz.via.includes(c)?'via':S.pz.avoid.includes(c)?'avoid':pzCityOk(c)?'off':null;
 const pzName=d=>d.id==='weekly'?(d.wn?pzTxt(d.wn):tr('puzzles.weekly_puzzle_key',{key:d.key})):d.n;
 const pzStarStr=n=>'⭐'.repeat(n)+'⬜'.repeat(3-n);
 // Every city a puzzle's traffic touches, origins first.
@@ -64,7 +64,7 @@ const pzFlowName=f=>f.t==='l2'?tr('puzzles.flow_circuit_a_b',{a:CITY[f.a].name,b
 function pzDemand(){const P=S.pz;S.transit=P.src.map((c,i)=>({id:'pzo'+i,city:c,net:PZ_NET,tier:PZ_ORIG,n:1,pz:1,pref:'normal',hist:[]}));
   S.biz=P.dem.map((f,i)=>f.t==='l2'?{id:pzFlowId(i),type:'l2vpn',name:pzFlowName(f),city:f.a,city2:f.b,bw:f.g,rate:0,route:'normal',reqs:[],day:0}:null).filter(Boolean);}
 const pzEye=c=>{const f=pzOn()&&S.pz.dem.find(x=>x.t==='eye'&&x.a===c);return f?f.g:0;};
-const pzNewPop=c=>{const g=pzEye(c);return {day:0,bb:g?{d:g}:null,boost:0,down:0,routers:1,gen:false};};
+const pzNewPop=c=>{const g=pzEye(c);return {day:0,bb:g?{d:g}:null,boost:0,down:0,routers:1,gen:false,br:S.ar?S.ar.bi:0};};
 // What each flow gets from the last compute(): Gbps delivered, and a circuit's latency.
 // Eyeball traffic to networks behind the Great Firewall loses a fifth at the border, as in the main game; that is not
 // the player's doing, so a puzzle counts what crosses the border as delivered (pzGfw: the share that arrives).
@@ -130,7 +130,7 @@ function pzBegin(def){if(!def)return;
   if(pzOn()){go();return;}
   const live=!!(S&&UI.started&&!S.lost);UI.pzFrom=live?'game':'title';
   if(live)pzFlush();go();}
-function pzLeave(){const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;UI.pzEv=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
+function pzLeave(){if(S&&S.ar)arStop(true);const from=UI.pzFrom;pzToastsClear();document.body.classList.remove('pz');UI.sel=null;UI.pzHist=null;UI.pzFrom=null;UI.pzEv=null;closeModal();$('panel').hidden=true;$('pzBox').hidden=true;S=null;R=emptyR();UI.started=false;
   if(from==='game'){const sv=UI.pzKeep||loadSave();UI.pzKeep=null;
     if(sv){try{S=migrate(sv);compute();UI.started=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);renderAll();return;}catch(e){console.error('[tubes] loading the network failed',e);S=null;UI.started=false;}}
     // It cannot be loaded back: marked damaged (kept, so it can be exported), and the player is told.
@@ -139,17 +139,17 @@ function pzLeave(){const from=UI.pzFrom;pzToastsClear();document.body.classList.
 // The camera frames the puzzle's cities beside the puzzle card: left on wide screens, right on phones on their side, a bottom sheet on phones.
 function pzCam(){const cs=[...S.pz.cities,...S.pz.via].map(c=>CITY[c]),x0=cs[0].x;let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;
   for(const C of cs){const x=x0+wrapDx(x0,C.x);a=Math.min(a,x);b=Math.max(b,x);c=Math.min(c,C.y);d=Math.max(d,C.y);}
-  const ph=isPhone(),side=ph&&CW>CH,pl=side?-Math.min(360,CW*0.52):ph?0:330,pb=ph&&!side?Math.min(230,CH*0.4):0,aw=Math.max(120,CW-Math.abs(pl)-90),ah=Math.max(120,CH-pb-150);
+  const ph=isPhone(),side=ph&&CW>CH,pl=side?-Math.min(360,CW*0.52):ph?0:S.ar&&CW>760&&CH>500?410:330,pb=ph&&!side?Math.min(230,CH*0.4):0,aw=Math.max(120,CW-Math.abs(pl)-90),ah=Math.max(120,CH-pb-150);
   cam.z=clamp(Math.min(aw/Math.max(40,b-a),ah/Math.max(40,d-c)),0.5,4);cam.x=(a+b)/2-pl/2/cam.z;cam.y=(c+d)/2+(pb/2-30)/cam.z;wrapCam();}
 // ---------- building ----------
-function pzSnap(){const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},r:S.biz.map(b=>b.route)}));if(h.length>60)h.shift();}
+function pzSnap(){if(S.ar)arStop();const h=UI.pzHist||(UI.pzHist=[]);h.push(JSON.stringify({p:S.pops,l:S.links,m:S.pairMet||{},r:S.biz.map(b=>b.route),k:S.ar?S.ar.sunk:0}));if(h.length>60)h.shift();}
 function pzAfter(){if(UI.sel&&((UI.sel.type==='link'&&!S.links.some(l=>l.id===UI.sel.id))||(UI.sel.type==='city'&&!pzKind(UI.sel.id))))UI.sel=null;
-  compute();renderAll();pzCheck();}
+  if(S.ar)arRouters();compute();renderAll();pzCheck();}
 // Stars count the moment they are earned.
 // Every solved state is recorded, so a cheaper build at the same stars counts too.
 // A new star below three is a cheer and a nudge, and play goes on; the results card opens at three stars, or when the
 // player says they are done (the card's Finish button).
-function pzCheck(){const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;if(e.stars>=3)pzResults(e,prev);else{pzCheer(e,prev);renderAll();}return e;}
+function pzCheck(){if(arOn())return null;const e=pzEval();if(e.stars)pzRecord(e);if(e.stars<=(UI.pzTop||0))return e;const prev=UI.pzTop||0;UI.pzTop=e.stars;if(e.stars>=3)pzResults(e,prev);else{pzCheer(e,prev);renderAll();}return e;}
 // The best spend belongs to the best star count: more stars start it again, the same stars keep the lower spend.
 function pzRecord(e){const p=pzLoad(),P=S.pz,bag=P.id==='weekly'?p.wk:p.s,k=P.id==='weekly'?P.key:P.id,r=(P.id==='weekly'?pzWkRec(p,P):bag[k])||{st:0,sp:null};
   if(e.stars<r.st||(e.stars===r.st&&r.sp!=null&&r.sp<=e.spend))return;
