@@ -30,13 +30,13 @@ function showTitle(){
 }
 // "What's new": shown once to returning players after an update, or on demand.
 function whatsNew(returning,force){
-  if(IS_DEV||!RELEASE_NOTES.length)return false;let seen=null;
+  if(IS_DEV||(!RELEASE_NOTES.length&&!RELEASE_STORY.length))return false;let seen=null;
   try{seen=localStorage.getItem('sot-seen-version');localStorage.setItem('sot-seen-version',APP_VERSION);}catch(e){}
   if(!force&&(!returning||seen===APP_VERSION))return false;
   openModal(`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('common.release_notes')}</div><h2 style="font-size:28px">${tr('title.new_in_series_of_tubes_v',{v:esc(APP_VERSION)})}</h2></div><button class="x" data-act="${UI.started?'closeModal':'helpClose'}" aria-label="${tr('common.close')}">×</button></div>
   ${notesHtml(RELEASE_NOTES,APP_VERSION)}
   ${returning&&S?`<p class="note">${tr('title.your_network_name_was_saved_and',{name:esc(S.name)})}</p>`:''}
-  <div class="btns" style="margin-top:12px">${btn(UI.started?tr('title.back_to_my_network'):tr('common.got_it'),UI.started?'closeModal':'helpClose',{},'pink big')}${notesLong(RELEASE_NOTES)?'':`<a class="b ghost" href="https://github.com/fjaeckel/seriesoftubes/blob/main/CHANGELOG.md" target="_blank" rel="noopener">${tr('common.full_changelog')}</a>`}</div>`);
+  <div class="btns" style="margin-top:12px">${btn(UI.started?tr('title.back_to_my_network'):tr('common.got_it'),UI.started?'closeModal':'helpClose',{},'pink big')}${notesLong(RELEASE_NOTES)||RELEASE_STORY.length?'':`<a class="b ghost" href="https://github.com/fjaeckel/seriesoftubes/blob/main/CHANGELOG.md" target="_blank" rel="noopener">${tr('common.full_changelog')}</a>`}</div>`);
   return true;}
 /* The four doors: one game, its rules picked here and locked for the network's life. Normal and Sandbox stay on this
    screen (presets / chaos below), Puzzles and Scenarios open their own lists. Choices toggle in place (no re-render). */
