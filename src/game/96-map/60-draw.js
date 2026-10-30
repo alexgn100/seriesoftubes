@@ -25,10 +25,11 @@ function drawFrame(now){
   // cable systems
   drawCables(ks);
   // links
+  AR_PILLS.length=0;
   const far=lodFar(),PI=pairIdx(),LG=linkGroups(),GM=LG.map(g=>linkGeom(g[0],PI.get(edgeKey(g[0])))),busy=linesOnScreen(GM,ks)>MAP_BUSY;
   for(let gi=0;gi<LG.length;gi++){const grp=LG[gi],l=grp[0],many=grp.length>1,up=many?grp.filter(x=>!linkDown(x)):null;
     const gm=GM[gi],cap=many?up.reduce((a,x)=>a+capOf(x),0):capOf(l),load=many?grp.reduce((a,x)=>a+(R.load[x.id]||0),0):(R.load[l.id]||0),u=cap?load/cap:0,df=l.kind==='df',bld=df&&l.ready>day,cut=!bld&&(many?!up.length:linkDown(l))&&!(df&&!(l.ch||[]).length),dark=df&&!bld&&!(l.ch||[]).length,vx=l.kind==='vxc',idle=!cut&&!bld&&load<1e-3&&(many?up.length>0&&up.every(x=>x.standby):!!l.standby);
-    const pz=pzOn(),sel=(UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id))||(pz&&pzLinkHot(grp));let lab=null;
+    const pz=pzOn(),arPz=pz&&!!S.ar,sel=(UI.sel&&UI.sel.type==='link'&&grp.some(x=>x.id===UI.sel.id))||(pz&&pzLinkHot(grp));let lab=null;
     const w=(vx?2.2:(2.5+Math.max(...grp.map(tierW))*1.8+(many?Math.min(1.5,(grp.length-1)*0.5):0)))*sc*(far?0.5:1),np=gm.pts.length;
     if(SX.length<np){SX=new Float64Array(np*2);SY=new Float64Array(np*2);}
     for(const k of ks){
@@ -41,6 +42,8 @@ function drawFrame(now){
       if(sel){ctx.strokeStyle='rgba(255,79,154,.35)';ctx.lineWidth=w+14;path();ctx.stroke();}
       ctx.strokeStyle='#1E2640';ctx.lineWidth=w+4;ctx.setLineDash(cut?[8,8]:vx?[2,7]:bld?[10,8]:idle?[4,6]:[]);path();ctx.stroke();
       ctx.strokeStyle=bld?'#C9B27C':dark?'#5D6788':cut?'#FF4D5E':idle?'#9AA3BE':vx?FAB[l.prov].col:l.sub?(u>0.001?utilCol(u):'#7FD8EE'):utilCol(u);ctx.lineWidth=w;ctx.stroke();ctx.setLineDash([]);
+      // Architect runs: tubes sharing one trench are drawn as strands of one bundle (one snip takes them all).
+      if(arPz&&many&&!far){ctx.strokeStyle='#1E2640';ctx.lineWidth=1.3;for(let j=1;j<grp.length;j++){const d=w*(j/grp.length-0.5);ctx.beginPath();for(let i=0;i<np;i++){const a=Math.max(0,i-1),b=Math.min(np-1,i+1),dx=SX[b]-SX[a],dy=SY[b]-SY[a],n=Math.hypot(dx,dy)||1,x=SX[i]-dy/n*d,y=SY[i]+dx/n*d;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}path();}
       // Still the same path: strokes keep it, so the dotted fiber line goes on top without building it again.
       if(df&&!bld&&!dark&&!busy){ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=Math.max(1,w*0.25);ctx.setLineDash([1,6]);ctx.stroke();ctx.setLineDash([]);}
       const at=t=>polyAtXY(SX,SY,gm.cum,t);
@@ -49,7 +52,8 @@ function drawFrame(now){
         const rr2=far?1.6:Math.max(2.2,w*.42),base=now/1000*spd/Math.max(len,40);ctx.beginPath();for(let i=0;i<n;i++){let t=(base+i/n)%1;if(i%2)t=1-t;const [px,py]=at(t);ctx.moveTo(px+rr2,py);ctx.arc(px,py,rr2,0,7);}ctx.fill();ctx.stroke();}
       const [mx2,my]=at(.5);const mxx=mx2;
       if(bld){if(far){ctx.fillStyle='#FF8A3D';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,4,0,7);ctx.fill();ctx.stroke();}else drawCone(mxx,my,now);}
-      else if(cut&&!vx){if(far){ctx.fillStyle='#FF4D5E';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='900 8px Nunito, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',mxx,my+0.5);}else drawBackhoe(mxx,my,now,l.sub);}
+      else if(cut&&!vx){if(far){ctx.fillStyle='#FF4D5E';ctx.strokeStyle='#1E2640';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mxx,my,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='900 8px Nunito, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',mxx,my+0.5);}else if(!arPz)drawBackhoe(mxx,my,now,l.sub);}
+      else if(arPz&&!sel&&!far&&(many||arPaths(l)>1)){const k=arPaths(l);if(many||lineIdx(l,PI.get(edgeKey(l)))===0){AR_PILLS.push([mxx,my,many?tr('architect.n_in_one_trench',{n:grp.length}):'✓ '+tr('architect.n_paths',{n:k}),many]);}}
       else if(sel||(pz?!S.ar:z>0.9&&!busy)){const t=lab||(lab=pz?pzLinkLab(grp,up||[l],load,cap):many?groupLabel(grp,up):capName(l));ctx.font='800 11px "Baloo 2", sans-serif';let tw=LINKW.get(t);if(tw===undefined)LINKW.set(t,tw=ctx.measureText(t).width+10);ctx.fillStyle='#fff';ctx.strokeStyle='#1E2640';ctx.lineWidth=2;rr(mxx-tw/2,my-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,mxx,my+1);}
     }
   }
@@ -86,6 +90,8 @@ function drawFrame(now){
   CM.off=new Set();CM.big=new Set();for(const o of S.offers){const big=BIZ_T[o.type].lv>=3||BIZ_T[o.type].event;for(const c of bCities(o)){CM.off.add(c);if(big)CM.big.add(c);}}
   CM.inc=new Set(S.inc.filter(i=>i.type!=='leak').map(i=>i.ref));CM.far=farL;
   if(pzOn()){for(const v of vis.slice().reverse())pzDrawCity(v,sc,now);}else for(const v of vis.slice().reverse())drawCity(v.C,v.sx,v.sy,sc,now,v.ly);
+  // Architect runs: what the tubes between two cities are (one trench, or separate paths), above the cities.
+  for(const [x,y,t,one] of AR_PILLS){ctx.font='800 11px "Baloo 2", sans-serif';const tw=ctx.measureText(t).width+12;ctx.fillStyle=one?'#FFE3C2':'#DDF7E7';ctx.strokeStyle=one?'#FF8A3D':'#16A866';ctx.lineWidth=2;rr(x-tw/2,y-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+1);}
   if(UI.mk)mkDraw(ks);
   // floaters
   for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1){FLOATS.splice(i,1);continue;}

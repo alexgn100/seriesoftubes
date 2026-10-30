@@ -151,3 +151,15 @@ test('architect runs: a bigger tube brings a bigger router, and changing an old 
   assert.equal(ev("(S.pops.ams.rgen||0)===0&&S.ar.sunk===" + sunk), true, 'undo puts it all back');
   assert.deepEqual(errors, []);
 });
+
+test('architect runs: the map tells two tubes in one trench from two separate paths', () => {
+  const { ev, errors } = load();
+  ev("ACT.pzArStart({id:'euro'});ACT.pzArAll();S.cash=1e9");
+  lay(ev, 'ams', 'fra', 'land', 1); lay(ev, 'ams', 'fra', 'land', 0);
+  lay(ev, 'ams', 'par', 'land', 1); lay(ev, 'ams', 'par', 'land', 1);
+  assert.equal(ev("arPaths(S.links.find(l=>l.b==='fra'||l.a==='fra'))"), 1, 'same trench: one path');
+  assert.equal(ev("arPaths(S.links.find(l=>l.b==='par'||l.a==='par'))"), 2, 'diverse: two paths');
+  ev("cam.x=CITY.ams.x;cam.y=CITY.ams.y;cam.z=2.4;drawFrame(performance.now())");
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(AR_PILLS.map(p=>p[2]).sort())")), ['2× one trench', '✓ 2 paths']);
+  assert.deepEqual(errors, []);
+});
