@@ -37,8 +37,8 @@ function drawCables(ks){const z=cam.z,selC=UI.drag&&UI.drag.mode==='link'?UI.dra
       ctx.globalAlpha=1;}}}
 function bezGeom(l,at){const A=CITY[l.a],B=CITY[l.b];const i=at!==undefined?at:lineIdx(l);const key=l.id+'|b'+i;const hit=GEO.get(key);if(hit)return hit;
   const bx=A.x+wrapDx(A.x,B.x),by=B.y;const dx=bx-A.x,dy=by-A.y,len=Math.hypot(dx,dy)||1;let nx=-dy/len,ny=dx/len;if(ny>0){nx=-nx;ny=-ny;}
-  // Architect runs bow diverse paths well apart, so two routes never read as one.
-  const wide=S&&S.ar&&pzOn(),base=Math.max(4,Math.min(len*0.1,90)),step=wide?Math.min(30,len*.14):Math.min(16,len*.06),off0=i<=0?base:(i%2?-1:1)*(base*(i%2?(wide?0.9:0.2):1)+Math.ceil(i/2)*step);
+  // Puzzles bow diverse paths well apart, so two routes never read as one.
+  const wide=!!S&&pzOn(),base=Math.max(4,Math.min(len*0.1,90)),step=wide?Math.min(30,len*.14):Math.min(16,len*.06),off0=i<=0?base:(i%2?-1:1)*(base*(i%2?(wide?0.9:0.2):1)+Math.ceil(i/2)*step);
   const mx=(A.x+bx)/2,my=(A.y+by)/2;
   const sg=Math.sign(off0)||1,mag=Math.abs(off0);
   // Bend around cities in the way, but gently: short links need less room, no curve bows out more than about a

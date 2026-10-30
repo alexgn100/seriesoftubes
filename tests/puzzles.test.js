@@ -545,3 +545,12 @@ test('each pack\'s idea is needed: three stars without it fail, and the one-star
   }
   assert.deepEqual(errors, []);
 });
+
+test('every puzzle tells two tubes in one trench from two separate paths, zoomed out too', () => {
+  const { ev, errors } = load();
+  ev("ACT.pzStart({id:'eurotrip'});closeModal()");
+  build(ev, [['ams', 'fra', 'land', 1], ['ams', 'fra', 'land', 1, 1], ['ams', 'lon', 'nshuttle', 1], ['ams', 'lon', 'concerto', 1]]);
+  ev("cam.z=0.6;drawFrame(performance.now())");
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(AR_PILLS.map(p=>p[2]).sort())")), ['2× one trench', '✓ 2 paths']);
+  assert.deepEqual(errors, []);
+});
