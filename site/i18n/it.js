@@ -3202,6 +3202,7 @@
 "puzzles_weekly.ocean_crossing":"Traversata oceanica",
 "puzzles_weekly.region_tour":"Giro della regione",
 "puzzles_weekly.ring":"Anello",
+"reach_and_subsea.makes_no_difference_on_this_cable":"Su questo cavo non cambia nulla",
 "reach_and_subsea.premium_submarine_terminals":"Terminali sottomarini avanzati",
 "release_notes.and_n_more_change":{"one":"…e {n} altra modifica","other":"…e altre {n} modifiche"},
 "release_notes.read_the_full_notes_on_github":"Leggi le note complete su GitHub",

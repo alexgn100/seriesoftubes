@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Premium submarine terminals and Optical engineering can no longer be bought on a cable where they would change nothing (#198). The button now says so, and an upgrade that only helps together with the other one stays available.
+
 ## [2.0.0] — 2026-10-30
 
 **Series of Tubes 2.0: one game, four doors.** Some of you wanted a calmer game, some a harder one, some a quick puzzle over coffee and some a playground where nothing can go wrong. So now every network starts behind a door, and the rules you pick stay with that network for good. Your saved games carry on exactly as they were.

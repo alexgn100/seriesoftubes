@@ -3203,6 +3203,7 @@
 "puzzles_weekly.ocean_crossing":"Ocean crossing",
 "puzzles_weekly.region_tour":"Region tour",
 "puzzles_weekly.ring":"Ring",
+"reach_and_subsea.makes_no_difference_on_this_cable":"Makes no difference on this cable",
 "reach_and_subsea.premium_submarine_terminals":"Premium submarine terminals",
 "release_notes.and_n_more_change":{"one":"…and {n} more change","other":"…and {n} more changes"},
 "release_notes.read_the_full_notes_on_github":"Read the full notes on GitHub",
