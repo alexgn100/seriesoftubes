@@ -27,9 +27,44 @@ function mkDraw(ks){const m=UI.mk;if(!m)return;
     const dt=animT-q.t,wx=q.x+q.vx*dt/cam.z,wy=q.y+(q.vy*dt+0.00012*dt*dt)/cam.z;
     for(const k of ks){const [sx,sy]=toS(wx,wy,k);ctx.globalAlpha=1-a;if(q.s){ctx.font=`${Math.round(sz*0.7)}px sans-serif`;ctx.fillText(q.s,sx,sy);}else{ctx.fillStyle=q.c;ctx.beginPath();ctx.arc(sx,sy,Math.max(2,sz*0.13*(1-a*0.5)),0,Math.PI*2);ctx.fill();}}}
   ctx.globalAlpha=1;ctx.font=`${sz}px sans-serif`;
-  for(const k of ks){const [sx,sy]=toS(m.x,m.y,k);ctx.save();ctx.translate(sx,sy-sz*0.7-hop);
-    const tilt=m.mood==='snip'?Math.sin((animT-m.t0)/60)*0.35:m.mood==='dance'?Math.sin((animT-m.t0)/80)*0.5:0;ctx.rotate(tilt);ctx.scale(m.face,1);
-    ctx.fillStyle='rgba(30,38,64,.18)';ctx.beginPath();ctx.ellipse(0,sz*0.62+hop,sz*0.38,sz*0.12,0,0,Math.PI*2);ctx.fill();
-    // Emoji take the fill's alpha, so reset it after the shadow.
-    ctx.fillStyle='#000';ctx.fillText('🐒',0,0);if(m.mood==='cheer')ctx.fillText('🎉',sz*0.7,-sz*0.5);ctx.restore();}
+  for(const k of ks){const [sx,sy]=toS(m.x,m.y,k);ctx.save();ctx.translate(sx,sy+sz*0.15);
+    ctx.fillStyle='rgba(30,38,64,.18)';ctx.beginPath();ctx.ellipse(0,0,sz*0.38,sz*0.12,0,0,Math.PI*2);ctx.fill();
+    ctx.translate(0,-hop);const tilt=m.mood==='snip'?Math.sin((animT-m.t0)/60)*0.25:m.mood==='dance'?Math.sin((animT-m.t0)/80)*0.35:0;ctx.rotate(tilt);ctx.scale(m.face,1);
+    mkSprite(sz*1.25,animT-m.t0,m.mood==='run'&&p>=1?'stand':m.mood);
+    if(m.mood==='cheer'){ctx.scale(m.face,1);ctx.fillStyle='#000';ctx.fillText('🎉',sz*0.75,-sz*1.1);}ctx.restore();}
   ctx.restore();}
+// Our own monkey, drawn in the map's outline style, facing right with its feet at (0,0); s is its height.
+// Shades on, spray can in hand: the arms and legs move with its mood.
+function mkSprite(s,t,mood){const u=s/40,O='#1E2640',B='#A0673A',T='#F4CFA0',lw=Math.max(1.4,2*u),k=Math.sin(t/70);
+  ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle=O;ctx.lineWidth=lw;
+  const dot=(x,y,r,c)=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(x*u,y*u,r*u,0,Math.PI*2);ctx.fill();ctx.stroke();};
+  const limb=(x1,y1,x2,y2,w)=>{ctx.beginPath();ctx.moveTo(x1*u,y1*u);ctx.lineTo(x2*u,y2*u);ctx.lineWidth=w*u+2*lw;ctx.strokeStyle=O;ctx.stroke();ctx.lineWidth=w*u;ctx.strokeStyle=B;ctx.stroke();ctx.lineWidth=lw;ctx.strokeStyle=O;};
+  const run=mood==='run',up=mood==='cheer',wave=mood==='snip'||mood==='dance';
+  // tail: a curl that sways
+  const sw=Math.sin(t/160)*3;ctx.beginPath();ctx.moveTo(-6*u,-9*u);ctx.bezierCurveTo(-19*u,-8*u,(-21+sw)*u,-26*u,(-13+sw)*u,-29*u);ctx.bezierCurveTo((-7+sw)*u,-31*u,(-6+sw)*u,-24*u,(-10+sw)*u,-24*u);
+  ctx.lineWidth=3*u+2*lw;ctx.stroke();ctx.lineWidth=3*u;ctx.strokeStyle=B;ctx.stroke();ctx.lineWidth=lw;ctx.strokeStyle=O;
+  // legs and feet
+  const g=run?5*k:mood==='dance'?3*k:0;limb(-3,-10,-4-g,-1.5,3.6);limb(4,-10,5+g,-1.5,3.6);
+  ctx.fillStyle=T;for(const x of [-4-g,5+g]){ctx.beginPath();ctx.ellipse((x+1)*u,-1*u,3*u,1.8*u,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
+  // back arm, body, belly
+  const ba=up?[-10,-33]:wave?[-11,-25+2*k]:run?[-10,-14-3*k]:[-9,-13];limb(-4,-20,ba[0],ba[1],3.2);dot(ba[0],ba[1],2.2,T);
+  ctx.fillStyle=B;ctx.beginPath();ctx.ellipse(0,-15*u,9*u,10*u,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle=T;ctx.beginPath();ctx.ellipse(1.5*u,-14*u,5.5*u,7*u,0,0,Math.PI*2);ctx.fill();
+  // head: ears, skull, face
+  dot(-6,-32,3.6,B);dot(10,-32,3.6,B);ctx.fillStyle=T;for(const x of [-6,10]){ctx.beginPath();ctx.arc(x*u,-32*u,1.9*u,0,Math.PI*2);ctx.fill();}
+  dot(2,-31,9,B);ctx.fillStyle=T;ctx.beginPath();ctx.arc(-1*u,-31.5*u,4*u,0,Math.PI*2);ctx.arc(5*u,-31.5*u,4*u,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(2*u,-27.5*u,6.5*u,4.6*u,0,0,Math.PI*2);ctx.fill();
+  // shades: two dark lenses on a bridge, with a glint
+  ctx.fillStyle=O;ctx.beginPath();ctx.ellipse(-1.2*u,-32.5*u,3.3*u,2.6*u,0,0,Math.PI*2);ctx.ellipse(5.4*u,-32.5*u,3.3*u,2.6*u,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(1.5*u,-33.5*u);ctx.lineTo(2.7*u,-33.5*u);ctx.moveTo(-4.4*u,-33*u);ctx.lineTo(-7*u,-33.5*u);ctx.stroke();
+  ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,0.9*u);ctx.beginPath();ctx.moveTo(-2.6*u,-33.6*u);ctx.lineTo(-1.2*u,-34.3*u);ctx.moveTo(4*u,-33.6*u);ctx.lineTo(5.4*u,-34.3*u);ctx.stroke();ctx.strokeStyle=O;ctx.lineWidth=lw;
+  // mouth: a smirk, or a laugh when it breaks something
+  ctx.beginPath();if(mood==='dance'||up){ctx.fillStyle='#7A2633';ctx.ellipse(2.5*u,-26.5*u,2.6*u,2*u,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
+  else{ctx.moveTo(-0.5*u,-27*u);ctx.quadraticCurveTo(3*u,-25*u,6*u,-28*u);ctx.stroke();}
+  // front arm with the spray can
+  const fa=up?[11,-34]:wave?[13,-27-2*k]:run?[11,-17+3*k]:[10,-14];limb(5,-20,fa[0],fa[1],3.2);
+  ctx.save();ctx.translate(fa[0]*u,fa[1]*u);ctx.rotate(wave?0.5:0);
+  ctx.fillStyle='#FF4F9A';ctx.beginPath();ctx.roundRect(-2.6*u,-8*u,5.2*u,9*u,1.2*u);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#FFD23F';ctx.fillRect(-2.6*u,-5*u,5.2*u,2*u);ctx.fillStyle='#C9D1E6';ctx.beginPath();ctx.roundRect(-1.6*u,-10.5*u,3.2*u,2.6*u,0.8*u);ctx.fill();ctx.stroke();
+  if(wave){ctx.fillStyle='rgba(255,79,154,.45)';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc((4+i*2.2)*u,(-11-i*1.4+Math.sin(t/40+i))*u,(0.9+i*0.4)*u,0,Math.PI*2);ctx.fill();}}
+  ctx.restore();dot(fa[0],fa[1],2.2,T);}
