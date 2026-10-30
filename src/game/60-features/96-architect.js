@@ -8,7 +8,7 @@
    cut, everything still connected gets all of its traffic. Tubes come in three sizes; routers follow by themselves (the
    cheapest model that takes the tubes), and traffic finds the detour by itself (Auto-TE): models, ports and metrics are
    someone else's job. */
-const AR_KEY='sot-architect',AR_TIER=1,AR_TIERS=[0,1,2],AR_STEP=1000;
+const AR_KEY='sot-architect',AR_TIER=1,AR_TIERS=[0,1,2],AR_RUN=550,AR_HOLD=650; // ms: the monkey's run to a tube, then how long the cut shows
 // A brief: add (new sites), gold (sites that must survive any single cut), ring (sites that must sit on one ring), drop
 // (close a city: no POP allowed there any more), dem {city: Gbps} (what a site pulls from HQ, 10G unless set; a later
 // brief can raise it), lat [a,b,ms] (the fastest path between two sites under ms), tubes (the
@@ -140,19 +140,24 @@ function arShowStart(){if(!arOn()||UI.arShow)return;const e=arEval();if(!e.ready
   arStop(true);UI.sel=null;closeModal();UI.arBaseGot=arGot();UI.arShow={units:[...new Set(S.links.map(pzUnit))],i:-1,t:0,dark:[],short:[]};mkStart(S.ar.hq);arStep();}
 // One cut, routed: who goes dark, which gold sites with it, and who is still connected but short of room.
 function arCut(u){const ls=S.links.filter(l=>pzUnit(l)===u);for(const l of ls)l.cut=1;compute();const dark=arDark(u);return {ls,dark,gold:dark.filter(c=>S.ar.gold.includes(c)),short:arShort(dark)};}
-function arStep(){const sh=UI.arShow;if(!sh||!arOn())return;for(const l of S.links)l.cut=0;sh.i++;
+// The monkey sets off: the tube it last snipped is whole again, the next one stays whole until it gets there.
+function arStep(now){const sh=UI.arShow;if(!sh||!arOn())return;for(const l of S.links)l.cut=0;sh.i++;sh.hit=false;
   if(sh.i>=sh.units.length){UI.arShow=null;compute();S.ar.passed=pzSig();renderAll();sfx('star');haptic(15);
     mkEnd(true);toast(`✅ <b>${tr('architect.review_passed')}</b><br>${arLast()?tr('architect.last_brief_done'):tr('architect.next_brief_waiting')}`,'good');if(arLast())setTimeout(()=>{if(arOn()&&S.ar.passed===pzSig())arResults(true);},900);return;}
-  const u=sh.units[sh.i],{ls,dark,gold,short}=arCut(u),l0=ls[0],got=arGot();sh.dark=dark;sh.short=short;sh.u=u;
+  const u=sh.units[sh.i];compute();renderAll();mkRun(S.links.find(l=>pzUnit(l)===u),AR_RUN/MK_RUN);
+  if(now)arHit();else sh.t=setTimeout(arHit,AR_RUN);}
+// It has arrived and snips: who goes dark, and does a mission-critical site go with it?
+function arHit(){const sh=UI.arShow;if(!sh||!arOn())return;sh.hit=true;
+  const u=sh.units[sh.i],{ls,dark,gold,short}=arCut(u),l0=ls[0];sh.dark=dark;sh.short=short;sh.u=u;
   floater((CITY[l0.a].x+CITY[l0.a].x+wrapDx(CITY[l0.a].x,CITY[l0.b].x))/2,(CITY[l0.a].y+CITY[l0.b].y)/2-26,l0.sub?tr('architect.anchor'):tr('architect.backhoe'),'#FF8A3D');
   for(const c of dark)floater(CITY[c].x,CITY[c].y-34,gold.includes(c)?'💥 '+CITY[c].name:tr('architect.city_goes_dark',{city:CITY[c].name}),gold.includes(c)?'#FF4D5E':'#9AA3BE');
-  for(const c of short)floater(CITY[c].x,CITY[c].y-34,tr('architect.city_short_g',{city:CITY[c].name,g:arG(arDem(c)-(got[c]||0))}),'#FF4D5E');
-  const bad=gold.length||short.length;mkRun(l0,dark.length?AR_STEP*1.6:AR_STEP,bad);sfx(bad?'err':'click');
+  for(const c of short)floater(CITY[c].x,CITY[c].y-34,tr('architect.city_short_g',{city:CITY[c].name,g:arG(arDem(c)-(arGot()[c]||0))}),'#FF4D5E');
+  const bad=gold.length||short.length;if(UI.mk)UI.mk.bad=!!bad;sfx(bad?'err':'click');
   if(bad){UI.arShow=null;UI.arFail={u,gold,dark,short};renderAll();haptic(30);return;}
-  renderAll();sh.t=setTimeout(arStep,dark.length?AR_STEP*1.6:AR_STEP);}
+  renderAll();sh.t=setTimeout(arStep,dark.length?AR_HOLD*1.7:AR_HOLD);}
 // Skip the show: check every cut at once, and stop at the first that breaks a gold site.
 function arShowSkip(){const sh=UI.arShow;if(!sh)return;clearTimeout(sh.t);for(const l of S.links)l.cut=0;
-  for(let i=sh.i+1;i<sh.units.length;i++){const x=arCut(sh.units[i]);for(const l of x.ls)l.cut=0;if(x.gold.length||x.short.length){sh.i=i-1;arStep();return;}}
+  for(let i=sh.hit?sh.i+1:sh.i;i<sh.units.length;i++){const x=arCut(sh.units[i]);for(const l of x.ls)l.cut=0;if(x.gold.length||x.short.length){sh.i=i-1;arStep(true);return;}}
   sh.i=sh.units.length-1;arStep();}
 // The kind of a city in a run: its sites, stepping stones and closed cities show; the rest of the world only on request.
 function arKind(c){const P=S.pz;return P.cities.includes(c)?'goal':P.avoid.includes(c)?'avoid':P.via.includes(c)?'via':S.pops[c]||(UI.arAll&&pzCityOk(c))?'off':null;}
