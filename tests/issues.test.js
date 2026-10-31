@@ -139,7 +139,8 @@ test('Auto-TE spills overflow onto an alternate path when the shortest one is fu
   ev("for(const c of ['ams','lon','par'])ACT.buildPop({city:c});const L=(a,b,t,v)=>{UI.via=v||null;openLinkModal(a,b);ACT.buildLink({tier:t});closeModal();};L('fra','ams',0);L('ams','lon',1,'uly');L('fra','par',1);L('par','lon',1,'chn');ACT.buyTransit({city:'lon',net:'lvl',tier:1});compute()");
   const dem = ev("R.demand");
   assert.ok(ev("R.served") < dem - 1, 'without TE the 10G link caps it');
-  ev("ACT.buyTE();compute()");
+  // Auto-TE needs an RSVP-TE backbone, and routers that can run it: Chonk 800s.
+  ev("for(const c in S.pops)S.pops[c].rgen=RG.findIndex(r=>r.n==='Chonk 800');ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
   assert.ok(ev("R.served") > dem * 0.97, 'with TE nearly everything is served');
   assert.ok(ev("R.teMoved") > 1);
   assert.ok(ev("R.load[S.links.find(l=>l.a==='fra'&&l.b==='par').id]") > 1, 'the Paris path carries the overflow');
@@ -356,7 +357,7 @@ test('#31 #33 #38 connections overview lists every port, filters it and jumps to
   const { ev, dom, errors } = load();
   base(ev);
   const doc = dom.window.document;
-  ev("ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG.length-1;S.pops.ams.bb={d:200};compute()");
+  ev("ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG_TOP;S.pops.ams.bb={d:200};compute()");
   ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'ams',net:'lvl',tier:1});ACT.buyIx({city:'ams~3',tier:1});ACT.buyIx({city:'ams',tier:1});compute()");
   ev("S.pni.push({id:uid(),city:'fra',net:'ggl',tier:1});R.demTo.nfx=1e4;ACT.cache({city:'fra',net:'nfx'});R.demTo.nfx=1e4;ACT.cache({city:'fra',net:'nfx'});compute()");
   const all = JSON.parse(ev('JSON.stringify(conns())'));
@@ -496,7 +497,7 @@ test('#42 the share card draws links across the date line on both edges of the m
 test('#45 unplugged optics go on a spares shelf, get reused for free, or sold for 40%', () => {
   const { ev, errors } = load();
   base(ev);
-  ev("S.lvl=4;ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG.length-1;S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});compute()");
+  ev("S.lvl=4;ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG_TOP;S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});compute()");
   const o = ev("Object.keys(OPT).find(k=>!chWhy(S.links[0],k))");
   const c0 = ev('S.cash');
   ev(`ACT.addCh({id:'df1',o:'${o}'})`);
@@ -521,7 +522,7 @@ test('#45 unplugged optics go on a spares shelf, get reused for free, or sold fo
 test('#35 your own trench can light another fiber pair once a ROADMaster is full', () => {
   const { ev, errors } = load();
   base(ev);
-  ev("S.lvl=4;ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG.length-1;S.pops.fra.routers=S.pops.ams.routers=RMAX;S.links.push({id:'own1',a:'fra',b:'ams',kind:'df',own:true,km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});compute()");
+  ev("S.lvl=4;ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=RG_TOP;S.pops.fra.routers=S.pops.ams.routers=RMAX;S.links.push({id:'own1',a:'fra',b:'ams',kind:'df',own:true,km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});compute()");
   assert.equal(ev("chMax(S.links[0])"), 64);
   ev("ACT.addPair({id:'own1'})");
   assert.equal(ev("S.links[0].pairs||1"), 1, 'not before the first pair is full');

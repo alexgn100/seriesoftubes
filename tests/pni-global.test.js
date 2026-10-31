@@ -3,13 +3,13 @@ const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 function setup(ev) {
-  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.pops.fra.rgen=RG.length-1;compute()");
+  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.pops.fra.rgen=RG_TOP;compute()");
 }
 
 test('global PNIs cover every eligible network and shared POP, including the long tail, in one transaction', () => {
   const { dom, ev, errors } = load();
   setup(ev);
-  ev(`ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG.length-1;
+  ev(`ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG_TOP;
     S.pni.push({id:'small',net:'cfl',city:'fra',tier:0,n:2,site:'ab',pref:'high'},
       {id:'big',net:'drz',city:'ams',tier:2},
       {id:'pending',net:'nfx',city:'fra',tier:1,ready:S.day+30});
@@ -139,7 +139,7 @@ test('the global batch, now in the Ops sheet, preserves scope, keyboard focus an
 test('bulk PNIs follow each network\'s own minimum port and lead time (pniMin, pniLead)', () => {
   const { ev, errors } = load();
   setup(ev);
-  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG.length-1;compute();for(const n of NETS)R.demTo[n.id]=1e4");
+  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG_TOP;compute();for(const n of NETS)R.demTo[n.id]=1e4");
   // Ask everyone for 10G: networks that start at 100G get 100G, the rest get 10G.
   const b = JSON.parse(ev('JSON.stringify(pniBatch(null,0))'));
   const big = b.orders.filter(q => ev(`pniMin('${q.net}')`) > 0), small = b.orders.filter(q => ev(`pniMin('${q.net}')`) === 0);

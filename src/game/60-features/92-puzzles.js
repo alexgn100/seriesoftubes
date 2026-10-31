@@ -47,7 +47,7 @@ const pzPopCost=c=>popCost(c)+PZ_YEAR*popMo(c);// thin markets cost more every m
 // 10G to 800G: an 800G wave needs an 800G router at both ends, as in the main game.
 const PZ_TIERS=[0,1,2,3];
 // Router models on offer: the main game's catalogue up to its level-3 gear, cheapest class first.
-const PZ_RG=RG.map((r,i)=>i).filter(i=>RG[i].lvl<=3).sort((a,b)=>RG[a].cls-RG[b].cls||RG[a].cost-RG[b].cost);
+const PZ_RG=RG.map((r,i)=>i).filter(i=>RG[i].lvl<=3&&!RG[i].noPz).sort((a,b)=>RG[a].cls-RG[b].cls||RG[a].cost-RG[b].cost);
 // A POP's routers for a year: the chassis (the first Rusty Router is free), each extra one as the main game prices it
 // (#157 cages included), and their rent.
 function pzRtCost(g,rt){let s=Math.round(RG[g].cost*hwMul('rt'));for(let k=1;k<rt;k++)s+=routerCost(g,k);return s+PZ_YEAR*((rt-1)*ROUTER_MO+cageMo(rt)+rt*RG[g].mo);}

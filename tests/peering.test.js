@@ -30,7 +30,7 @@ test('Rackstar requests require enough Crowdflare traffic and a free router port
 test('Rackstar serves cacheable Crowdflare traffic locally and overflow uses transit', () => {
   const { ev, errors } = load();
   setup(ev);
-  ev("S.pops.fra.rgen=RG.length-1;S.pops.fra.bb={d:200/NSH.cfl};ACT.buyTransit({city:'fra',net:'cog',tier:PORT.length-1});ACT.lagT({id:S.transit[0].id,d:1});ACT.lagT({id:S.transit[0].id,d:1});compute()");
+  ev("S.pops.fra.rgen=RG_TOP;S.pops.fra.bb={d:200/NSH.cfl};ACT.buyTransit({city:'fra',net:'cog',tier:PORT.length-1});ACT.lagT({id:S.transit[0].id,d:1});ACT.lagT({id:S.transit[0].id,d:1});compute()");
   const transit = ev('R.useT[S.transit[0].id]');
   ev("ACT.cache({city:'fra',net:'cfl'})");
   assert.equal(ev('R.useCache[S.caches[0].id]'), ev('CACHE_CAP'), 'first box fills to 100G');
@@ -219,7 +219,7 @@ test('Amsterdam has FRIES-IX, with free 10G and 100G ports and paid larger ports
   const { ev, errors } = load();
   setup(ev);
   assert.deepEqual(JSON.parse(ev("JSON.stringify(ixIdsIn('ams'))")), ['ams', 'ams~2', 'ams~3']);
-  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG.length-1;compute()");
+  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG_TOP;compute()");
   const cash = () => ev('S.cash');
   let c0 = cash();
   assert.equal(ev("ixPortMo('ams~3',0)"), 0, '10G port is free');
@@ -274,7 +274,7 @@ test('community exchanges are wired up in every city, and Barcelona has Catnip-I
   assert.equal(ev("ixName('bcn')"), 'Catnip-IX');
   for (const k of exchanges) {
     const c = k.split('~')[0];
-    ev(`if(!S.pops.${c})ACT.buildPop({city:'${c}'});S.pops.${c}.rgen=RG.length-1;ACT.buyIx({city:'${k}',tier:1});ACT.rs({city:'${k}'})`);
+    ev(`if(!S.pops.${c})ACT.buildPop({city:'${c}'});S.pops.${c}.rgen=RG_TOP;ACT.buyIx({city:'${k}',tier:1});ACT.rs({city:'${k}'})`);
     assert.equal(ev(`S.ixp['${k}']`), 1, `port at ${k}`);
   }
   ev('compute()');

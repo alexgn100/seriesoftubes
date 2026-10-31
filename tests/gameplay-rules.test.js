@@ -100,7 +100,7 @@ const REAL_NAMES = [
   // cables
   '2Africa', 'Amitié', 'Dunant', 'EllaLink', 'Equiano', 'Grace Hopper', 'Hibernia Express', 'Jupiter', 'MAREA', 'PEACE', 'SEA-ME-WE 6',
   // vendors
-  'Arista', 'Ciena', 'Cisco', 'Huawei', 'Infinera', 'Juniper', 'MikroTik', 'Nokia',
+  'Arista', 'Brocade', 'Ciena', 'Cisco', 'Extreme Networks', 'Huawei', 'Infinera', 'Juniper', 'MikroTik', 'Nokia',
 ];
 
 const { ev, errors } = load();

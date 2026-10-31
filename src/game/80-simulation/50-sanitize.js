@@ -56,6 +56,8 @@ function sanitize(s){
   // Sponsorships and capacity conferences (#168): registrations are true or 'sp', the glow and the pending deals are checked.
   for(const k of Object.keys(s.confReg))s.confReg[k]=s.confReg[k]==='sp'?'sp':!!s.confReg[k];
   if(s.conf){const c=s.conf;if(typeof c!=='object'||!own(REG,c.reg))s.conf=null;else s.conf={until:num(c.until,0),reg:c.reg,name:String(c.name||'').slice(0,40),sp:!!c.sp};}
+  // The backbone's technology: a save from before it with Auto-TE bought keeps the old rules on RSVP-TE (legacy).
+  {const c=s.core&&typeof s.core==='object'?s.core:null,lv=c?int(c.lv,0,4,0):(s.te?2:0);s.core={lv,run:c?int(c.run,0,lv,lv):lv};if(c?c.legacy===true:!!s.te)s.core.legacy=true;}
   s.capDeal=s.capDeal&&typeof s.capDeal==='object'&&own(CAP_ROUTES,s.capDeal.c)?{at:num(s.capDeal.at,0),c:s.capDeal.c}:null;
   s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.type==='maxpfx'&&(i.type='ixloop'),i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
   s.loans=s.loans.filter(l=>l&&own(BANKS,l.bank));for(const l of s.loans){if(l.model!==undefined&&!['balloon','storm','transit','astro'].includes(l.model))delete l.model;for(const k of ['apr0','cut','share'])if(l[k]!==undefined&&!isFinite(+l[k]))delete l[k];if(!Array.isArray(l.covs))l.covs=[];l.covs=l.covs.filter(c=>own(COVS,c));}s.loanOffers=s.loanOffers.filter(l=>l&&own(BANKS,l.bank));
