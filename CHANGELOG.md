@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- The intern's notes now name the exchanges it peered at: a city's first exchange showed as the city, so "Apfelwein-IX, London" really meant Apfelwein-IX and LYNX (#228).
 - Cancelling an IRU, giving up your own fiber or decommissioning a POP now puts the optics on its fibers back on the spares shelf, instead of throwing them away (#229).
 - Big networks freeze for less on every game day and every click: working out where traffic goes skips exits whose route is already full, so a game day takes about 40% less time (#210). Traffic goes exactly where it went before.
 - Premium submarine terminals and Optical engineering can no longer be bought on a cable where they would change nothing (#198). The button now says so, and an upgrade that only helps together with the other one stays available.

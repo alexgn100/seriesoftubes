@@ -68,7 +68,7 @@ const opsWkNew=w=>({w,i:S.ops.intern,n:{},wh:{},up:0,mo:0,rev:0,ff:0});
 const opsWkAny=x=>!!x&&(Object.keys(x.n).length>0||x.ff>0);
 // "Kevin's week: signed 3 customers (+$41k/mo), topped up transit 2 times (Frankfurt +1×100G), declined 17 tiny offers. Week total: …"
 function opsWeekLine(x){const I=INTERNS[x.i],name=I?tr(I.s):'',ks=Object.keys(x.n).sort((a,b)=>(a==='sales'?-1:b==='sales'?1:0)||(a==='broke')-(b==='broke'));
-  const parts=ks.map(k=>k==='sales'?trn('ops.w_sales',x.n[k],{rev:opsMo$(x.rev)}):trn(OPS_SAY[k],x.n[k],{where:(x.wh[k]||[]).map(opsWhere).join(', ')}));
+  const parts=ks.map(k=>k==='sales'?trn('ops.w_sales',x.n[k],{rev:opsMo$(x.rev)}):trn(OPS_SAY[k],x.n[k],{where:(x.wh[k]||[]).map(w=>opsWhere(w,k)).join(', ')}));
   if(x.ff)parts.push(trn('ops.w_oops',x.ff));
   return tr('ops.w_line',{name,list:parts.join(', ')})+(x.up||x.mo?' '+tr('ops.w_money',{cost:fmt$(x.up),mo:opsMo$(x.mo)}):'');}
 // The intern's mood, from what the week has been like. No dice: the same day always reads the same.
@@ -77,8 +77,9 @@ function opsMood(){const O=S.ops,x=O.wk&&O.wk.w===Math.floor(S.day/7)?O.wk:null,
   return tr({new:N_('ops.mood_new'),oops:N_('ops.mood_oops'),snag:N_('ops.mood_snag'),outage:N_('ops.mood_outage'),sales:N_('ops.mood_sales'),broke:N_('ops.mood_broke'),busy:N_('ops.mood_busy'),quiet:N_('ops.mood_quiet'),
     annie:N_('ops.mood_annie'),kevin:N_('ops.mood_kevin'),tracy:N_('ops.mood_tracy')}[k],{name:opsName()});}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
-function opsWhere(w){const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
-function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(opsWhere).join(', ')}));
+// Peering is always at an exchange, and a city's first exchange has the city's id ("lon" is LYNX): name the exchange (#228).
+function opsWhere(w,k){if(k==='peer'&&isIx(w)&&ixName(w))return ixName(w);const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
+function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(x=>opsWhere(x,k)).join(', ')}));
   return (parts.length?tr('ops.l_line',{name,list:parts.join(', ')}):tr('ops.l_quiet',{name}))+opsPaid(e);}
 const opsMo$=v=>(v>0?'+':'')+fmt$(v);
 const opsPaid=e=>e.up||e.mo?' '+tr('ops.l_paid',{cost:fmt$(e.up||0),mo:opsMo$(e.mo||0)}):'';
