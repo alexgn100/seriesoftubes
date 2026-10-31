@@ -79,3 +79,25 @@ test('draft counts and quotes stay together when reopening a panel or using shor
  assert.equal(field().value,'','empty in-progress entry survives a tick');
  }finally{dom.window.close();}
 });
+test('#229 giving up a fiber puts its optics on the spares shelf, and so does decommissioning its POP',()=>{
+ const {ev,dom,errors}=load();try{
+ setup(ev);
+ // a leased IRU (not your own build) with mixed optics
+ ev("Object.assign(S.links[0],{own:false,ch:['zr4','zr4','tp16']});S.spares={zr4:1};compute()");
+ ev("ACT.rmLink({id:'fiber'})");assert.equal(ev('S.links.length'),1,'the first click only asks');
+ ev("ACT.rmLink({id:'fiber'})");assert.equal(ev('S.links.length'),0,'cancelled');
+ assert.equal(ev('S.spares.zr4'),3);assert.equal(ev('S.spares.tp16'),1);
+ assert.match(ev("S.log.map(e=>e.t).join(' | ')"),/3 optics went back on the spares shelf/);
+ // the next channel of that type uses a spare for free
+ ev("S.links.push({id:'f2',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute()");
+ const cash=ev('S.cash');ev("ACT.setChCount({id:'f2',o:'zr4',n:3})");assert.equal(ev('S.cash'),cash,'spares are used first');assert.equal(ev('S.spares.zr4'),0);
+ // decommissioning a POP returns the optics of every link it takes with it
+ ev("S.pops.lon={...S.pops.fra};S.links.push({id:'f3',a:'lon',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:['tp16','tp16'],ready:0,day:0,cut:0,mo:1});compute()");
+ ev("decommission(['lon'])");
+ assert.equal(ev("S.links.some(l=>l.id==='f3')"),false);assert.equal(ev('S.spares.tp16'),3);
+ // a link without optics says nothing about spares
+ ev("S.log=[];S.links.push({id:'f4',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute();ACT.rmLink({id:'f4'});ACT.rmLink({id:'f4'})");
+ assert.doesNotMatch(ev("S.log.map(e=>e.t).join(' | ')"),/spares shelf/);
+ assert.deepEqual(errors,[]);
+ }finally{dom.window.close();}
+});
