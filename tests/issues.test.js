@@ -1390,6 +1390,10 @@ test('#210 candidate exits on saturated shortest paths are skipped to avoid fall
   ev("S.links.push({id:'x1',a:'fra',b:'par',kind:'wave',tier:0,km:450,mult:1,mo:1000,ready:0,cut:0});");
   ev("compute();");
   assert.ok(ev("R.load['x1'] >= 10 - 1e-6"), 'intercity wave is saturated');
+  assert.ok(ev("R.load['x1'] <= 10 + 1e-6"), 'and carries no more than it can');
+  // Skipping exits behind the full wave changes nothing: routing again gives the same answer.
+  const first = ev('JSON.stringify([R.served,R.citySrv,R.load])');
   ev("compute();");
+  assert.equal(ev('JSON.stringify([R.served,R.citySrv,R.load])'), first);
   assert.deepEqual(errors, []);
 });
