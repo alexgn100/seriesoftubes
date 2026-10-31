@@ -578,3 +578,20 @@ test('#226 the shift report\'s Open button in the NOC opens the Ops sheet, and s
   assert.ok(doc.querySelector('#modalCard .ops-rep'), 'and it is the Ops sheet with the report');
   assert.deepEqual(errors, []);
 });
+
+test('#228 the intern names the exchanges it peered at, even one that shares its city\'s id', t => {
+  const { ev, errors } = game(t, "ACT.buyIx({city:'fra',tier:0,signed:true})");
+  hire(ev); on(ev, 'ix');
+  ev('S.day=14'); shift(ev);
+  const line = ev('opsLine(S.ops.log[0])');
+  // Frankfurt's first exchange has the city's id: the line names DE-KICKS, not the city
+  assert.match(line, /peered with \d+ networks? at DE-KICKS/, line);
+  assert.doesNotMatch(line, /at Frankfurt/);
+  // two exchanges in two cities read as two exchanges, in the daily line and in the week's report
+  const e = "{i:'kevin',r:[['peer',2,['fra~3','lon']]],up:0,mo:0}";
+  assert.match(ev(`opsLine(${e})`), /at Apfelwein-IX, LYNX/);
+  assert.match(ev("opsWeekLine({w:2,i:'kevin',n:{peer:2},wh:{peer:['fra~3','lon']},up:0,mo:0,rev:0,ff:0})"), /at Apfelwein-IX, LYNX/);
+  // other orders still name cities
+  assert.match(ev("opsLine({i:'kevin',r:[['routers',1,['lon +1']]],up:0,mo:0})"), /London \+1/);
+  assert.deepEqual(errors, []);
+});

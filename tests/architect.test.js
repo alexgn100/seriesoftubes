@@ -163,3 +163,20 @@ test('architect runs: the map tells two tubes in one trench from two separate pa
   assert.deepEqual(JSON.parse(ev("JSON.stringify(AR_PILLS.map(p=>p[2]).sort())")), ['2× one trench', '✓ 2 paths']);
   assert.deepEqual(errors, []);
 });
+
+test('#231 the puzzle list counts each section\'s own stars: runs above, packs next to the packs', () => {
+  const { ev, errors } = load();
+  // 2 stars on a pack puzzle, 2 on Euro Run, 3 on another run
+  ev("localStorage.setItem(PZ_KEY,JSON.stringify({set:PZ_SET,noted:1,s:{[PZ[0].id]:{st:2}}}));localStorage.setItem(AR_KEY,JSON.stringify({runs:{[AR_RUNS[0].id]:{st:2},[AR_RUNS[1].id]:{st:3}}}))");
+  ev('ACT.puzzleMenu()');
+  const heads = JSON.parse(ev("JSON.stringify([...document.querySelectorAll('#modal h3.pzpack')].map(h=>h.textContent))"));
+  assert.match(heads[0], new RegExp(`Architect runs ⭐ 5/${3 * ev('AR_RUNS.length')}`), heads[0]);
+  // the packs' total sits right above the first pack, after the runs and the weekly puzzle, and says what it counts
+  const order = ev(`(()=>{const m=document.querySelector('#modal'),box=m.querySelector('.pzprog'),run=m.querySelector('[data-act=pzArStart]'),pack=[...m.querySelectorAll('h3.pzpack')].find(h=>!h.textContent.includes('🏗️'));
+    return [!!(run.compareDocumentPosition(box)&Node.DOCUMENT_POSITION_FOLLOWING),!!(box.compareDocumentPosition(pack)&Node.DOCUMENT_POSITION_FOLLOWING),box.textContent].join('|')})()`);
+  const [afterRuns, beforePacks, box] = order.split('|');
+  assert.equal(afterRuns, 'true', 'below the architect runs');
+  assert.equal(beforePacks, 'true', 'above the first pack');
+  assert.match(box, new RegExp(`Stars from the packs⭐ 2 / ${3 * ev('PZ.length')}`), box);
+  assert.deepEqual(errors, []);
+});
