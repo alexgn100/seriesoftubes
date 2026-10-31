@@ -562,3 +562,36 @@ test('transit: the log line and budget line show the monthly cost a top-up adds'
   assert.match(ev('opsEntry(S.ops.log[0])'), /Cost: \$[\d.]+k up front, \+\$[\d.]+k?\/mo\./);
   assert.deepEqual(errors, []);
 });
+
+test('#226 the shift report\'s Open button in the NOC opens the Ops sheet, and survives a reload', t => {
+  const { ev, errors, dom } = game(t);
+  ev('S.day=14'); hire(ev); on(ev, 'sales', { acc: false, min: 5000 });
+  ev("S.offers=[{id:'t',city:'fra',name:'T',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=15"); shift(ev);
+  ev('S.day=21'); shift(ev);
+  assert.match(ev('S.log[0].t'), /^Kevin's week/);
+  ev("S=migrate(JSON.parse(JSON.stringify(S)));closeModal();ACT.leftTab({t:'noc'})");
+  const doc = dom.window.document;
+  const b = doc.querySelector(`#leftBody [data-act=logOpen][data-args='${JSON.stringify({ id: ev('S.log[0].id') })}']`);
+  assert.ok(b, 'the report has an Open button');
+  b.click();
+  assert.equal(doc.getElementById('modal').hidden, false, 'a sheet opened');
+  assert.ok(doc.querySelector('#modalCard .ops-rep'), 'and it is the Ops sheet with the report');
+  assert.deepEqual(errors, []);
+});
+
+test('#228 the intern names the exchanges it peered at, even one that shares its city\'s id', t => {
+  const { ev, errors } = game(t, "ACT.buyIx({city:'fra',tier:0,signed:true})");
+  hire(ev); on(ev, 'ix');
+  ev('S.day=14'); shift(ev);
+  const line = ev('opsLine(S.ops.log[0])');
+  // Frankfurt's first exchange has the city's id: the line names DE-KICKS, not the city
+  assert.match(line, /peered with \d+ networks? at DE-KICKS/, line);
+  assert.doesNotMatch(line, /at Frankfurt/);
+  // two exchanges in two cities read as two exchanges, in the daily line and in the week's report
+  const e = "{i:'kevin',r:[['peer',2,['fra~3','lon']]],up:0,mo:0}";
+  assert.match(ev(`opsLine(${e})`), /at Apfelwein-IX, LYNX/);
+  assert.match(ev("opsWeekLine({w:2,i:'kevin',n:{peer:2},wh:{peer:['fra~3','lon']},up:0,mo:0,rev:0,ff:0})"), /at Apfelwein-IX, LYNX/);
+  // other orders still name cities
+  assert.match(ev("opsLine({i:'kevin',r:[['routers',1,['lon +1']]],up:0,mo:0})"), /London \+1/);
+  assert.deepEqual(errors, []);
+});

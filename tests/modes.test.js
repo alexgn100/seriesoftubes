@@ -149,7 +149,7 @@ test('the map draws at every zoom, with and without animations, without throwing
 test('RouteScript: parses safely, reports errors helpfully, and changes routing', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.buyTE();compute()");
+  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
   let p = JSON.parse(ev("JSON.stringify(teParse('spill at 80%\\ncap transit cogentle at 3 gbps\\nprefer ix for goggle\\nnonsense here\\navoid transit for gogle'))"));
   assert.equal(p.errors.length, 2, 'the nonsense line and the typo fail');
   assert.match(p.errors[1], /Did you mean Goggle/, 'typos get a suggestion');
@@ -176,7 +176,7 @@ test('RouteScript: parses safely, reports errors helpfully, and changes routing'
 test('RouteScript BGP: local-pref and prepending move transit, protected customers go first, the optimizer drafts a script', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.buyTE();for(let i=0;i<30;i++)dayTick();compute()");
+  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();for(let i=0;i<30;i++)dayTick();compute()");
   const use = n => ev(`R.useT[S.transit.find(t=>t.net==='${n}').id]||0`);
   const p = JSON.parse(ev("JSON.stringify(teParse('prefer transit level tree\\navoid transit cogentle\\nprepend transit cogentle 2\\nprotect customers\\nprepend transit cogentle 9'))"));
   assert.equal(p.n, 4);
@@ -435,7 +435,7 @@ test('#114 Only Spätzle-IX can be won by peering alone', () => {
 test('RouteScript: help, ready-made scripts and the AI button', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.buyTE();compute()");
+  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
   // every ready-made script parses on a real network and is listed in the help
   for (const id of JSON.parse(ev('JSON.stringify(TE_RECIPES.map(r=>r.id))')))
     assert.deepEqual(JSON.parse(ev(`JSON.stringify(teParse(TE_RECIPES.find(r=>r.id==='${id}').src().join('\\n')).errors)`)), [], id);

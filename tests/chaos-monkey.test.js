@@ -107,3 +107,14 @@ test('"Met the Chaos Monkey" comes from a visit, not from an ordinary fiber cut'
   assert.equal(ev("BADGES.find(b=>b.id==='backhoe').t"), 'Met the Chaos Monkey');
   assert.deepEqual(errors, []);
 });
+
+test('#226 the monkey\'s notice in the NOC has no Open button that would open the NOC again', () => {
+  const { ev, errors } = net('oncall');
+  ev('mkArrive(S.day);ACT.leftTab({t:"noc"})');
+  const row = ev(`(()=>{const e=S.log.find(x=>x.o&&x.o.a==='tab'&&x.o.v==='noc');if(!e)return 'none';const r=[...document.querySelectorAll('#left .row.note')].find(n=>n.textContent.includes(e.t.slice(0,20)));return r?(r.querySelector('[data-act=logOpen]')?'button':'no button'):'not shown'})()`);
+  assert.equal(row, 'no button');
+  // a notice that opens something else keeps its button
+  ev("toast('A test notice','',[],{a:'bank'});ACT.leftTab({t:'noc'})");
+  assert.equal(ev(`!![...document.querySelectorAll('#left .row.note')].find(n=>n.textContent.includes('A test notice')).querySelector('[data-act=logOpen]')`), true);
+  assert.deepEqual(errors, []);
+});

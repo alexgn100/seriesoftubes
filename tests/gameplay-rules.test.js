@@ -100,7 +100,7 @@ const REAL_NAMES = [
   // cables
   '2Africa', 'Amitié', 'Dunant', 'EllaLink', 'Equiano', 'Grace Hopper', 'Hibernia Express', 'Jupiter', 'MAREA', 'PEACE', 'SEA-ME-WE 6',
   // vendors
-  'Arista', 'Ciena', 'Cisco', 'Huawei', 'Infinera', 'Juniper', 'MikroTik', 'Nokia',
+  'Arista', 'Brocade', 'Ciena', 'Cisco', 'Extreme Networks', 'Huawei', 'Infinera', 'Juniper', 'MikroTik', 'Nokia',
 ];
 
 const { ev, errors } = load();
@@ -380,6 +380,15 @@ test('F4: the chaos monkey only visits On-call and BGP at 3 a.m., late, for 120 
   const g = load();
   g.ev("beginGame('Monkey','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.mode='sandbox'");
   assert.equal(g.ev('mkElig()'), false, 'F4: never in Sandbox');
+});
+
+test('F5: rented capacity never outgrows the route\'s market (#203)', () => {
+  const g = load();
+  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.biz=[];S.offers=[];for(const c of ['jed','gdx'])ACT.buildPop({city:c})");
+  g.ev("S.links.push({id:'f',a:'jed',b:'gdx',kind:'df',own:true,sys:'roadm',ch:[],km:9089,ready:0,day:0,cut:0,mo:1,trench:'own:f',pairs:1});compute();__reseed(5);ACT.listFiber({id:'f',w:120,p:1})");
+  g.ev('for(let d=0;d<1500;d++){brTick();if(d%7===0)spawnOffer();}for(const o of S.offers.filter(o=>o.link===\'f\'))ACT.accept({id:o.id})');
+  assert.ok(g.ev("brSold('jed','gdx')") <= g.ev("brMarket('jed','gdx')"), 'F5: no more than the route wants');
+  assert.deepEqual(g.errors, []);
 });
 
 test('no page errors while checking the rules', () => {

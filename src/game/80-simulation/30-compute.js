@@ -91,8 +91,10 @@ function compute(){
   /* While routing, each edge keeps its own room (res) and load (ld). Routers only exist in POPs (HAS): their room,
      load and served traffic are kept per city index. What crosses each edge (R.ef) is added up by egress, and in
      arrays by network (then 'junk' and 'l2vpn') and by source city, each key in the order it first got traffic. */
-  const LATP=new Float64Array(NC),FARL=[],NRES=new Float64Array(NC),HAS=new Uint8Array(NC),NLOAD=new Float64Array(NC),NSEEN=new Uint8Array(NC),NORD=[],SRV=new Float64Array(NC);
+  const LATP=new Float64Array(NC),FARL=[],NRES=new Float64Array(NC),HAS=new Uint8Array(NC),NLOAD=new Float64Array(NC),NSEEN=new Uint8Array(NC),NORD=[],SRV=new Float64Array(NC),PASS=new Float64Array(NC).fill(1),OUT=new Uint8Array(NC);
   for(const k in edges)edges[k].res=edges[k].cap;for(const c of pops){const i=CIDX[c];NRES[i]=nodeCap(c);HAS[i]=1;R2.nodeCap[c]=NRES[i];}
+  // The core (backbone technology): what passing-through traffic costs each router, and which POPs TE must avoid.
+  const CORE=coreOn()&&S.core.run>=1;if(CORE)for(const c of pops){const i=CIDX[c];PASS[i]=corePass(c);OUT[i]=inCore(c)?0:1;}
   const nodeTake=(i,a)=>{NRES[i]-=a;if(!NSEEN[i]){NSEEN[i]=1;NORD.push(i);}NLOAD[i]=(NLOAD[i]||0)+a;};
   const NKN=NN+2,ACN=new Float64Array(NE*NKN),SEN=new Uint8Array(NE*NKN),ACD=new Float64Array(NE*NC),SED=new Uint8Array(NE*NC),EL=[];
   const carry=(l,eg,nr,ci,a)=>{let t=l.tr;if(!t){t=l.tr={g:new Map(),n:[],d:[]};EL.push(l);}t.g.set(eg,(t.g.get(eg)||0)+a);
@@ -157,11 +159,11 @@ function compute(){
         for(const x of S.scrubs)if(popUp(x.city)&&SPD[c]&&SPD[c][CIDX[x.city]]<Infinity){const ms=c===x.city?0:walkI(SPP[c],CIDX[c],CIDX[x.city]).path.reduce((n,e)=>n+e.lat,0);if(!near||ms<near.ms)near={city:x.city,ms};}
         scrubNear.set(c,near);}m.near=near;}}
   for(const group of junkGroups)for(const q of group.flows)q.f.rem=group.m.offline?0:group.m.leak*q.share;
-  const TE=!!(S.te&&S.te.on),TR=teRules();R2.teMoved=0;const teCache=new Map(),SPILL=TR&&TR.spill?TR.spill:1;
+  const TE=!!(S.te&&S.te.on)&&coreTE(),TR=TE?teRules():null,REACH=coreTeReach();R2.teMoved=0;const teCache=new Map(),SPILL=TR&&TR.spill?TR.spill:1;
   const altPath=(src,dst,base)=>{const key=src*NC+dst,c0=teCache.get(key);
     if(c0===false)return null;if(c0&&c0.path.every(l=>l.res>1e-3)&&c0.ni.every(i=>!HAS[i]||NRES[i]>1e-3))return c0;
-    const {D,P}=dijkstra(adj,src,wW,(v,e)=>e.res<=1e-3||(HAS[v]&&NRES[v]<=1e-3),dst);
-    if(D[dst]===Infinity||D[dst]>2*base+60){teCache.set(key,false);return null;}
+    const {D,P}=dijkstra(adj,src,wW,(v,e)=>e.res<=1e-3||(HAS[v]&&NRES[v]<=1e-3)||(CORE&&OUT[v]&&v!==dst),dst);
+    if(D[dst]===Infinity||D[dst]>REACH*base+60){teCache.set(key,false);return null;}
     const Q=walkI(P,src,dst);teCache.set(key,Q);return Q;};
   /* A network in a peer's customer cone, reached through that peer (#85): after every network you peer with directly
      (its AS path is one hop longer) and before transit. */
@@ -182,16 +184,17 @@ function compute(){
       let V=L;if(NCOMP>1){const cs=[];for(const e of L){const k=COMP[e.ci];if(k>=0)(cs[k]||(cs[k]=[])).push(e);}for(const s of cs)if(s)idx(s);V={cs};}else idx(L);LIST.set(key,V);m[r]=V;}}
   // The flow being routed, and from its POP: distances, arriving edges and the paths walked so far, by city index.
   let f=null,Dv=null,Pv=null,PP=null,vis=0;const walked=[],G=[],REST=[],NEG=[];
-  // An exit the flow can still try: not visited yet, not full when the flow started, and reachable from the POP.
-  const usable=e=>e.vis!==vis&&e.used<e.cap&&Dv[e.ci]<Infinity,byDist=(a,b)=>a.hp-b.hp||Dv[a.ci]-Dv[b.ci];
+  // An exit the flow can still try: not visited yet, not full when the flow started, reachable, and not on a saturated path.
+  const usable=e=>e.vis!==vis&&e.used<e.cap&&Dv[e.ci]<Infinity&&!gone(e),byDist=(a,b)=>a.hp-b.hp||Dv[a.ci]-Dv[b.ci];
   // Push up to `want` along one path to exit e; returns what fitted. Capacity only shrinks while routing, so a
   // path with one full link or node fits nothing for the rest of this pass: mark it, and later tries cost nothing
   // (most tries are into paths that filled up earlier).
   const push=(e,P,want,keep=0)=>{if(P.dead)return 0;const path=P.path,ni=P.ni;let amt=want;
     for(const l of path){const r=l.res;if(r<=1e-6){P.dead=1;return 0;}amt=Math.min(amt,r-l.cap*keep);}
-    for(const i of ni)if(HAS[i]){const r=NRES[i];if(r<=1e-6){P.dead=1;return 0;}amt=Math.min(amt,r);}
+    const last=ni.length-1;
+    for(let k=0;k<=last;k++){const i=ni[k];if(!HAS[i])continue;const r=NRES[i];if(r<=1e-6){P.dead=1;return 0;}const w=k&&k<last?PASS[i]:1;amt=Math.min(amt,r/w);}
     if(amt<=1e-6)return 0;
-    for(const i of ni)if(HAS[i])nodeTake(i,amt);
+    for(let k=0;k<=last;k++){const i=ni[k];if(HAS[i])nodeTake(i,k&&k<last?amt*PASS[i]:amt);}
     const ek=e.ek,nr=f.nr,ci=f.ci;if(!e.told||e.dup){R2.egDesc[ek]=e.desc;e.told=true;}
     for(const l of path){l.res-=amt;l.ld+=amt;carry(l,ek,nr,ci,amt);}
     e.used+=amt;f.rem-=amt;
@@ -238,7 +241,7 @@ function compute(){
          when it does not fit. Most often the group is the POP's own exits: with no preferred exit on the list
          and no other city at distance 0, the usable ones here are exactly the first group, already in order. */
       G.length=0;
-      if(!lst.hi&&ALONE[f.ci]){const here=lst.at.get(f.ci);if(here)for(const e of here)if(e.used<e.cap)G.push(e);}
+      if(!lst.hi&&ALONE[f.ci]){const here=lst.at.get(f.ci);if(here)for(const e of here)if(e.used<e.cap&&!gone(e))G.push(e);}
       if(!G.length){
         // One scan: the best (preference, distance) so far and, in list order, the exits within 1e-6 of it. The best
         // distance only goes down, so dropping the ones it leaves behind gives exactly the exits a second scan would.
@@ -247,9 +250,9 @@ function compute(){
            them still have room no other exit can have become better, and the scan would find the same group (an
            empty one, no usable exit, stays empty). */
         const gc=lst.gc||(lst.gc=[]),c=gc[f.ci];
-        if(c!==undefined&&c.every(e=>e.used<e.cap)){if(!c.length)continue;for(let k=0;k<c.length;k++)G.push(c[k]);}else{
+        if(c!==undefined&&c.every(e=>e.used<e.cap&&!gone(e))){if(!c.length)continue;for(let k=0;k<c.length;k++)G.push(c[k]);}else{
         let bh=2,bd=Infinity,full=0;
-        for(let li=0,LN=lst.length;li<LN;li++){const e=lst[li];if(e.used>=e.cap){full++;continue;}const d=Dv[e.ci];if(d===Infinity)continue;const h=e.hp;
+        for(let li=0,LN=lst.length;li<LN;li++){const e=lst[li];if(e.used>=e.cap||gone(e)){full++;continue;}const d=Dv[e.ci];if(d===Infinity)continue;const h=e.hp;
           if(h<bh){bh=h;bd=d;G.length=0;G.push(e);}
           else if(h===bh){if(d<bd){bd=d;let k=0;for(let gi=0;gi<G.length;gi++){const x=G[gi];if(Dv[x.ci]-d<1e-6)G[k++]=x;}G.length=k;G.push(e);}else if(d-bd<1e-6)G.push(e);}}
         if(full*4>=lst.length&&full){let k=0;for(let li=0;li<lst.length;li++){const e=lst[li];if(e.used<e.cap)lst[k++]=e;}lst.length=k;}

@@ -110,7 +110,7 @@ test('cache requests reject stale eligibility and insufficient port capacity ato
 
 test('balanced caches keep serving when either site fails', t => {
   const { ev, errors } = setup(t);
-  ev("Object.assign(S.pops.fra,{site2:true,routers:2,rgen:RG.length-1,bb:{d:5000}});S.caches=[{id:'one',city:'fra',net:'ggl'},{id:'two',city:'fra',net:'ggl'}];compute();ACT.utilityKit({city:'fra',cost:utilityKit('fra').cost})");
+  ev("Object.assign(S.pops.fra,{site2:true,routers:2,rgen:RG_TOP,bb:{d:5000}});S.caches=[{id:'one',city:'fra',net:'ggl'},{id:'two',city:'fra',net:'ggl'}];compute();ACT.utilityKit({city:'fra',cost:utilityKit('fra').cost})");
   for (const site of ['a', 'b']) {
     ev(`S.inc=[{id:'site-failure',type:'site',ref:'fra',site:'${site}',until:S.day+2}];compute()`);
     assert.ok(ev('Object.values(R.useCache).reduce((a,b)=>a+b,0)') > 0);

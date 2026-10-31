@@ -128,10 +128,11 @@ function pzMenu(){pzWkEnsure();const p=pzLoad(),tot=pzStarsTotal(p),max=PZ.lengt
   <p class="tagline">${tr('puzzles.no_clock_no_bills_real_traffic')}</p>`;
   // Once, after the puzzles got traffic: the old stars are kept on the wall, the new set starts at zero.
   if(p.old&&!p.noted){h+=`<div class="pznote">🖼️ ${tr('puzzles.puzzles_got_traffic_note',{n:p.old})}</div>`;p.noted=1;pzStore(p);}
-  h+=`<div class="pzprog"><div class="kv"><span>${tr('puzzles.your_stars')}</span><b>⭐ ${tot} / ${max}</b></div><div class="bar me"><i style="width:${(tot/max*100).toFixed(1)}%"></i></div>${nxP?`<div class="meta">${tr('puzzles.next_pack_unlocks_at_n',{n:nxP.need,pack:esc(nxP.n)})}</div>`:''}${p.old?`<div class="meta">🖼️ ${tr('puzzles.framed_n_stars_from_the_old',{n:p.old})}</div>`:''}</div>`;
   if(pzOn())h+=`<div class="btns" style="margin:8px 0">${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
   h+=arMenuRows();
   h+=pzWkRow();
+  // The packs' own total, right above them: it is what unlocks the next pack (#231). Runs and weeklies count their own.
+  h+=`<div class="pzprog"><div class="kv"><span>${tr('puzzles.stars_from_the_packs')}</span><b>⭐ ${tot} / ${max}</b></div><div class="bar me"><i style="width:${(tot/max*100).toFixed(1)}%"></i></div>${nxP?`<div class="meta">${tr('puzzles.next_pack_unlocks_at_n',{n:nxP.need,pack:esc(nxP.n)})}</div>`:''}${p.old?`<div class="meta">🖼️ ${tr('puzzles.framed_n_stars_from_the_old',{n:p.old})}</div>`:''}</div>`;
   for(const pk of PZ_PACKS){const open=tot>=pk.need,got=PZ.filter(x=>x.pack===pk.id).reduce((a,x)=>a+((p.s[x.id]||{}).st|0),0),n=PZ.filter(x=>x.pack===pk.id).length;
     h+=`<h3 class="pzpack">${open?'':'🔒 '}${esc(pk.n)} <span class="meta">⭐ ${got}/${n*3}</span></h3><p class="meta" style="margin:0 0 2px">${open?esc(pk.d):tr('puzzles.unlocks_at_n_stars',{n:pk.need})}</p>`;
     for(const d of PZ.filter(x=>x.pack===pk.id)){const r=p.s[d.id],tg=pzDemTag(d);

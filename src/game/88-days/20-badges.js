@@ -72,6 +72,10 @@ const BADGES=[
  {id:'monkey',i:'🛡️',t:tr('badges.monkey_proof'),d:tr('badges.outlast_a_chaos_monkey_visit'),r:'e',ok:()=>(st().mkSurv||0)>=1},
  {id:'flood',i:'🌊',t:tr('badges.held_the_flood'),d:tr('badges.weather_a_multi_terabit_ddos'),r:'e',ok:()=>(st().ddosMonster||0)>=1},
  {id:'skynot',i:'🤖',t:tr('common.skynot_smiles'),d:tr('badges.land_a_hackback_3000tm_that_actually'),r:'e',secret:true,ok:()=>(st().hackWin||0)>=1},
+ {id:'label',i:'🏷️',t:tr('core.label_switcher'),d:tr('core.run_an_mpls_backbone'),r:'c',ok:()=>coreOn()&&S.core.run>=1},
+ {id:'bleed',i:'🩸',t:tr('core.bleeding_edge'),d:tr('core.run_an_srv6_backbone'),r:'r',ok:()=>coreOn()&&S.core.run>=4},
+ {id:'mono',i:'🏪',t:tr('core.single_vendor_shop'),d:tr('core.run_sr_mpls_or_srv6_on'),r:'e',ok:()=>coreOn()&&S.core.run>=3&&Object.keys(S.pops).length>=8&&!coreOut().length&&coreVendors().size===1},
+ {id:'zoo',i:'🦓',t:tr('core.vendor_zoo'),d:tr('core.run_an_mpls_backbone_with_4'),r:'r',ok:()=>coreOn()&&S.core.run>=1&&coreVendors().size>=4},
  {id:'zero',i:'🕳️',t:tr('badges.zero_peers_given'),d:tr('badges.reach_tier_2_with_every_single'),r:'l',secret:true,ok:()=>isTier2()&&!Object.keys(S.peers).length&&!S.pni.length},
 ];
 /* Badge variants by ruleset (2.0): On-call earns the standard badge, Change Freeze a frosted one and BGP at 3 a.m. a

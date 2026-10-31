@@ -5,7 +5,7 @@ const { load } = require('./harness');
 function setup(ev, cities = []) {
   ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0");
   for (const city of cities) ev(`ACT.buildPop({city:'${city}'})`);
-  ev('for(const p of Object.values(S.pops))p.rgen=RG.length-1;compute()');
+  ev('for(const p of Object.values(S.pops))p.rgen=RG_TOP;compute()');
 }
 
 test('bulk PNIs add missing shared POPs and upgrade smaller ports once, preserving existing orders and LAGs', () => {
