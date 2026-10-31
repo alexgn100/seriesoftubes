@@ -173,3 +173,85 @@ test('the backbone panel and the router panels, on a phone too', () => {
     assert.deepEqual(errors, []);
   }
 });
+
+test('an upgraded backbone brings its own customers: L3VPN from LDP, flex-algo from SR-MPLS, slices from SRv6', () => {
+  const { ev, errors } = load();
+  ev(start + ";for(const c of ['ams','lon','par'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=" + g('Disco 8K'));
+  const offered = () => ev("coreProducts(Object.keys(S.pops)).join()");
+  assert.equal(offered(), '', 'plain IGP: none of them');
+  ev('ACT.coreUp()');
+  assert.equal(offered(), 'l3vpn,l3vpn');
+  ev('ACT.coreUp();ACT.coreUp()');
+  assert.equal(offered(), 'l3vpn,l3vpn,flex,flex');
+  ev('ACT.coreUp()');
+  assert.equal(offered(), 'l3vpn,l3vpn,flex,flex,slice,slice');
+  ev('ACT.coreSet({v:0})');
+  assert.equal(offered(), '', 'running plain IGP again: no new offers');
+  // Each kind spawns a real offer that can be signed.
+  ev('ACT.coreSet({v:4})');
+  for (const t of ['l3vpn', 'flex', 'slice']) {
+    ev(`S.offers=[];Math.random=(()=>{let s=7;return()=>(s=(s*9301+49297)%233280)/233280;})();for(let i=0;i<60&&!S.offers.some(o=>o.type==='${t}');i++){const p=coreProducts;coreProducts=()=>['${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}','${t}'];spawnOffer();coreProducts=p;}`);
+    assert.ok(ev(`S.offers.some(o=>o.type==='${t}')`), `a ${t} offer`);
+    assert.ok(ev(`S.offers.find(o=>o.type==='${t}').rate`) > 0, `${t} pays`);
+    assert.equal(typeof ev(`bTerms(S.offers.find(o=>o.type==='${t}'))`), 'string');
+  }
+  // A legacy save or a scenario never sees them.
+  ev("S.core.legacy=true");
+  assert.equal(offered(), '');
+  assert.deepEqual(errors, []);
+});
+
+test('fast reroute: from RSVP-TE up, customers lose half as much happiness while a link is cut', () => {
+  const hit = run => {
+    const { ev, errors } = load();
+    ev(start + `;ACT.buildPop({city:'ams'});S.pops.fra.rgen=S.pops.ams.rgen=${g('Disco 8K')};for(let i=0;i<${run};i++)ACT.coreUp();`);
+    ev("const L=(a,b,t)=>{openLinkModal(a,b);ACT.buildLink({tier:t});closeModal();};L('fra','ams',1);S.links[0].ready=0");
+    ev("S.biz.push({id:'b1',type:'dia',city:'ams',name:'X',bw:1,rate:600,mood:80,since:-99});S.links[0].cut=3;bizSf=()=>0.5;dayTick()");
+    assert.deepEqual(errors, []);
+    return 80 - ev("S.biz.find(b=>b.id==='b1').mood");
+  };
+  const plain = hit(0), frr = hit(2);
+  assert.ok(plain > 0, 'a cut hurts');
+  assert.ok(Math.abs(frr - plain / 2) < 0.01, `half as much with FRR (${plain} vs ${frr})`);
+  assert.ok(Math.abs(hit(1) - plain) < 0.01, 'LDP has no fast reroute');
+});
+
+test('an interop lab cuts interop incidents, is bought once, and survives a save', () => {
+  const { ev, errors } = load();
+  ev(start + `;ACT.buildPop({city:'ams'});S.pops.fra.rgen=${g('Disco 8K')};S.pops.ams.rgen=${g('Knockia 7750')};`);
+  ev("const L=(a,b,t)=>{openLinkModal(a,b);ACT.buildLink({tier:t});closeModal();};L('fra','ams',1)");
+  ev('ACT.coreLab()');
+  assert.equal(ev('!!S.core.lab'), false, 'nothing to test on plain IGP');
+  for (let i = 0; i < 4; i++) ev('ACT.coreUp()');
+  const before = ev('coreIopRisk()'), cash = ev('S.cash');
+  ev('ACT.coreLab()');
+  assert.equal(ev('S.cash'), cash - ev('CORE_LAB'));
+  assert.ok(Math.abs(ev('coreIopRisk()') - before * 0.4) < 1e-9, '60% fewer');
+  ev('ACT.coreLab()');
+  assert.equal(ev('S.cash'), cash - ev('CORE_LAB'), 'bought once');
+  ev("S=sanitize(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.core.lab'), true);
+  ev("S.core.lab='yes';S=sanitize(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('S.core.lab'), undefined, 'garbage is dropped');
+  assert.deepEqual(errors, []);
+});
+
+test('badges for the backbone: label switcher, bleeding edge, single-vendor shop, vendor zoo', () => {
+  const { ev, errors } = load();
+  const ok = id => ev(`BADGES.find(b=>b.id==='${id}').ok()`);
+  ev(start + ";for(const c of ['ams','lon','par','bru','mad','mil','sto'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=" + g('Disco 8K'));
+  assert.equal(ev('Object.keys(S.pops).length'), 8);
+  for (const id of ['label', 'bleed', 'mono', 'zoo']) assert.equal(ok(id), false, id);
+  ev('ACT.coreUp()');
+  assert.equal(ok('label'), true);
+  ev('ACT.coreUp();ACT.coreUp()');
+  assert.equal(ok('mono'), true, 'eight POPs of one vendor on SR-MPLS');
+  ev('ACT.coreUp()');
+  assert.equal(ok('bleed'), true);
+  ev(`S.pops.ams.rgen=${g('Knockia 7750')};S.pops.lon.rgen=${g('Absolute Unit 3.2T')};S.pops.par.rgen=${g('Sonic the Whitebox 64')}`);
+  assert.equal(ok('mono'), false);
+  assert.equal(ok('zoo'), true, 'Disco, Knockia, Junipurr and Whitebox');
+  ev('ACT.coreSet({v:0})');
+  assert.equal(ok('zoo'), false, 'not on plain IGP');
+  assert.deepEqual(errors, []);
+});
