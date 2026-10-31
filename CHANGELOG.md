@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- A seat on a consortium cable can be lit with the optics you have: add regen sites in the landing stations along the cable. Before, a seat bought at level 2 or 3 stayed dark until long-haul transponders arrived at level 4.
+- List spare capacity with a capacity broker as a standing listing: pick how many alien waves (or your spare pair) to sell, and the broker sells them off over time as carriers on that route want capacity. Each route's market is sized by the eyeballs at both ends, and a busy route sells in days while a road to nowhere sells maybe once, so renting out long empty fibers is no longer a money machine (#203).
 - The chaos monkey's notice in the NOC no longer has an Open button that did nothing; the monkey's own card is right above it (#226).
 - The puzzle list counts each section's own stars: architect runs show theirs next to their title, and the pack total now sits right above the packs, the stars that unlock the next one (#231).
 - The intern's notes now name the exchanges it peered at: a city's first exchange showed as the city, so "Apfelwein-IX, London" really meant Apfelwein-IX and LYNX (#228).

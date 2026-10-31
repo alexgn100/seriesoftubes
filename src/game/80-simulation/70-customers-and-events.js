@@ -40,6 +40,6 @@ function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops),lv=lvl();
     while(sites.length<n&&pool.length)sites.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);if(sites.length<3)return;
     S.offers.push({id:uid(),city:hub,city2:null,sites,name:nm(),type:t,bw:pick(T.opts),rate:700*sites.length,reqs:[],exp:S.day+40});return;}
   const ready=S.links.filter(l=>l.kind==='df'&&l.ready<=S.day);
-  if(t==='wwave'){const u=fiberUse(),ls=ready.filter(l=>freeCh(l,u)>=1&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));return;}
-  if(t==='dfpair'){const u=fiberUse(),ls=ready.filter(l=>pairFree(l,u)&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));}
+  if(t==='wwave'){const u=fiberUse(),ls=ready.filter(l=>freeCh(l,u)>=1&&brFree(l)>=1&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));return;}
+  if(t==='dfpair'){const u=fiberUse(),ls=ready.filter(l=>pairFree(l,u)&&brFree(l)>=BR_PAIR&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;S.offers.push(fiberOffer(t,pick(ls),nm));}
 }

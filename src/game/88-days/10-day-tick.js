@@ -59,6 +59,7 @@ function dayTick(){
   if(rule('money')==='infinite'&&S.cash<1e8)S.cash=1e9;
   // offers
   S.offers=S.offers.filter(o=>o.exp>d);
+  brTick();
   if(S.offers.length<5&&Math.random()<(0.05+0.01*(S.lvl||1))*(ppol()==='closed'?0.6:1)*(confSpOn()?SP_OFFERS:1))spawnOffer();
   // failures & events
   // Chaos (the rules) scales how often: calm waits about three times as long, spicy comes almost twice as often, none never.

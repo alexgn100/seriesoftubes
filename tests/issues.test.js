@@ -1259,23 +1259,24 @@ test('#51 a dark fiber shows what is rented out, and spare capacity can be liste
   ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'ams'});S.offers=[];S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',ch:['tp16','tp16'],km:450,ready:0,day:0,cut:0,mo:100,trench:'own:df1',pairs:1});after();UI.sel={type:'link',id:'df1'};renderPanel()");
   const txt = () => ev("document.getElementById('panelBody').textContent");
   assert.match(txt(), /Selling spare capacity/); assert.match(txt(), /Free channels\s*62 \/ 64/);
-  // a broker finds a buyer for free channels at once, and keeps 10%
-  ev("__reseed(9);ACT.advertise({id:'df1'})");
-  const o = JSON.parse(ev("JSON.stringify(S.offers.find(x=>x.link==='df1'))"));
-  assert.equal(o.type, 'wwave'); assert.ok(o.broker);
-  assert.equal(o.rate, ev(`Math.round(waveMo(450,false,2)*0.55*${o.slots}*0.9)`), 'the usual alien-wave price minus the broker');
-  assert.match(txt(), /via a capacity broker/);
-  ev("ACT.advertise({id:'df1'})"); assert.equal(ev("S.offers.filter(x=>x.link==='df1').length"), 1, 'one listing at a time');
-  ev(`document.querySelector('#panelBody [data-act=accept]').click()`);
-  assert.ok(txt().includes(o.name), 'the customer is listed on the fiber');
-  assert.match(txt(), new RegExp(`Free channels\\s*${62 - o.slots} / 64`));
-  // when every channel is lit or sold, the spare pair in your own trench is offered instead; then nothing is left
-  ev("const l=S.links[0];l.ch=Array(chMax(l)-soldSlots(l)).fill('tp16');after();ACT.advertise({id:'df1'})");
-  assert.equal(ev("S.offers.find(x=>x.link==='df1').type"), 'dfpair');
-  ev("for(const x of S.offers.filter(x=>x.link==='df1'))ACT.accept({id:x.id});S.biz.push({id:'p2',type:'dfpair',link:'df1',city:'fra',city2:'ams',name:'X',bw:1,rate:1,reqs:[]});S.offers=[];renderPanel()");
+  // a broker keeps a listing and sells it as the route's market wants (#203), keeping 10%
+  ev("__reseed(9);ACT.listFiber({id:'df1',w:4})");
+  assert.equal(ev("S.links[0].list.w"), 4);
+  assert.match(txt(), /Listed with a capacity broker/);
+  ev("for(let i=0;i<120&&!S.biz.some(b=>b.link==='df1');i++)brTick();renderPanel()");
+  const b = JSON.parse(ev("JSON.stringify(S.biz.find(x=>x.link==='df1'))"));
+  assert.equal(b.type, 'wwave');
+  assert.equal(b.rate, ev(`Math.round(waveMo(450,false,2)*0.55*${b.slots}*0.9)`), 'the usual alien-wave price minus the broker');
+  assert.ok(txt().includes(b.name), 'the customer is listed on the fiber');
+  assert.match(txt(), new RegExp(`Free channels\\s*${62 - b.slots} / 64`));
+  assert.equal(ev("S.links[0].list?S.links[0].list.w:0"), 4 - b.slots, 'the listing shrinks by what sold');
+  // when every channel is lit or sold, only the spare pair in your own trench can be listed; then nothing is left
+  ev("const l=S.links[0];delete l.list;l.ch=Array(chMax(l)-soldSlots(l)).fill('tp16');after();ACT.listFiber({id:'df1',w:4,p:1})");
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links[0].list)")), { w: 0, p: 1 });
+  ev("S.biz.push({id:'p1',type:'dfpair',link:'df1',city:'fra',city2:'ams',name:'X',bw:1,rate:1,reqs:[]},{id:'p2',type:'dfpair',link:'df1',city:'fra',city2:'ams',name:'Y',bw:1,rate:1,reqs:[]});delete S.links[0].list;S.offers=[];renderPanel()");
   assert.match(txt(), /Nothing spare to sell on this fiber right now/);
-  ev("ACT.advertise({id:'df1'})"); assert.equal(ev("S.offers.length"), 0);
-  // a broker offer survives a save, and random offers still come the same way
+  ev("ACT.listFiber({id:'df1',w:1,p:1})"); assert.equal(ev("S.links[0].list===undefined"), true);
+  // an old broker offer still survives a save
   ev("S.offers=[{...fiberOffer('dfpair',S.links[0],()=>'Y',0.9),broker:'yes'}];S=sanitize(S)");
   assert.equal(ev('S.offers[0].broker'), true);
   assert.deepEqual(errors, []);
