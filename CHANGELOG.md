@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+- Your backbone now runs a technology you choose: plain IGP, LDP/MPLS, RSVP-TE, SR-MPLS or SRv6. Each step up costs plenty and uses less router CPU: label switching makes traffic that only passes through a POP cheaper for its router, and Auto-TE and RouteScript now need RSVP-TE or higher. Routers only run what they support, so a POP with an older router stays outside the backbone, and mixing vendors at the very top of what their routers can do brings interop failures. Networks that already have Auto-TE keep it exactly as it is.
+- Two new routers for RSVP-TE backbones: the refurbished Brocadabra MLX-16 with 400G ports, and the Extremely Networks SLX 9740 with 1.6T ports.
 - The chaos monkey's notice in the NOC no longer has an Open button that did nothing; the monkey's own card is right above it (#226).
 - The puzzle list counts each section's own stars: architect runs show theirs next to their title, and the pack total now sits right above the packs, the stars that unlock the next one (#231).
 - The intern's notes now name the exchanges it peered at: a city's first exchange showed as the city, so "Apfelwein-IX, London" really meant Apfelwein-IX and LYNX (#228).

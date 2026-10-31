@@ -116,7 +116,7 @@ function teHelpModal(){const rule=(code,what)=>`<dt><code>${code}</code></dt><dd
   ${TE_RECIPES.map(r=>`<div class="terec"><div><b>${tr(r.n)}</b><div class="meta">${tr(r.d)}</div></div>${btn(tr('common.load'),'teRecipe',{id:r.id},'sm')}</div>`).join('')}</div>
   <div class="btns" style="margin-top:12px">${btn(tr('routescript.back_to_the_editor'),'teBack',{},'big')}</div>`);}
 let TE_CACHE={src:null,p:null};
-function teRules(){if(!S||!S.te||!S.te.on||!S.te.script)return null;if(TE_CACHE.src!==S.te.script)TE_CACHE={src:S.te.script,p:teParse(S.te.script)};return TE_CACHE.p.errors.length?null:TE_CACHE.p;}
+function teRules(){if(!S||!S.te||!S.te.on||!S.te.script||!coreTE())return null;if(TE_CACHE.src!==S.te.script)TE_CACHE={src:S.te.script,p:teParse(S.te.script)};return TE_CACHE.p.errors.length?null:TE_CACHE.p;}
 function teModal(msg){const src=UI.teDraft!==undefined?UI.teDraft:(S.te.script||TE_EXAMPLE);
   openModal(`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('routescript.auto_te_controller')}</div><h2 style="font-size:26px">RouteScript</h2></div><button class="x" data-act="teClose" aria-label="${tr('common.close')}">×</button></div>
   <p class="tagline">${tr('routescript.write_rules_check_them_against_live')}</p>

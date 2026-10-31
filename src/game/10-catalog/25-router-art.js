@@ -135,6 +135,17 @@ const sandwich=(x,y)=>P(`M${x} ${y} h50 l-10 -24 q-15 -10 -30 0z`,'#F4CFA0',4)+P
 const handle=(x,y,w)=>P(`M${x} ${y} q0 -22 ${w/2} -22 q${w/2} 0 ${w/2} 22`,'none',7);
 const stickers=(pts)=>pts.map(([x,y,f,k])=>k?R(x-8,y-6,16,12,f,3,2):C(x,y,7,f,2)).join('');
 const wood=(x,y,w,h)=>{let s='';for(let i=1;i<4;i++)s+=P(`M${x+6} ${y+i*h/4} q${w/2} -4 ${w-12} 0`,'none',1.5);return s;};
+// magic and extreme sports (Brocadabra, Extremely Networks)
+const tophat=(x,y,w=56,h=34,band='#FF4F9A')=>R(x-w/2,y-h,w,h,O,4,3)+R(x-w/2-12,y-4,w+24,9,O,4,3)+`<rect x="${x-w/2+2}" y="${y-14}" width="${w-4}" height="7" fill="${band}"/>`;
+const rabbit=(x,y,f='#fff')=>E(x-7,y-22,5,14,f,3,-8)+E(x+7,y-22,5,14,f,3,8)+E(x-7,y-21,1.8,8,'#FF8FBE',0,-8)+E(x+7,y-21,1.8,8,'#FF8FBE',0,8)+C(x,y,13,f,3)+`<circle cx="${x-5}" cy="${y-2}" r="2" fill="${O}"/><circle cx="${x+5}" cy="${y-2}" r="2" fill="${O}"/>`+E(x,y+4,2.5,2,'#FF4F9A',0);
+const wand=(x,y,dx=34,dy=-24)=>P(`M${x} ${y} l${dx} ${dy}`,'none',6)+P(`M${x+dx*.8} ${y+dy*.8} l${dx*.2} ${dy*.2}`,'none',6).replace(`stroke="${O}"`,'stroke="#fff"');
+const sparkle=(x,y,s=7,f='#FFD23F')=>P(`M${x} ${y-s} q${s*.25} ${s*.75} ${s} ${s} q${-s*.75} ${s*.25} ${-s} ${s} q${-s*.25} ${-s*.75} ${-s} ${-s} q${s*.75} ${-s*.25} ${s} ${-s}z`,f,2);
+const cape=(x,y,w,h,f='#C0154F')=>P(`M${x} ${y} q${-18} ${h*.6} ${-8} ${h} h${w+16} q10 ${-h*.4} ${-8} ${-h}z`,f,3);
+const helmet=(x,y,w,f='#FF8A3D')=>P(`M${x-w/2} ${y} q0 ${-w*.44} ${w/2} ${-w*.44} q${w/2} 0 ${w/2} ${w*.44}z`,f,3)+P(`M${x-w*.18} ${y-w*.4} v${w*.34} M${x+w*.18} ${y-w*.4} v${w*.34}`,'none',2.5)+R(x-w/2-4,y-4,w+8,9,f,4,3);
+const goggles=(x,y,d=16)=>R(x-d-12,y-8,24,16,'#7FD8EE',8,3)+R(x+d-12,y-8,24,16,'#7FD8EE',8,3)+P(`M${x-d+12} ${y} H${x+d-12}`,'none',3)+glint(x-d,y-1)+glint(x+d,y-1);
+const board=(x,y,w=130)=>P(`M${x-w/2} ${y} q-8 0 -10 -10 M${x+w/2} ${y} q8 0 10 -10`,'none',5)+R(x-w/2,y-2,w,10,'#22C47A',5,3)+C(x-w/3,y+14,6,'#FFD23F',3)+C(x+w/3,y+14,6,'#FFD23F',3);
+const can=(x,y)=>R(x,y,18,32,'#7B61FF',4,3)+R(x+2,y-4,14,6,'#C9D1E6',2,2)+bolt(x+12,y+5,.45,'#FFD23F');
+const bungee=(x,y1,y2)=>P(`M${x} ${y1} q10 ${(y2-y1)*.25} 0 ${(y2-y1)*.5} q-10 ${(y2-y1)*.25} 0 ${(y2-y1)*.5}`,'none',5).replace(`stroke="${O}"`,'stroke="#22C47A"');
   return [
    /* rusty: Vintage set */ ()=>sh()+bob(P('M84 58 L62 18 M116 58 L138 18')+C(62,18,5,'#C9D1E6',3)+C(138,18,5,'#C9D1E6',3)+box(32,56,136,78,'#E8D9B0',14)+wood(32,56,136,78)+R(46,68,72,46,'#5D6788',8,3)+face(82,86,'dots',null,12)+mustache(82,104)+knob(140,78)+knob(140,106)+cobweb(146,56)),
    /* edgelord: All spikes */ ()=>sh(72)+bob(P('M26 128 L40 52 L58 36 L70 50 L86 30 L100 48 L114 28 L130 48 L144 34 L160 52 L174 128Z','#2E3550')+face(100,80,'angry',null,22)+ports(54,100,92,6,'#FF4D5E')+legs([46,146],128)),
@@ -153,6 +164,9 @@ const wood=(x,y,w,h)=>{let s='';for(let i=1;i<4;i++)s+=P(`M${x+6} ${y+i*h/4} q${
    /* knockia7950: Sauna door */ ()=>sh()+steam(70,46)+bob(box(40,50,120,86,'#E6C48E',8)+pine(40,50,120,86)+thermo(68,98)+R(132,78,8,26,'#8A4B22',3,2.5)+face(100,74,'sleepy',null,12))+ports(52,116,96,7),
    /* mikro32: Propeller hat */ ()=>sh(66)+bob(propeller(100,64)+box(50,66,100,66,'#22C47A')+face(100,88,'happy','grin',16,14)+sweat(154,78)+ports(60,112,80,6,'#FF4F9A')),
    /* universe: 42 and a towel */ ()=>bob(tower(62,12,76,132,'#1E2640')+stars([[76,28,1.8],[122,40,1.5],[90,112,1.6],[126,96,2],[72,88,1.3],[110,128,1.4]])+screen(74,44,52,30,'42',20)+P('M74 84 H126 M74 92 H126 M74 100 H126','none',2).replace(`stroke="${O}"`,'stroke="#7FD8EE"')+towel(138,30))+`<ellipse cx="100" cy="78" rx="96" ry="22" fill="none" stroke="#FF4F9A" stroke-width="3" stroke-dasharray="1 9" stroke-linecap="round" transform="rotate(-12 100 78)"/>`+planet(22,100,11,'#FF8A3D',1)+planet(178,52,7,'#22C47A')
+,
+   /* brocadabra: Rabbit out of the hat */ ()=>sh()+bob(box(38,76,124,60,'#2F8CFF')+face(100,98,'happy','smile',16,12)+ports(48,116,104,7)+rabbit(100,46)+tophat(100,76,58,28)+wand(150,104))+sparkle(170,60)+sparkle(30,52,5)+sparkle(176,32,4),
+   /* extremely: Skate park */ ()=>sh(70,100,150)+speed(34,70)+bob(`<g transform="rotate(-8 100 90)">${box(46,52,108,66,'#FF8A3D')+helmet(100,54,96,'#22C47A')+face(100,82,'happy','grin',16,14)+ports(58,100,84,6)+board(100,128,128)}</g>`)
   ];})();
 const RG_ART_C=[];
 // The picture for model g, as inline SVG ('' for a model without one).

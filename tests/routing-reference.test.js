@@ -33,7 +33,7 @@ test('indexed routing matches the simple allocation loop across network changes'
     const changes = [
       '',
       "S.pni.forEach((p,i)=>p.pref=i%3===0?'high':i%3===1?'low':'normal')",
-      "S.te={on:true,script:''}",
+      "S.te={on:true,script:''};S.core={lv:2,run:2,legacy:true}",
       "S.te.script='prefer pni for goggle\\nspill at 80%\\navoid transit for netchill'",
       "S.te.script='prefer transit Cogentle\\nprepend transit Cogentle 2\\nprotect customers'",
       "S.ev.rpki={nets:['ggl','nfx'],until:S.day+3};S.ev.depeer=S.day+3",
@@ -66,7 +66,7 @@ test('indexed routing matches the simple allocation loop on a network of islands
     const changes = [
       '',
       "S.pni.forEach((p,i)=>p.pref=i%3===0?'high':i%3===1?'low':'normal')",
-      "S.te={on:true,script:'prefer pni for goggle\\nspill at 80%'}",
+      "S.te={on:true,script:'prefer pni for goggle\\nspill at 80%'};S.core={lv:2,run:2,legacy:true}",
       "S.ev.ddos={city:'fra',until:S.day+3,gbps:300,vec:'syn',entry:{k:'edge'}}",
       "S.links[0].cut=S.day+2",
       "S.te=null;S.links[0].cut=0;S.links.push({id:'join',a:'par',b:'pek',kind:'wave',tier:2,km:8000,cut:0,mo:100})",
