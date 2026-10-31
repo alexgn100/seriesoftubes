@@ -143,7 +143,6 @@ const sparkle=(x,y,s=7,f='#FFD23F')=>P(`M${x} ${y-s} q${s*.25} ${s*.75} ${s} ${s
 const cape=(x,y,w,h,f='#C0154F')=>P(`M${x} ${y} q${-18} ${h*.6} ${-8} ${h} h${w+16} q10 ${-h*.4} ${-8} ${-h}z`,f,3);
 const helmet=(x,y,w,f='#FF8A3D')=>P(`M${x-w/2} ${y} q0 ${-w*.44} ${w/2} ${-w*.44} q${w/2} 0 ${w/2} ${w*.44}z`,f,3)+P(`M${x-w*.18} ${y-w*.4} v${w*.34} M${x+w*.18} ${y-w*.4} v${w*.34}`,'none',2.5)+R(x-w/2-4,y-4,w+8,9,f,4,3);
 const goggles=(x,y,d=16)=>R(x-d-12,y-8,24,16,'#7FD8EE',8,3)+R(x+d-12,y-8,24,16,'#7FD8EE',8,3)+P(`M${x-d+12} ${y} H${x+d-12}`,'none',3)+glint(x-d,y-1)+glint(x+d,y-1);
-const board=(x,y,w=130)=>P(`M${x-w/2} ${y} q-8 0 -10 -10 M${x+w/2} ${y} q8 0 10 -10`,'none',5)+R(x-w/2,y-2,w,10,'#22C47A',5,3)+C(x-w/3,y+14,6,'#FFD23F',3)+C(x+w/3,y+14,6,'#FFD23F',3);
 const can=(x,y)=>R(x,y,18,32,'#7B61FF',4,3)+R(x+2,y-4,14,6,'#C9D1E6',2,2)+bolt(x+12,y+5,.45,'#FFD23F');
 const bungee=(x,y1,y2)=>P(`M${x} ${y1} q10 ${(y2-y1)*.25} 0 ${(y2-y1)*.5} q-10 ${(y2-y1)*.25} 0 ${(y2-y1)*.5}`,'none',5).replace(`stroke="${O}"`,'stroke="#22C47A"');
   return [
@@ -166,7 +165,7 @@ const bungee=(x,y1,y2)=>P(`M${x} ${y1} q10 ${(y2-y1)*.25} 0 ${(y2-y1)*.5} q-10 $
    /* universe: 42 and a towel */ ()=>bob(tower(62,12,76,132,'#1E2640')+stars([[76,28,1.8],[122,40,1.5],[90,112,1.6],[126,96,2],[72,88,1.3],[110,128,1.4]])+screen(74,44,52,30,'42',20)+P('M74 84 H126 M74 92 H126 M74 100 H126','none',2).replace(`stroke="${O}"`,'stroke="#7FD8EE"')+towel(138,30))+`<ellipse cx="100" cy="78" rx="96" ry="22" fill="none" stroke="#FF4F9A" stroke-width="3" stroke-dasharray="1 9" stroke-linecap="round" transform="rotate(-12 100 78)"/>`+planet(22,100,11,'#FF8A3D',1)+planet(178,52,7,'#22C47A')
 ,
    /* brocadabra: Rabbit out of the hat */ ()=>sh()+bob(box(38,76,124,60,'#2F8CFF')+face(100,98,'happy','smile',16,12)+ports(48,116,104,7)+rabbit(100,46)+tophat(100,76,58,28)+wand(150,104))+sparkle(170,60)+sparkle(30,52,5)+sparkle(176,32,4),
-   /* extremely: Skate park */ ()=>sh(70,100,150)+speed(34,70)+bob(`<g transform="rotate(-8 100 90)">${box(46,52,108,66,'#FF8A3D')+helmet(100,54,96,'#22C47A')+face(100,82,'happy','grin',16,14)+ports(58,100,84,6)+board(100,128,128)}</g>`)
+   /* extremely: Energy drink */ ()=>sh()+bob(box(40,56,120,78,'#FF8A3D')+helmet(100,58,104,'#7B61FF')+goggles(100,80,18)+MO.teeth(100,104,12)+ports(50,118,100,7)+can(160,86))+bolt(28,40,.8)+sweat(42,64)
   ];})();
 const RG_ART_C=[];
 // The picture for model g, as inline SVG ('' for a model without one).
