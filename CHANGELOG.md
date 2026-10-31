@@ -6,14 +6,16 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
-- A seat on a consortium cable can be lit with the optics you have: add regen sites in the landing stations along the cable. Before, a seat bought at level 2 or 3 stayed dark until long-haul transponders arrived at level 4.
-- List spare capacity with a capacity broker as a standing listing: pick how many alien waves (or your spare pair) to sell, and the broker sells them off over time as carriers on that route want capacity. Each route's market is sized by the eyeballs at both ends, and a busy route sells in days while a road to nowhere sells maybe once, so renting out long empty fibers is no longer a money machine (#203).
+## [2.1.0] — 2026-10-31
+
 - Your backbone now runs a technology you choose: plain IGP, LDP/MPLS, RSVP-TE, SR-MPLS or SRv6. Each step up costs plenty and uses less router CPU: label switching makes traffic that only passes through a POP cheaper for its router, and Auto-TE and RouteScript now need RSVP-TE or higher. Routers only run what they support, so a POP with an older router stays outside the backbone, and mixing vendors at the very top of what their routers can do brings interop failures. Networks that already have Auto-TE keep it exactly as it is.
 - An upgraded backbone brings new customers: L3VPNs for enterprises from LDP/MPLS, flex-algo low-latency links from SR-MPLS and network slices from SRv6.
+- A seat on a consortium cable can be lit with the optics you have: add regen sites in the landing stations along the cable. Before, a seat bought at level 2 or 3 stayed dark until long-haul transponders arrived at level 4.
+- List spare capacity with a capacity broker as a standing listing: pick how many alien waves (or your spare pair) to sell, and the broker sells them off over time as carriers on that route want capacity. Each route's market is sized by the eyeballs at both ends, and a busy route sells in days while a road to nowhere sells maybe once, so renting out long empty fibers is no longer a money machine (#203).
+- Two new routers for RSVP-TE backbones: the refurbished Brocadabra MLX-16 with 400G ports, and the Extremely Networks SLX 9740 with 1.6T ports.
 - From RSVP-TE up, fast reroute has backup paths ready, so customers lose only half as much happiness while a link is cut.
 - An interop lab in the NOC tests your vendors against each other first and cuts interop incidents by 60%.
 - Four new badges for your backbone: Label switcher, Bleeding edge, Single-vendor shop and Vendor zoo.
-- Two new routers for RSVP-TE backbones: the refurbished Brocadabra MLX-16 with 400G ports, and the Extremely Networks SLX 9740 with 1.6T ports.
 - The chaos monkey's notice in the NOC no longer has an Open button that did nothing; the monkey's own card is right above it (#226).
 - The puzzle list counts each section's own stars: architect runs show theirs next to their title, and the pack total now sits right above the packs, the stars that unlock the next one (#231).
 - The intern's notes now name the exchanges it peered at: a city's first exchange showed as the city, so "Apfelwein-IX, London" really meant Apfelwein-IX and LYNX (#228).
