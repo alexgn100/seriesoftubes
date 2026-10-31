@@ -2446,6 +2446,7 @@
 "links.fabric_port_in_city_is_full":"<b>Fabric port in {city} is full.</b>",
 "links.fixed_what_resolved_early":"<b>Fixed.</b> {what} resolved early.",
 "links.ix_now_runs_a_fab_fabric":"<b>{ix} now runs a {fab} fabric.</b><br>Room for {max} members. Expect a few more to join.",
+"links.n_optic_back_on_the_spares_shelf":{"one":"{n} optic went back on the spares shelf","other":"{n} optics went back on the spares shelf"},
 "links.name_is_called_off_the_cable":"<b>{name} is called off.</b><br>The cable factory takes back the glass nobody needs: {price} back.",
 "links.no_cable_available_for_that_route":"<b>No cable available for that route right now.</b>",
 "links.no_wave_capacity_on_this_route":"<b>No {wave} capacity on this route right now.</b><br>{why} Try a smaller wave, another route, or ask again in {n} days.",

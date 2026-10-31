@@ -2447,6 +2447,7 @@
 "links.fabric_port_in_city_is_full":"<b>Fabric-Port in {city} ist voll.</b>",
 "links.fixed_what_resolved_early":"<b>Repariert.</b> {what} vorzeitig behoben.",
 "links.ix_now_runs_a_fab_fabric":"<b>{ix} betreibt jetzt eine {fab}-Fabric.</b><br>Platz für {max} Mitglieder. Rechne mit ein paar weiteren Beitritten.",
+"links.n_optic_back_on_the_spares_shelf":{"one":"{n} Optik ist zurück im Ersatzteilregal","other":"{n} Optiken sind zurück im Ersatzteilregal"},
 "links.name_is_called_off_the_cable":"<b>{name} ist abgesagt.</b><br>Die Kabelfabrik nimmt das Glas zurück, das niemand braucht: {price} zurück.",
 "links.no_cable_available_for_that_route":"<b>Für diese Route ist gerade kein Kabel verfügbar.</b>",
 "links.no_wave_capacity_on_this_route":"<b>Auf dieser Route gerade keine {wave}-Kapazität.</b><br>{why} Versuch eine kleinere Wave, eine andere Route oder frag in {n} Tagen nochmal.",

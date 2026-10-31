@@ -2445,6 +2445,7 @@
 "links.fabric_port_in_city_is_full":"<b>La porta fabric a {city} è piena.</b>",
 "links.fixed_what_resolved_early":"<b>Sistemato.</b> {what}: risolto in anticipo.",
 "links.ix_now_runs_a_fab_fabric":"<b>{ix} ora gira su un fabric {fab}.</b><br>Spazio per {max} membri. Aspettati qualche nuovo arrivo.",
+"links.n_optic_back_on_the_spares_shelf":{"one":"{n} ottica è tornata sullo scaffale dei ricambi","other":"{n} ottiche sono tornate sullo scaffale dei ricambi"},
 "links.name_is_called_off_the_cable":"<b>{name} è annullato.</b><br>La fabbrica di cavi si riprende il vetro che non serve a nessuno: {price} indietro.",
 "links.no_cable_available_for_that_route":"<b>Al momento non c’è nessun cavo disponibile per quella tratta.</b>",
 "links.no_wave_capacity_on_this_route":"<b>Nessuna capacità {wave} su questa tratta al momento.</b><br>{why} Prova un’onda più piccola, un’altra tratta, o chiedi di nuovo tra {n} giorni.",

@@ -1381,3 +1381,19 @@ test('#219 choosing one site again while the augment is on order keeps the LAG i
   assert.equal(ev('S.pni[0].site'), 'b');
   assert.deepEqual(errors, []);
 });
+
+test('#210 candidate exits on saturated shortest paths are skipped to avoid fallback churn', () => {
+  const { ev, errors } = load();
+  ev("ACT.start({});S.cash=1e8;UI.speed=0;for(const g of GOALS)S.done[g.id]=0;");
+  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});");
+  ev("ACT.buildPop({city:'par'});ACT.launchBB({city:'par'});");
+  ev("S.links.push({id:'x1',a:'fra',b:'par',kind:'wave',tier:0,km:450,mult:1,mo:1000,ready:0,cut:0});");
+  ev("compute();");
+  assert.ok(ev("R.load['x1'] >= 10 - 1e-6"), 'intercity wave is saturated');
+  assert.ok(ev("R.load['x1'] <= 10 + 1e-6"), 'and carries no more than it can');
+  // Skipping exits behind the full wave changes nothing: routing again gives the same answer.
+  const first = ev('JSON.stringify([R.served,R.citySrv,R.load])');
+  ev("compute();");
+  assert.equal(ev('JSON.stringify([R.served,R.citySrv,R.load])'), first);
+  assert.deepEqual(errors, []);
+});
