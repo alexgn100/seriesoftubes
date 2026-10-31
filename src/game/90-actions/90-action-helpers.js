@@ -12,6 +12,8 @@ function dfAllowed(a,b){if(isSub(a,b))return !!subDfCable(a,b);return cnCity(a)=
 /* Optics you unplug go on a spares shelf instead of in the bin (#45): the next channel of that type uses a spare
    for free (only the regen sites' transponders are new), or you sell it on eBuy for part of the price. */
 const SPARE_RESALE=0.4,spareN=o=>(S&&S.spares&&S.spares[o])|0,spareValue=o=>Math.round(optCost(o)*SPARE_RESALE);
+// A fiber given up (a cancelled IRU, a cable called off, a decommissioned POP) keeps its optics: they go on the shelf too (#229).
+const chBack=links=>{let n=0;for(const l of links)for(const o of (l&&l.ch)||[])if(OPT[o]){S.spares=S.spares||{};S.spares[o]=(S.spares[o]||0)+1;n++;}return n;};
 function chCost(l,o){const r=REGEN_CH*(l.regen|0);return Math.round(optCost(o)*(spareN(o)>0?r:1+r));}
 function optCost(o){return Math.round(OPT[o].cost*techMul(OPT[o].lvl)*hwMul('opt')*(S&&S.ev&&S.ev.tariff>S.day?1.4:1));}
 // Line systems upgrade in place: Rainbow → ROADMaster → C+L. Every lit pair gets the new gear.

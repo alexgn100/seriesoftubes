@@ -2445,6 +2445,7 @@
 "links.fabric_port_in_city_is_full":"<b>Le port fabric de {city} est plein.</b>",
 "links.fixed_what_resolved_early":"<b>Réparé.</b> {what} : résolu en avance.",
 "links.ix_now_runs_a_fab_fabric":"<b>{ix} tourne maintenant sur un fabric {fab}.</b><br>De la place pour {max} membres. Attends-toi à quelques nouveaux venus.",
+"links.n_optic_back_on_the_spares_shelf":{"one":"{n} optique est retournée sur l’étagère de rechange","other":"{n} optiques sont retournées sur l’étagère de rechange"},
 "links.name_is_called_off_the_cable":"<b>{name} est annulé.</b><br>L’usine de câbles reprend le verre dont personne n’a besoin : {price} remboursés.",
 "links.no_cable_available_for_that_route":"<b>Aucun câble disponible pour cette route pour l’instant.</b>",
 "links.no_wave_capacity_on_this_route":"<b>Plus de capacité {wave} sur cette route pour l’instant.</b><br>{why} Essayez une onde plus petite, une autre route, ou redemandez dans {n} jours.",
