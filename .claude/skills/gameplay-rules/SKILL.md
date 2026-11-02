@@ -21,7 +21,7 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | Id | Rule | Why |
 | --- | --- | --- |
 | W1 | Every city has a country code (`cc`, ISO 3166-1 alpha-2; territories have their own: PR, GU, RE, MQ, CW…), a region, a landmass and coordinates. | Borders, prices and the eyeball rule all hang off the country. |
-| W2 | Every country on the map has at least two consumer networks of its own: an eyeball network, or a Tier 2 incumbent that sells to homes, whose home markets (`cc` on the network) include that country and which has a PoP there. | Real countries have competing local ISPs, and peering locally is half the game. Add real operators in `src/game/30-networks/32-homegrown-eyeballs.js`. |
+| W2 | Every country on the map has at least two consumer networks of its own: an eyeball network, or a Tier 1 or Tier 2 incumbent that sells to homes, whose home markets (`cc` on the network) include that country and which has a PoP there. | Real countries have competing local ISPs, and peering locally is half the game. Add real operators in `src/game/30-networks/32-homegrown-eyeballs.js`. |
 | W3 | Every city can buy transit from someone, or is a documented exception (Pitcairn: land your own cable; Stuttgart: peering only). | A start or an expansion must never be a dead end by accident. |
 | W4 | Cable pairs join two distinct real cities, have a length, and cable ids are unique. | Broken landings break routing and the own-cable planner. |
 | W5 | A city alone on its landmass has a cable or a beach to land one. | Islands are reachable. |
@@ -31,7 +31,7 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | Id | Rule | Why |
 | --- | --- | --- |
 | N1 | Network ids and ASNs are unique; ASNs are public (the real one for real-world networks). | Saves key on ids; players look ASNs up. |
-| N2 | Names are puns: no network, cable, exchange, data center, router or optic is called by a real name (blocklist `REAL_NAMES` in the test), and no lazy "-ish" names. | CLAUDE.md. Add the real name to the blocklist whenever you add its pun. |
+| N2 | Names are puns: no network, cable, exchange, data center, router, optic, cable ship or maintenance club is called by a real name (blocklist `REAL_NAMES` in the test), and no lazy "-ish" names. | CLAUDE.md. Add the real name to the blocklist whenever you add its pun. |
 | N3 | Every non-Tier-1, non-content network is in a founding Tier 1's customer cone (`up`), or is a documented island (transit-free incumbents, China, Korea, Australia…). Upstreams exist and are never content. | Tier 1 by customer cone (#85): a new network outside the cones makes Tier 1 harder for every save, old ones included. |
 | N4 | No upstream cycles. | Cones must be trees, not loops. |
 | N5 | Traffic shares are positive and below 20%; `NSH` and the regional tables sum to 1; content carries at least 30%. | Shares drive every flow; eyeballs mostly ask for traffic. |

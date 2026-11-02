@@ -20,6 +20,7 @@ function setCableReady(l,ready,day=S.day){const shift=ready-l.ready;
     const f='sub'+k;if(Number.isFinite(l[f])&&l[f]>day)l[f]=Math.max(day+1,l[f]+shift);
   }l.ready=ready;
 }
+// Crews hurry a build on land. At sea only a cable ship does (85-incidents/50-cable-ships.js).
 const crewCost=l=>Math.round(15000+l.km*6);
 const crewSteps=l=>Math.max(0,Math.ceil((l.ready-S.day-1)/30));
 // Old saves lack purchase dates. Only shorten dates beyond any valid remaining
@@ -38,6 +39,8 @@ function optModes(o,l){return (OPT[o].modes||[[OPT[o].g,OPT[o].reach]]).map(([g,
   }
   return [g,reach];});}
 function optMode(o,l){const km=spanKm(l);for(const [g,r] of optModes(o,l))if(km<=r)return {g,reach:r,full:g===OPT[o].g};return null;}
+// The same cable with both subsea upgrades in service: if an optic still falls short, no upgrade can stretch it.
+const withSubUps=l=>({...l,subterminal:0,subengineering:0});
 // The longest subsea span any optic lights with these upgrades in service, and the cheapest upgrades a length needs
 // (null: nothing can light it). The length limit, the order screen and refunds all use these, so they agree.
 const SUBR=[],subReach=(t,e)=>SUBR[(t?1:0)+(e?2:0)]??(SUBR[(t?1:0)+(e?2:0)]=Math.max(...Object.keys(OPT).flatMap(o=>optModes(o,{kind:'df',own:true,sub:true,subterminal:t?0:undefined,subengineering:e?0:undefined}).map(m=>m[1])))),

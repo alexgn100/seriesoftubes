@@ -85,7 +85,7 @@ const opsMo$=v=>(v>0?'+':'')+fmt$(v);
 const opsPaid=e=>e.up||e.mo?' '+tr('ops.l_paid',{cost:fmt$(e.up||0),mo:opsMo$(e.mo||0)}):'';
 // What the network costs every month before traffic: what a job adds to the bill (ports, routers, rent, links, cache boxes).
 // PNIs count from the day they are ordered, at the size they are going to be.
-function opsMoNow(){let m=S.caches.length*CACHE_MO;
+function opsMoNow(){let m=cachesMo();
   for(const c in S.pops){const p=S.pops[c],rt=p.routers||1;m+=(rt-1)*ROUTER_MO+cageMo(rt)+rt*RG[p.rgen||0].mo;}
   for(const l of S.links)m+=(l.mo||0)+(l.kind==='df'?(l.spares?Math.round(150+(l.ch||[]).length*80):0)+(l.regen|0)*REGEN_MO:0);
   for(const t of S.transit)m+=transitMo(t,0);
@@ -166,8 +166,8 @@ const OPS_RUN={
        cap+=optG(o,l);X.did('optics',l.a+'|'+l.b);}}},
  caches(X){const g=opsP('caches','g');
    for(const c of opsPops('caches')){const q=utilityCaches(c);if(!q||!q.add.length)continue;
-     const want=q.add.filter(x=>(R.cityDem[c]||0)*(NSH[x.net]||0)>=g),free=Math.floor(portsMax(c)-portsUsed(c)+1e-9);
-     for(const x of want.slice(0,Math.max(0,free))){if(!X.can('caches',0,CACHE_MO))return;S.caches.push({id:uid(),city:c,net:x.net,site:x.site});X.book('caches',0,CACHE_MO);X.did('caches',c);}}},
+     const want=q.add.filter(x=>cacheDem(c,x.net)>=g),free=()=>portsMax(c)-portsUsed(c)+1e-9;
+     for(const x of want){if(cachePortsAdd(c,[x])>free())continue;if(!X.can('caches',0,cacheMo(x)))return;S.caches.push({id:uid(),city:c,net:x.net,site:x.site,...(x.g?{g:x.g}:{})});X.book('caches',0,cacheMo(x));X.did('caches',c);}}},
  // Weekly, like a person going through PeeringDB on a Monday: route servers, then every willing member (#192).
  ix(X){if(S.day%7)return;for(const ix of utilityRouteServers()){S.rs[ix]=true;X.did('rs');}
    for(const row of utilityPeers())for(const id of row.requests){S.peers[id+'@'+row.ix]=true;X.did('peer',row.ix);}},
@@ -196,7 +196,7 @@ function opsDecomSafe(l){const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>k==='dive
   const was=bz.filter(chk),all=S.links;S.links=all.filter(x=>x!==l);try{return was.every(chk);}finally{S.links=all;}}
 const OPS_ORDER=['repair','sales','routers','transit','optics','caches','ix','pni','decom'];
 // The shift: once per game day from dayTick, after outages and events have had their turn.
-function opsDay(d){if(!opsHired())return;const O=S.ops,m=Math.floor(d/30);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;O.addMo={};}
+function opsDay(d){if(!opsHired())return;const O=S.ops,m=monthIdx(d);if(m!==O.mon){O.mon=m;for(const k in O.spent)O.spent[k]=0;O.addMo={};}
   // A new week: last week's tally becomes the shift report, and the one NOC notice of the week.
   const w=Math.floor(d/7);if(!O.wk||O.wk.w!==w){if(opsWkAny(O.wk)&&O.wk.w<w){O.rep=O.wk;logNote(`<b>${esc(tr('ops.shift_report',{name:opsName()}))}</b> ${esc(opsWeekLine(O.rep))}`,O.rep.rev>0?'good':'',[],{a:'ops'});}O.wk=opsWkNew(w);}
   const X=opsShift();

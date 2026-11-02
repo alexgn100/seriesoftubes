@@ -8,6 +8,35 @@ All notable changes to this project are documented here. The project follows
 
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 
+## [2.5.0] — 2026-11-02
+
+**Mostly a performance release.** Big networks route their traffic on about half the processor time, days no longer freeze the game, and clicks that change nothing about your traffic answer at once, so phones last longer. Same routes, same results, just faster.
+
+- Big networks use about half the battery they did: each day's routing takes half the processor time, and reuses what it worked out the day before when only demand has changed. Where traffic goes does not change.
+- The game no longer freezes while it routes each day's traffic on big networks. A background thread of the game does the routing, so the map, panels and buttons keep responding while days go by; what the day brings is exactly what it was before. Clicks that change your network still route right away.
+- On big networks, clicks that change nothing about your traffic now answer at once: dismissing an offer or renaming your network no longer works out every route again, which also saves battery on phones.
+- The calendar is real now: months have 28 to 31 days and every fourth year has a 29 February (#257). Monthly prices, loan statements, the intern's budget and paydays follow calendar months, and conferences fall on the 10th of their month.
+- Cache boxes are sized for the traffic each city really sends (#260): Russian and Chinese cities get boxes for the networks people there actually use, and none for networks they cannot reach. Boxes already installed stay; remove idle ones from the POP.
+- A 1.6T transponder on routers with 800G ports now takes two ports at each end, one for each 800G it hands over, and the optics list says so (#256). Before, a full 1.6T fit into a single 800G port. On 1.6T routers it still takes one.
+- A plug-in optic that is too short for your subsea cable no longer sends you to submarine terminals and optical engineering, which cannot stretch it (#253). The hint now names the optics that do reach, such as the Sienna WaveMagic 1.6T for Perth to Cape Town. Optics the upgrades can stretch still get the advice.
+
+## [2.4.0] — 2026-11-01
+
+- Cable ships now sail out to fix your subsea cables, and you can watch them on the map. A cut at sea calls the nearest free ship of its region's repair club, from ports such as Cornwall, Curaçao, Cape Town, Marseille, Vancouver, Tokyo, Manila and Singapore. The cut lasts while the ship sails out (about 500 km a day), splices for 3 to 5 days in shallow water or a week or two in the deep, and in some countries waits weeks for a repair permit. A ship is busy until it is home again.
+- Doitsche Telekomm and Tangerine Telecom are now Tier 1s, as in real life (#194). In new games, going transit-free means a PNI with both of them too; games you already started keep the Tier 1s they were playing for. Doitsche now sells transit at the highest price in Europe and still charges for peering, and like the other Tier 1s, Tangerine now starts its PNIs at 100G.
+- Cache boxes now share router ports through an aggregation switch: one port carries as many 100G boxes as its speed holds, so 32 fit on a 3.2T port (#252). Each site gets its own.
+- Pick a standard POP: in any POP's Infra tab, make its routers the standard, and every new POP gets that model and number of routers right away, while it is still empty (#240).
+- Big networks run faster: the map skips links off screen without working out their shape, and the Networks tab and the zoomed-in map draw faster. Where traffic goes does not change.
+- A network the game once failed to load is no longer stuck as damaged: the next version of the game tries it again, and its menu has a Try again button. Before, it could only be exported or deleted, even after the cause was fixed.
+- Save files of very large networks import again: the limit went from 8 MB to 64 MB.
+- 400G cache boxes: a POP whose routers have 400G or faster ports now gets 400G boxes, at $1,000 a month instead of $400 for 100G, so big caches need fewer boxes and cost less per Gbps. Boxes you already have stay as they are.
+- Clarovision now peers only over paid PNIs, like the real carrier, and free only with networks at customer level 11 or above (#213). A PNI you already have with it starts paying the fee.
+- Opening a link from a list now moves the map to it, zoomed so the whole line fits beside the open panel.
+- Traffic for a carrier now leaves through that carrier's own transit port at the same POP, instead of being shared with every other transit port there. Networks that buy transit from the carrier get the same treatment, and a new switch on each transit port, Carry here, pulls that traffic across your network from POPs that have no port of that carrier. Prefer, Backup only and RouteScript still win, and Prefer only does so at the POP where you set it.
+- When every ship of a region's club is out, a subsea cut waits for the first one back. A private charter of the quickest free ship anywhere jumps the queue for $1M plus $200 per km it sails; the NOC intern's rush-repair order can pay it within its budget.
+- Building your own subsea cable now shows the survey, permits and cable factory first, then a lay ship laying about 150 km a day. Crews can no longer speed up a cable at sea: book a second lay ship before laying starts instead, for $3M plus $150k a day, and it lays from the other end to halve that part.
+- Tap a cable ship on the map to see its name, its club and what it is doing.
+
 ## [2.3.0] — 2026-10-31
 
 - Clicking a city without a POP works again while the intern's transit order is set to Already connected (#249). Before, the city panel failed to open and the map stuck to the mouse.

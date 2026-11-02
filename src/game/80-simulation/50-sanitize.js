@@ -31,7 +31,7 @@ function sanitize(s){
      if(v&&typeof v==='object'&&ks.has(k)){const mk=v.k==='w'?'w':'f';pm[k]={k:mk,v:clampM(mk,num(v.v,mk==='w'?60:1))};continue;}
      if(!ks.has(k)||typeof v!=='string'||!own(MET,v)||v==='normal')delete pm[k];}}
   const degO=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;
-  s.transit=s.transit.filter(t=>t&&isCity(t.city)&&isNet(t.net)).map(t=>(t.lacp=degO(t.lacp),t.site=['a','b','ab'].includes(t.site)?t.site:'a',t.id=sid(t.id),t.tier=tier(t.tier),t.n=lag(t.n),t.down=num(t.down,0),t.clean=!!t.clean,t.premium=premOnlyAt(NET[t.net],t.city)||!!t.premium&&premCity(NET[t.net],t.city),t));
+  s.transit=s.transit.filter(t=>t&&isCity(t.city)&&isNet(t.net)).map(t=>(t.lacp=degO(t.lacp),t.site=['a','b','ab'].includes(t.site)?t.site:'a',t.id=sid(t.id),t.tier=tier(t.tier),t.n=lag(t.n),t.down=num(t.down,0),t.clean=!!t.clean,t.carry===true||delete t.carry,t.premium=premOnlyAt(NET[t.net],t.city)||!!t.premium&&premCity(NET[t.net],t.city),t));
   s.pni=s.pni.filter(x=>x&&isCity(x.city)&&isNet(x.net)).map(x=>(x.lacp=degO(x.lacp),x.site=['a','b','ab'].includes(x.site)?x.site:'a',x.id=sid(x.id),x.tier=tier(x.tier),x.n=lag(x.n),x.sacrif=!!x.sacrif,x));
   // PNIs on order (#…): delivery day, a pending augment, and 1G for the one network that sells it
   for(const x of s.pni){if(x.ready!==undefined)x.ready=num(x.ready,0);if(x.g1)x.g1=x.tier===0&&x.net==='dtk'?true:undefined;else delete x.g1;if(x.up){const u=x.up;x.up=u&&typeof u==='object'?{tier:tier(u.tier),n:lag(u.n),ready:num(u.ready,0),g1:!!u.g1&&x.net==='dtk'&&tier(u.tier)===0,...(u.site==='ab'?{site:'ab'}:{})}:undefined;if(!x.up)delete x.up;}}
@@ -44,7 +44,7 @@ function sanitize(s){
    const wk=(x,rep)=>{if(!x||typeof x!=='object'||Array.isArray(x))return null;const o={w:int(x.w,0,1e7,0),a:int(x.a,0,1e5,0),d:int(x.d,0,1e5,0),ix:[...new Set((Array.isArray(x.ix)?x.ix:[]).filter(isIx))].slice(0,PDESK_IX)};if(rep)o.p=PPOL.includes(x.p)?x.p:'open';return o;};
    s.pdesk=wk(s.pdesk);s.pdeskRep=wk(s.pdeskRep,1);}
   {const sp={};if(s.spares&&typeof s.spares==='object')for(const k in s.spares)if(own(OPT,k)){const v=Math.floor(+s.spares[k]);if(v>0)sp[k]=Math.min(999,v);}s.spares=sp;}
-  s.caches=s.caches.filter(x=>x&&isCity(x.city)&&isNet(x.net)&&NET[x.net].cache).map(x=>(x.id=sid(x.id),x.site=x.site==='b'&&s.pops[x.city]&&s.pops[x.city].site2?'b':'a',x));
+  s.caches=s.caches.filter(x=>x&&isCity(x.city)&&isNet(x.net)&&NET[x.net].cache).map(x=>(x.id=sid(x.id),x.site=x.site==='b'&&s.pops[x.city]&&s.pops[x.city].site2?'b':'a',x.g===CACHE_BIG?x.g=CACHE_BIG:delete x.g,x));
   for(const c of Object.keys(s.ixp)){if(!isIx(c))delete s.ixp[c];else s.ixp[c]=tier(s.ixp[c]);}
   for(const k of ['rs','ixn','ixPref','ixSite'])for(const c of Object.keys(s[k]))if(!isIx(c))delete s[k][c];if(s.ixCut&&typeof s.ixCut==='object'){for(const c of Object.keys(s.ixCut))if(!isIx(c))delete s.ixCut[c];else s.ixCut[c]=Math.min(1,Math.max(0.6,num(s.ixCut[c],1)));}else delete s.ixCut;
   for(const c of Object.keys(s.ixn))s.ixn[c]=lag(s.ixn[c]);for(const c of Object.keys(s.ixSite))if(!['a','b','ab'].includes(s.ixSite[c]))s.ixSite[c]='a';
@@ -57,9 +57,21 @@ function sanitize(s){
   for(const k of Object.keys(s.confReg))s.confReg[k]=s.confReg[k]==='sp'?'sp':!!s.confReg[k];
   if(s.conf){const c=s.conf;if(typeof c!=='object'||!own(REG,c.reg))s.conf=null;else s.conf={until:num(c.until,0),reg:c.reg,name:String(c.name||'').slice(0,40),sp:!!c.sp};}
   // The backbone's technology: a save from before it with Auto-TE bought keeps the old rules on RSVP-TE (legacy).
+  // The standard POP build (#240): a router model and how many.
+  {const d=s.popStd;s.popStd=d&&typeof d==='object'&&Number.isInteger(d.g)&&RG[d.g]?{g:d.g,rt:int(d.rt,1,RMAX,1)}:null;}
   {const c=s.core&&typeof s.core==='object'?s.core:null,lv=c?int(c.lv,0,4,0):(s.te?2:0);s.core={lv,run:c?int(c.run,0,lv,lv):lv};if(c?c.legacy===true:!!s.te)s.core.legacy=true;if(c&&c.lab===true)s.core.lab=true;if(c&&c.since!==undefined)s.core.since=num(c.since,0);}
   s.capDeal=s.capDeal&&typeof s.capDeal==='object'&&own(CAP_ROUTES,s.capDeal.c)?{at:num(s.capDeal.at,0),c:s.capDeal.c}:null;
   s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.type==='maxpfx'&&(i.type='ixloop'),i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
+  // Cable ships (85-incidents/50-cable-ships.js): voyages of known ships, and what a subsea cut knows about its ship.
+  {const F=s.fleet&&typeof s.fleet==='object'&&!Array.isArray(s.fleet)?s.fleet:{},o={};
+   for(const id of Object.keys(F)){const f=F[id];if(!own(SHIP,id)||!f||typeof f!=='object')continue;const n=k=>num(f[k],s.day);
+     const v={inc:typeof f.inc==='string'?f.inc.slice(0,40):null,link:typeof f.link==='string'?f.link.slice(0,40):'',t:clamp(num(f.t,0.5),0,1),e:f.e==='b'?'b':'a',dep:n('dep'),arr:n('arr'),done:n('done'),back:n('back'),fx:num(f.fx,0),fy:num(f.fy,0)};
+     if(f.rs!=null){v.rs=n('rs');v.rt=clamp(num(f.rt,0),0,1);}v.arr=Math.max(v.arr,v.dep);v.done=Math.max(v.done,v.arr);v.back=Math.max(v.back,v.done);if(v.back>s.day)o[id]=v;}
+   s.fleet=o;
+   for(const i of s.inc){if(i.type!=='cut'||i.st==null){for(const k of ['ship','seaq','st','sw','sp','sl'])delete i[k];continue;}
+     i.st=clamp(num(i.st,0.5),0.03,0.97);i.sw=int(i.sw,1,30,4);i.sp=int(i.sp,0,60,0);i.sl=typeof i.sl==='string'?i.sl.slice(0,40):'';i.rushed=!!i.rushed||undefined;
+     if(i.ship!=null&&!(own(SHIP,i.ship)&&o[i.ship]&&o[i.ship].inc===i.id))i.ship=null;if(i.ship==null){i.ship=null;i.seaq=1;}else delete i.seaq;}
+   for(const l of s.links)if(l.ship2&&l.kind==='df'&&l.own&&l.sub)l.ship2=1;else delete l.ship2;}
   s.loans=s.loans.filter(l=>l&&own(BANKS,l.bank));for(const l of s.loans){if(l.model!==undefined&&!['balloon','storm','transit','astro'].includes(l.model))delete l.model;for(const k of ['apr0','cut','share'])if(l[k]!==undefined&&!isFinite(+l[k]))delete l[k];if(!Array.isArray(l.covs))l.covs=[];l.covs=l.covs.filter(c=>own(COVS,c));}s.loanOffers=s.loanOffers.filter(l=>l&&own(BANKS,l.bank));
   s.usedNames=[...new Set(s.usedNames.filter(x=>typeof x==='string'))];s.log=s.log.filter(e=>e&&typeof e.t==='string').slice(0,LOG_KEEP).map(e=>{const o=e.o&&typeof e.o==='object'&&e.o.a==='inbox'?{a:'tab',v:'nets'}:e&&e.o&&typeof e.o==='object'&&LOG_OPEN.includes(e.o.a)?(e.o.a==='bank'||e.o.a==='ops'?{a:e.o.a}:typeof e.o.v==='string'&&e.o.v.length<=64&&(e.o.a!=='city'||isCity(e.o.v))&&(e.o.a!=='tab'||LOG_TABS.includes(e.o.v))?{a:e.o.a,v:e.o.v}:null):null;
     return {id:typeof e.id==='string'&&e.id.length<=40?e.id:uid(),d:num(e.d,0),t:e.t.slice(0,600),h:typeof e.h==='string'?e.h.slice(0,200):'',k:LOG_KINDS.includes(e.k)?e.k:'',at:Number.isFinite(+e.at)?+e.at:0,o,n:int(e.n,1,9999,1)};});
@@ -112,5 +124,7 @@ function migrate(s){sanitize(s);
     s.seen=all;}
   // Australian pricing and peering changed in place (#148): a save that was already there gets told once.
   if(s.auV!==1){if((s.day||0)>0&&Object.keys(s.pops).some(c=>CITY[c].au))s.auNews=true;s.auV=1;}
+  // Months were 30 days before #257: the intern's budget month counts calendar months now, so it does not reset early.
+  if(s.calV!==1){if(s.ops&&s.ops.mon===Math.floor((s.day||0)/30))s.ops.mon=monthIdx(s.day||0);s.calV=1;}
   if(s.grace&&(typeof s.grace!=='object'||!isFinite(s.grace.until)||!Array.isArray(s.grace.nets)))s.grace=null;if(s.grace)s.grace.nets=s.grace.nets.filter(isNet);
   return s;}

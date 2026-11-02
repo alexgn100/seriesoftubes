@@ -3,12 +3,14 @@
    network, with a jump to the POP that holds it. The Networks tab shows the same per network. */
 const CONN_K={t:N_('common.transit'),p:'PNI',ix:'IX',c:N_('common.cache'),nni:'NNI'},CONN_ORD=['t','p','ix','c','nni'],CONN_COL={t:'#FF8A3D',p:'#7B61FF',ix:'#2DB7F5',c:'#16A866',nni:'#1E2640'};
 const connTab=k=>k==='t'?'up':k==='nni'?'links':'peer';
+// How many rows conns() gives, without building them (the Networks tab only shows the count).
+const connsN=()=>S.transit.length+S.pni.length+Object.keys(S.ixp).length+new Set(S.caches.map(x=>x.city+'|'+x.net)).size+(S.nni||[]).filter(x=>FAB[x.prov]&&NNI[x.tier]).length;
 function conns(){const out=[],pn=(tier,n)=>(n||1)>1?`${n}×${PORT[tier].n} LAG`:PORT[tier].n;
   for(const t of S.transit){const q=(R.p95&&R.p95[t.id])||0;out.push({k:'t',id:t.id,city:t.city,net:t.net,name:NET[t.net].name,port:pn(t.tier,t.n),cap:lagCap(PORT[t.tier].g,t.n),use:R.useT[t.id]||0,mo:transitMo(t,q),down:t.down>S.day||!popUp(t.city),low:t.pref==='low',note:tr('connections.95th_percentile_g',{g:fmtG(q)})});}
   for(const x of S.pni){const u=R.usePni[x.id]||0;out.push({k:'p',id:x.id,city:x.city,net:x.net,name:NET[x.net].name,port:x.g1?((x.n||1)>1?x.n+'×1G':'1G'):pn(x.tier,x.n),cap:lagCap(pniG(x),x.n),use:u,mo:pniMo(x,u),down:!popUp(x.city)||!pniOn(x),low:x.pref==='low',note:!pniOn(x)?tr('connections.on_order_n_days',{n:x.ready-S.day}):NET[x.net].pol==='paid'?tr('common.paid_peering'):''});}
   for(const c in S.ixp){const ses=ixSessions(c),mine=!!S.myIx[c];out.push({k:'ix',id:c,city:ixCity(c),net:null,nets:[...ses],name:ixName(c),port:mine?tr('common.your_exchange'):pn(S.ixp[c],(S.ixn||{})[c]),cap:ixCap(c),use:R.useIx[c]||0,mo:ixMo(c),mine,down:!!(S.ev.ixdown&&S.ev.ixdown[c]>S.day),low:(S.ixPref&&S.ixPref[c])==='low',note:trn('connections.n_peering_session',ses.size)+(isRemote(c)?' · '+tr('common.remote'):'')});}
   const cg={};for(const x of S.caches){const key=x.city+'|'+x.net;(cg[key]=cg[key]||[]).push(x);}
-  for(const key in cg){const g=cg[key],x=g[0];out.push({k:'c',id:x.id,n:g.length,city:x.city,net:x.net,name:NET[x.net].cache.name,port:trn('common.n_box',g.length),cap:CACHE_CAP*g.length,use:g.reduce((a,y)=>a+(R.useCache[y.id]||0),0),mo:CACHE_MO*g.length,down:!popUp(x.city),low:false,note:tr('common.from_net',{net:NET[x.net].name})});}
+  for(const key in cg){const g=cg[key],x=g[0];out.push({k:'c',id:x.id,n:g.length,city:x.city,net:x.net,name:NET[x.net].cache.name,port:trn('common.n_box',g.length),cap:g.reduce((a,y)=>a+cacheG(y),0),use:g.reduce((a,y)=>a+(R.useCache[y.id]||0),0),mo:g.reduce((a,y)=>a+cacheMo(y),0),down:!popUp(x.city),low:false,note:tr('common.from_net',{net:NET[x.net].name})});}
   for(const x of S.nni||[])if(FAB[x.prov]&&NNI[x.tier])out.push({k:'nni',id:x.city+'|'+x.prov,city:x.city,net:null,name:FAB[x.prov].name,port:NNI[x.tier].n,cap:NNI[x.tier].g,use:nniUsed(x.city,x.prov),mo:NNI[x.tier].mo,down:!popUp(x.city),low:false,note:tr('connections.virtual_circuits_and_fabric')});
   return out;}
 // Cancel straight from the list, with the same "Really?" step as the POP panel.

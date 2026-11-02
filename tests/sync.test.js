@@ -283,3 +283,25 @@ test('a device with its own networks gets the cloud network as a new one, and ke
     assert.deepEqual(b.errors, []);
   } finally { await s.close(); }
 });
+
+test('nothing syncs while the route worker has half a day in flight', async () => {
+  const s = await server();
+  try {
+    const a = device(s.base);
+    a.ev("ACT.start({});for(let i=0;i<5;i++)dayTick();save(true)");
+    await a.ev("cloudAuth('register','jana','password1')");
+    assert.equal(a.ev('CL.rev'), 1);
+    a.ev('for(let i=0;i<3;i++)dayTick()');
+    // A day is out at the worker: S is half a day, which is never saved, so never pushed either.
+    a.ev('RW.job={seq:1}');
+    a.ev('cloudTick()');
+    assert.equal(a.ev('UI.clBusy'), false, 'the minute tick leaves it alone');
+    a.ev('window.__P=cloudPush()');
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(a.ev('CL.rev'), 1, 'a push waits for the day to land');
+    a.ev('RW.job=null');
+    await a.ev('__P');
+    assert.equal(a.ev('CL.rev'), 2);
+    assert.deepEqual(a.errors, []);
+  } finally { await s.close(); }
+});

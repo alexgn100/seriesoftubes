@@ -33,10 +33,12 @@ function drawFrame(now){
     const w=(vx?2.2:(2.5+Math.max(...grp.map(tierW))*1.8+(many?Math.min(1.5,(grp.length-1)*0.5):0)))*sc*(far?0.5:1),np=gm.pts.length;
     if(SX.length<np){SX=new Float64Array(np*2);SY=new Float64Array(np*2);}
     for(const k of ks){
+      // Off screen (with room for the widest line and the markers at its middle): nothing of it would show. The line's
+      // box is kept on its cached geometry, so a link off screen is skipped without projecting its points.
+      const bb=gm.bb||(gm.bb=(()=>{let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;for(const p of gm.pts){if(p[0]<a)a=p[0];if(p[0]>b)b=p[0];if(p[1]<c)c=p[1];if(p[1]>d)d=p[1];}return [a,b,c,d];})());
+      if((bb[1]+k*W-cam.x)*cam.z+CW/2<-40||(bb[0]+k*W-cam.x)*cam.z+CW/2>CW+40||(bb[3]-cam.y)*cam.z+CH/2<-40||(bb[2]-cam.y)*cam.z+CH/2>CH+40)continue;
       // Screen points as toS() gives them, kept in SX/SY.
-      let mn=Infinity,mx=-Infinity,mny=Infinity,mxy=-Infinity;for(let i=0;i<np;i++){const p=gm.pts[i],x=(p[0]+k*W-cam.x)*cam.z+CW/2,y=(p[1]-cam.y)*cam.z+CH/2;SX[i]=x;SY[i]=y;if(x<mn)mn=x;if(x>mx)mx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;}
-      // Off screen (with room for the widest line and the markers at its middle): nothing of it would show.
-      if(mx<-40||mn>CW+40||mxy<-40||mny>CH+40)continue;
+      for(let i=0;i<np;i++){const p=gm.pts[i];SX[i]=(p[0]+k*W-cam.x)*cam.z+CW/2;SY[i]=(p[1]-cam.y)*cam.z+CH/2;}
       const path=()=>{ctx.beginPath();ctx.moveTo(SX[0],SY[0]);for(let i=1;i<np;i++)ctx.lineTo(SX[i],SY[i]);};
       ctx.lineCap='round';ctx.lineJoin='round';
       if(sel){ctx.strokeStyle='rgba(255,79,154,.35)';ctx.lineWidth=w+14;path();ctx.stroke();}
@@ -94,6 +96,8 @@ function drawFrame(now){
     if(ly===null&&(prio(v)===0||(prio(v)===1&&(v.C.id===S.home||UI.hover===v.C.id)))){ly=below;const r={x:v.sx-tw/2,y:below-10,w:tw,h:21};rects.push(r);labs.push(r);}
     v.ly=ly;}
   if(pzOn()){for(const v of vis.slice().reverse())pzDrawCity(v,csc,now);}else for(const v of vis.slice().reverse())drawCity(v.C,v.sx,v.sy,csc,now,v.ly,v.dem);
+  // cable ships at sea (88-cable-ships.js), over the city labels so a ship leaving port stays in sight
+  drawShips(ks,now);
   // Architect runs: what the tubes between two cities are (one trench, or separate paths), above the cities.
   for(const [x,y,t,one] of AR_PILLS){ctx.font='800 11px "Baloo 2", sans-serif';const tw=ctx.measureText(t).width+12;ctx.fillStyle=one?'#FFE3C2':'#DDF7E7';ctx.strokeStyle=one?'#FF8A3D':'#16A866';ctx.lineWidth=2;rr(x-tw/2,y-9,tw,17,8);ctx.fill();ctx.stroke();ctx.fillStyle='#1E2640';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+1);}
   // the chaos monkey (woken here after a reload, wherever it last snipped)

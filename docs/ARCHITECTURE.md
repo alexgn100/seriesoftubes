@@ -32,7 +32,7 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
 | `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering desk (requests answered by policy), peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
 | `80-simulation/` | Dijkstra, RouteScript, where a DDoS flood goes (`ddosLoad()`/`ddosAfter()`, called by `compute()`), `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
-| `85-incidents/` | `addInc()`, DDoS attacks (targets, sizes, scoring, the NOC card) and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()` |
+| `85-incidents/` | `addInc()`, DDoS attacks (targets, sizes, scoring, the NOC card) and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()`, the chaos monkey, cable ships (`50-cable-ships.js`: a subsea cut sends a club ship from its port along the cable routes; voyages in `S.fleet`, drawn by `96-map/88-cable-ships.js`) |
 | `88-days/` | `dayTick()`, new offers, badges, `checkGoals()` |
 | `90-actions/` | The `ACT` map, one file per area (`const ACT` in `10-interface.js`, `Object.assign(ACT,…)` in the rest), and their helpers |
 | `91-save.js`, `92-audio.js` | Save, export and import; sound effects |
@@ -67,6 +67,7 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | `scripts/test.js` | `npm test`: runs every `tests/*.test.js` |
 | `scripts/release-notes.js` | Extracts a version's CHANGELOG bullets |
 | `scripts/perf-bench.js`, `perf-browser.js`, `perf-stats.js`, `perf-fixture.js` | Big-network benchmark, base vs head, headless and in Chromium as a desktop and a throttled phone, with a significance test per row (posted on every PR by `perf.yml` + `perf-comment.yml`), and the generator of its save, `tests/fixtures/big-network.json` |
+| `scripts/mcp.js`, `scripts/lib/mcp-game.js`, `scripts/lib/mcp-page.js` | The game as a local MCP server: typed tools to play, inspect and debug it from an AI client ([MCP.md](MCP.md)) |
 | `scripts/i18n-check.js`, `scripts/i18n-add.js`, `scripts/lib/dict.js` | Translation coverage and dictionary order; adding, renaming and removing entries |
 | `scripts/legacy/` | The splitter that made `src/` from the old `site/index.html` (and gave its text labels), and `port-branch.js`, which carries older branches over |
 | `tests/harness.js` | Loads the assembled page in jsdom with a seeded `Math.random` and a fake canvas |
@@ -119,12 +120,18 @@ never freezes the game.
    handed back to links the active ones fill first and standby links take the rest.
 2. Builds the exit list `E`: embedded caches (rank 0), PNIs (1), IX ports (2),
    transit (3). Each exit has a capacity, the networks it can reach (`ok(net)`) and an
-   egress preference (`high`, `normal`, `low` = backup only).
+   egress preference (`high`, `normal`, `low` = backup only). A transit port can also be set to
+   carry (`t.carry`): see step 4.
 3. Builds flows: for every POP, its demand (eyeballs and customers) split across
    destination networks by their traffic share (`NSH`, with regional variants for
    China, Russia and Korea). Incidents can add junk flows or scale demand.
 4. Routes flows rank by rank: the nearest usable exit first, ECMP across equal exits,
-   consuming link, router (`nodeCap`) and exit capacity. With Auto-TE, overflow spills
+   consuming link, router (`nodeCap`) and exit capacity. A carrier's own transit port also
+   goes first, before plain transit, for traffic bound for that carrier or for a network that buys
+   transit from it (`25-direct-egress.js`: the shorter AS path): always at its own POP, and from every
+   POP when the port is set to carry. Such a port is still an ordinary transit exit for the other
+   POPs. Backup, RouteScript and Auto-TE rules keep their say, and so does a Prefer-marked port at its own POP (the other
+   POPs keep the rule). With Auto-TE, overflow spills
    onto alternate paths; RouteScript rules (`teRules()`) can prefer, avoid, cap, drain
    or blackhole.
 5. Layer-2 customers (L2VPN, SD-WAN, waves) are carved out of link capacity first.
@@ -134,7 +141,44 @@ It runs every day and after every action, so it is built for big networks: the g
 indices (`CIDX`), each exit is asked once per network what it can reach, and `R.ef` (what crosses each
 link) is only put together for a link when something reads it.
 
+What follows from the network's shape alone is kept from one call to the next (`29-route-cache.js`): the shortest
+paths from every POP, and who reaches whom with each network's exit lists. Each has a key made of everything it is
+built from (the live graph with its weights; every exit with what it reaches and how it is preferred, RouteScript and
+the events that move routes), so most days, when only demand changes, they are reused, and any other change rebuilds
+them. Only indices are kept: exits, lists and paths are made fresh every call, because routing writes on them.
+`tests/route-cache.test.js` checks the keys, and the equivalence tests route with and without the kept tables.
+`scripts/route-fuzz.js` plays hundreds of random seeded games on main's page and this checkout's at once, comparing all
+of R and S after every move and day, with the kept tables and without (`tests/route-fuzz.test.js` plays a few).
+
+Each loop of `compute()` runs in a function of its own (the stages are closures, the busiest is `rankPass`;
+the money is `computeMoney()`). V8 optimises a small function quickly and keeps it; `compute()` as one 33 KB function
+never stayed optimised: it ran in baseline code, boxing every number, and was compiled again and again in the background
+only to be thrown away, which cost more CPU than the routing itself. Keep it that way: a new loop goes in a function.
+
 Served share per city (`sfOf`) drives eyeball revenue and customer mood.
+
+## Routing in a worker
+
+During play, each day's `compute()` runs off the main thread (`src/game/80-simulation/28-route-worker.js`), so a big
+network does not freeze the page once a day.
+
+- **Built from the page itself.** The worker is the page's own inline game script (`document.currentScript.textContent`)
+  run again from a Blob URL, after a short prelude of inert stand-ins for `document`, storage and the other DOM globals,
+  and the player's dictionary. Nothing is fetched: GitHub Pages still serves one page, and a release cannot mismatch.
+  In the worker `RW_IN` is true and `boot()` never runs; the catalogs are rebuilt by the same top-level code.
+- **The day split.** `dayTick()` is `dayPre()` (the world moves on), `compute()`, `dayPost()` (bills, moods, offers,
+  goals). In play, `frame()` calls `rwDay()` instead: `dayPre()`, then S and what routing reads of yesterday's R
+  (`R.load`, `R.l2route`, `R.efg`) are posted, and the next day waits until R comes back and `dayPost()` has run. So a day
+  sees exactly the routing it would have had in one go: same results, same random numbers. Half a day is never saved.
+- **What crosses.** `R.ef` and `R.fl` are lazy getters; their pieces (`R.efp`, `R.flc`) travel instead, typed arrays
+  transferred, and `efBuild()`/`flDefine()` (in `30-compute.js`) rebuild the same lazy R on the page.
+- **Actions mid-day.** Every `compute()` bumps `RW.gen`. If an action routed while a day was in flight, the worker's
+  answer is stale: it is dropped and the day ends with the action's R.
+- **Fallbacks.** Tests (`__TUBES_TEST__`, and jsdom has no Worker), `window.__TUBES_SYNC__`, a browser without workers, a
+  post that fails or a worker that errors take the synchronous path (`rwKill()` routes the day in flight on the page).
+- **Still on the main thread**, because the caller reads R right away: actions (`after()`), loading a game, failures and
+  events that fire during a day, standing orders, the chaos monkey, RouteScript what-ifs, the link panel's cut check and
+  automatic offers.
 
 ## Actions and rendering
 

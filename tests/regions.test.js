@@ -358,7 +358,9 @@ test('Sparkly Seabone is a Tier 1 now, but old saves keep the five they played f
   ev("ACT.start({})");
   assert.equal(ev("NET.skl.type"), 't1');
   assert.ok(ev("NET.skl.pops.includes('nyc')&&NET.skl.pops.includes('sao')&&NET.skl.pops.includes('pmo')"));
-  assert.equal(ev("t1Need().length"), 7, 'new games need all seven, AT&Tease included (#155)');
+  assert.equal(ev("t1Need().length"), 9, 'new games need all nine, AT&Tease (#155), Doitsche and Tangerine (#194) included');
+  ev("S.t1v=3");
+  assert.equal(ev("t1Need().length"), 7, 'saves from before Doitsche and Tangerine keep seven');
   ev("S.t1v=2");
   assert.equal(ev("t1Need().length"), 6, 'saves from before AT&Tease keep six');
   ev("delete S.t1v");
@@ -1104,5 +1106,16 @@ test('prices follow real connectivity: thin markets cost more, hubs stay put', (
   assert.ok(ev('R.cost.pops') >= ev("popMo('rbr')"), 'running cost uses the city rent');
   ev("selectCity('rbr')");
   assert.ok(ev("CITY_PDB.sao[2]>=2000&&CITY_PDB.nyc[2]>=2000&&CITY_PDB.kgl[2]<2000"), 'Brazil and the US are dense in ASNs, Rwanda is not');
+  assert.deepEqual(errors, []);
+});
+
+test('#213 Clarovision sells peering only as a paid PNI, free only for the biggest', () => {
+  const { ev, errors } = load();
+  start(ev);
+  assert.equal(ev('NET.clr.pol'), 'paid');
+  assert.equal(ev("peerOk('clr','ix','sao').ok"), false, 'no free IX session');
+  assert.equal(ev("peerOk('clr','pni','sao').fee"), ev('NET.clr.paidFee'), 'a PNI, for a fee');
+  ev('S.lvl=NET.clr.freeLv');
+  assert.equal(ev("peerOk('clr','pni','sao').free"), true);
   assert.deepEqual(errors, []);
 });

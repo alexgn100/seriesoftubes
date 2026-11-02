@@ -228,9 +228,9 @@ test('payday money floaters fade after a long pause instead of piling up', () =>
   run(2000);
   assert.equal(ev('FLOATS.length'), 0, 'floaters from building the network have faded');
   ev('UI.speed=0;__clk+=600000;frame(__clk)');
-  ev('while(S.day%30!==29)dayTick();UI.speed=1;acc=DAY_MS');
+  ev('while(cal(S.day+1).d!==1)dayTick();UI.speed=1;acc=DAY_MS');
   run(16);
-  assert.equal(ev('S.day%30'), 0);
+  assert.equal(ev('cal(S.day).d'), 1, 'the first of a month');
   assert.ok(ev('FLOATS.length') > 0, 'payday shows the money');
   run(2000);
   assert.equal(ev('FLOATS.length'), 0, 'and it fades within two seconds of play');
@@ -272,22 +272,25 @@ test('the map is not drawn while the dashboard covers the whole screen', () => {
 function plainCompute(ev) {
   const src = ev('compute.toString()');
   let plain = src
-    .replace('if(!lst.hi&&ALONE[f.ci])', 'if(false)')
-    .replace('if(!G.length){\n        // One scan', 'if(false){\n        // One scan')
-    .replace('for(const n of e.nets||NET_IDS)', 'for(const n of NET_IDS)')
+    .replace('if(!lst.hi&&ALONE[fci])', 'if(false)')
+    .replace('if(!GN){\n        // One scan', 'if(false){\n        // One scan')
+    .replace('const ns=e.nets||NET_IDS;', 'const ns=NET_IDS;')
     .replace('if(P.dead)return 0;', '').replaceAll('if(r<=1e-6){P.dead=1;return 0;}', '')
-    .replace('if(!P.dead)room-=push(', 'room-=push(').replace(/const gone=e=>\{[^\n]*\};/, 'const gone=e=>false;');
+    .replace('if(!P.dead)room-=push(', 'room-=push(').replace(/const gone=e=>\{[^\n]*\};/, 'const gone=e=>false;')
+    // ...and without what routing keeps between calls (29-route-cache.js): the plain path builds everything afresh.
+    .replace('RCON=RC.on', 'RCON=false');
   // ...and the group split and sorting written the plain way, with array copies, as before they were made allocation-free
   const sg = plain.indexOf('const ROOM=[],sendGroup='), sd = plain.indexOf('const sortD=');
   assert.ok(sg > 0 && sd > sg, 'found the group sender and the sort');
   plain = plain.slice(0, sg) + `const ROOM=[],sendGroup=(g0,i0=0,i1=g0.length)=>{const g=g0.slice(i0,i1);for(const e of g)e.vis=vis;
-    if(g.length>1){const room=g.map(e=>Math.max(0,e.cap-e.used)),tot=room.reduce((a,b)=>a+b,0),want=f.rem;if(tot>1e-6)g.forEach((e,k)=>send(e,want*room[k]/tot));}
-    for(const e of g){if(f.rem<=1e-6)break;send(e,f.rem);}};\n  ` + plain.slice(sd).replace(/^const sortD=a=>\{[^\n]*\};/, 'const sortD=a=>a.sort(byDist);');
+    if(g.length>1){const room=g.map(e=>Math.max(0,e.cap-e.used)),tot=room.reduce((a,b)=>a+b,0),want=FREM[F];if(tot>1e-6)g.forEach((e,k)=>send(e,want*room[k]/tot));}
+    for(const e of g){if(FREM[F]<=1e-6)break;send(e,FREM[F]);}};\n  ` + plain.slice(sd).replace(/^const sortD=\(a,n=a\.length\)=>\{[^\n]*\};/, 'const sortD=(a,n=a.length)=>{const t=a.slice(0,n).sort(byDist);for(let i=0;i<n;i++)a[i]=t[i];};');
   for (const [a, b] of [[src, plain]]) assert.notEqual(a, b);
   assert.equal((plain.match(/if\(false\)/g) || []).length, 2, 'both shortcuts were found and switched off');
   assert.ok(!plain.includes('e.nets||NET_IDS'), 'the exit index was switched off');
   assert.ok(!plain.includes('P.dead'), 'the full-path mark was switched off');
-  assert.ok(plain.includes('const sortD=a=>a.sort(byDist);') && plain.includes('g.forEach('), 'the plain group split and sort are in');
+  assert.ok(plain.includes('RCON=false') && !plain.includes('RC.on'), 'the kept routing tables were switched off');
+  assert.ok(plain.includes('const sortD=(a,n=a.length)=>{const t=a.slice(0,n).sort(byDist);') && plain.includes('g.forEach('), 'the plain group split and sort are in');
   ev('window.__plain=' + plain.replace(/^function compute/, 'function'));
 }
 

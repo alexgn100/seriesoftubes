@@ -1,6 +1,9 @@
 /* ---------- daily tick ---------- */
-function dayTick(){
-  if(!S||S.lost||!rule('clock'))return; // no clock (puzzles): no days, no bills, nothing fires
+/* A day is two halves around its routing: dayPre() (the world moves on), compute(), dayPost() (bills, moods, offers).
+   In play the routing can run in a worker in between (28-route-worker.js); tests and the fallback run it in one go. */
+function dayTick(){const d=dayPre();if(d===false)return;compute();dayPost(d);}
+function dayPre(){
+  if(!S||S.lost||!rule('clock'))return false; // no clock (puzzles): no days, no bills, nothing fires
   S.day++;
   const d=S.day;
   dkTick(d);ixPriceWar(d);peeringDeskDay(d);pniDay(d);mergerDay(d);
@@ -18,6 +21,8 @@ function dayTick(){
   for(const k in S.peers){const [id,c]=k.split('@'),sn=snub(id,c);if(!sn)continue;delete S.peers[k];S.stats.depeered=(S.stats.depeered||0)+1;
     {const v={net:esc(NET[id].name),ix:esc(ixName(c)),city:esc(CITY[ixCity(c)].name),why:esc(sn.why)};toast(ixNamesCity(c)?tr('day_tick.net_de_peered_you_at_ix',v):tr('day_tick.net_de_peered_you_at_ix_caef',v),'bad');}}
   if(S.cnLic&&S.cnLic.state==='pending'&&d>=S.cnLic.ready){S.cnLic.state='ok';toast(tr('day_tick.license_granted_your_joint_venture'),'goal');sfx('coin');}
+  // cable ships: home again, sent to waiting cuts (50-cable-ships.js)
+  shipDay();
   // resolve incidents
   for(const i of S.inc.slice())if(i.until<=d){const o=incOpen(i),l=o&&o.a==='link'&&S.links.find(x=>x.id===o.v),where=l?CITY[l.a].name+'–'+CITY[l.b].name:o&&o.a==='city'?CITY[o.v].name:'';clearInc(i);
     toast(where?tr('day_tick.resolved_what_where_is_back_to',{what:incTitle(i.type),where:esc(where)}):tr('day_tick.resolved_what',{what:incTitle(i.type)}),'good',[],o);}
@@ -25,10 +30,11 @@ function dayTick(){
   for(const c in S.pops){const p=S.pops[c];if(!p.bb)continue;const sf=sfOf(R,c)*((R.bbF&&R.bbF[c])??1),P=eyeP(c);
     if(sf>=0.9){const g=(CITY[c].be&&!(p.boost>d)?0.35:1)*0.025*(scnRule('boom')?1.5:1)*(p.boost>d?2:1)*sf*(0.7+0.6*(R.peerShare||0))*(CITY[c].reg==='AS'&&!CITY[c].cn?1.6:1);p.bb.d+=g*p.bb.d*(1-p.bb.d/P);}
     else p.bb.d=Math.max(Math.min(3,P),p.bb.d*(1-(0.9-sf)*0.04));}
-  compute();
+  return d;}
+function dayPost(d){
   ddosNews();ddosTrack();
   for(const t of S.transit){(t.hist=t.hist||[]).push(R.useT[t.id]||0);if(t.hist.length>30)t.hist.shift();}
-  S.cash+=(R.revMo-R.costMo)/30;
+  S.cash+=(R.revMo-R.costMo)/monLen(d);
   S.stats.peak=Math.max(S.stats.peak,R.served);
   S.hist=S.hist||[];S.hist.push({d,dem:+R.demand.toFixed(2),srv:+R.served.toFixed(2),c:+(R.egT.c||0).toFixed(2),p:+(R.egT.p||0).toFixed(2),ix:+(R.egT.ix||0).toFixed(2),t:+(R.egT.t||0).toFixed(2),l2:+(R.egT.l2||0).toFixed(2),rev:Math.round(R.revMo),cost:Math.round(R.costMo),cash:Math.round(S.cash),inc:S.inc.length});if(S.hist.length>180)S.hist.shift();
   {const top=custLevel();if(top>(S.lvl||1)){for(let lv=(S.lvl||1)+1;lv<=top;lv++){track('level_'+lv);toast(tr('day_tick.customer_level_lv_name_new_customers',{lv,name:LEVELS[lv-1].n,unlock:LEVELS[lv-1].unlock})+`<br><i>${esc(LEVELS[lv-1].q)}</i>`,'goal');}S.lvl=top;sfx('coin');}}
@@ -73,7 +79,7 @@ function dayTick(){
   if(dirty)compute();
   opsDay(d);
   // payday floaters
-  if(d%30===0){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-arpuOf(c));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
+  if(cal(d).d===1){for(const c in S.pops){let v=(R.cityEye[c]*sfOf(R,c)*EYE_RATE)+S.biz.filter(b=>b.city===c).reduce((a,b)=>a+b.bw*b.rate,0);v=v-R.cityEye[c]*sfOf(R,c)*EYE_RATE*(1-arpuOf(c));if(v>500)floater(CITY[c].x,CITY[c].y-30,'+'+fmt$(v),'#16A866');}sfx('coin');}
   checkGoals();
   scnTick(d);
   confTick(d);
@@ -82,7 +88,7 @@ function dayTick(){
   if(S.cash<0){S.neg++;if(S.neg===1)toast(tr('day_tick.you_are_in_the_red_cancel'),'bad');}
   else S.neg=0;
   if(S.cash<-100000){S.lost=true;track('bankrupt');showLose();return;}
-  if(d%360===0&&[1,2,4].includes(d/360))track('game_year_'+(d/360+1),true);
+  {const c=cal(d);if(c.m===0&&c.d===1&&[2,3,5].includes(c.y))track('game_year_'+c.y,true);}
   if(d%10===0)save();
 }
 function spawnOffer(){

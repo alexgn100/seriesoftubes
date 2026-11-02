@@ -10,14 +10,22 @@ function utilityCacheMoves(city){if(!S||!S.pops[city])return [];const groups=new
   const from=diff>0?'a':'b',to=from==='a'?'b':'a';let left=Math.floor(Math.abs(diff)/2);
   for(const g of groups.values())if(left&&g[from].length>g[to].length){move(g,from,1);left--;}
   return moves;}
-// One box per site first; then more boxes while this city's demand to the network outgrows them (100G each, #248).
+// A city's traffic to one network, split as routing splits it (#260): China, Russia and Korea's exit rule have their own
+// list of networks, and Goggle is throttled to half in Russia. The world shares (NSH) would size boxes for networks the
+// city cannot even reach, and too few for the ones it uses most.
+const cityShTab=c=>cnCity(c)?NSH_CN:ruCity(c)?NSH_RU:CITY[c].kr&&S.krExit?NSH_KRX:NSH;
+const cityNetSh=(c,id)=>(cityShTab(c)[id]||0)*(id==='ggl'&&ruCity(c)?0.5:1);
+function cacheDem(c,id){const T=cityShTab(c);let t=0;for(const k in T)t+=cityNetSh(c,k);return t>0?((R.cityDem&&R.cityDem[c])||0)*cityNetSh(c,id)/t:0;}
+// One box per site first, if the city sends the network anything at all; then more boxes while that demand outgrows them
+// (100G each, #248).
 function utilityCaches(city){const p=S&&S.pops[city];if(!p)return null;const sites=p.site2?['a','b']:['a'],add=[],have={};
   for(const c of S.caches)if(c.city===city){const k=c.net+'@'+(c.site==='b'?'b':'a');have[k]=(have[k]||0)+1;}
-  for(const n of NETS)if(n.cache&&(R.demTo[n.id]||0)>=n.cache.min){const box=sites.map(st=>have[n.id+'@'+st]||0);
-    sites.forEach((site,i)=>{if(!box[i]){add.push({net:n.id,site});box[i]=1;}});
-    const need=Math.ceil(((R.cityDem&&R.cityDem[city])||0)*(NSH[n.id]||0)/CACHE_CAP-1e-9);
-    for(let t=box.reduce((a,b)=>a+b,0);t<need;t++){const i=box.indexOf(Math.min(...box));add.push({net:n.id,site:sites[i]});box[i]++;}}
-  return {add,key:add.map(c=>c.net+'@'+c.site).join(','),mo:add.length*CACHE_MO,free:Math.max(0,portsMax(city)-portsUsed(city))};}
+  for(const n of NETS)if(n.cache&&(R.demTo[n.id]||0)>=n.cache.min&&cacheDem(city,n.id)>1e-6){const box=sites.map(st=>have[n.id+'@'+st]||0);
+    sites.forEach((site,i)=>{if(!box[i]){add.push({net:n.id,site,...cacheBox(city)});box[i]=1;}});
+    const dem=cacheDem(city,n.id),nb=cacheBox(city);
+    let cap=S.caches.filter(c=>c.city===city&&c.net===n.id).reduce((a,c)=>a+cacheG(c),0)+add.filter(x=>x.net===n.id).length*cacheG(nb);
+    while(cap+1e-9<dem){const i=box.indexOf(Math.min(...box));add.push({net:n.id,site:sites[i],...nb});box[i]++;cap+=cacheG(nb);}}
+  return {add,ports:cachePortsAdd(city,add),key:add.map(c=>c.net+'@'+c.site).join(','),mo:add.reduce((a,x)=>a+cacheMo(x),0),free:Math.max(0,portsMax(city)-portsUsed(city))};}
 function utilityKit(city){const p=S&&S.pops[city];if(!p)return null;
   const gen=!p.gen,site=!p.site2,router=(p.routers||1)<2,g=p.rgen||0;
   return {gen,site,router,moves:utilityCacheMoves(city),cost:(gen?GEN_COST:0)+(site?SITE2_COST:0)+(router?routerCost(g,1):0),

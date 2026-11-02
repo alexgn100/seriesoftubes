@@ -20,6 +20,8 @@ const clName=()=>{const e=CL&&CL.slot&&slotIdx().find(x=>x.id===CL.slot);return 
 // every message, sync's own included) but are not progress.
 function clHash(s){const {cam,uiSpeed,sv,log,...r}=s;const t=JSON.stringify(r);let h=0x811c9dc5;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(36)+'.'+t.length;}
 const clDirty=()=>clLocal()&&clHash(S)!==CL.h;
+// While the route worker has a day in flight, S is half a day (never saved, so never synced either): wait for it to land.
+const clIdle=async()=>{for(let i=0;i<200&&RW.job;i++)await new Promise(r=>setTimeout(r,25));return !RW.job;};
 // The cloud copy arrives packed (#176): compare it as it would load.
 const clSame=s=>{try{return clHash(migrate(JSON.parse(JSON.stringify(s))))===clHash(S);}catch(e){return false;}};
 async function clApi(method,path,body){const r=await fetch(SYNC_API+path,{method,cache:'no-store',headers:{'content-type':'application/json',...(CL?{authorization:'Bearer '+CL.t}:{})},body:body===undefined?undefined:JSON.stringify(body)});let j=null;try{j=await r.json();}catch(e){}return {st:r.status,j:j&&typeof j==='object'?j:{}};}
@@ -49,6 +51,7 @@ async function cloudPull(how){if(!CL||UI.clBusy||UI.clConf)return;const here=clL
   if(!j.save){if(rev===0&&!mine&&clOpen())clLink();// an empty cloud takes the network being played
     if(clLocal()){CL.rev=rev;clKeep();if(clDirty())await cloudPush();}return;}
   const p=parseSave(JSON.stringify(j.save));if(p.err){UI.clErr=p.err;return;}
+  if(!await clIdle()||!CL)return;
   if(here){if(how==='take'||!clDirty()||clSame(p.s))return cloudAdopt(p.s,rev,j.at,false);return cloudConflict(j);}
   if(mine){if(how)slotOpen(mine,false);return;}// Sync now from another network: go to the linked one, which pulls as it opens
   // Nothing linked here yet: the open network if it is the same one (logged in again), else the cloud copy as a new network.
@@ -68,11 +71,11 @@ function cloudAdopt(s,rev,at,fresh){const local=clLocal();if(!adoptSave(s,fresh)
   toast(local?tr('save.loaded_from_the_cloud_name_carries',{name:esc(S.name),date:dateStr(S.day)}):tr('save.welcome_back_name_loaded_from_the',{name:esc(S.name)}),'good');
   CL.rev=rev;CL.at=typeof at==='string'?at:'';CL.h=clHash(S);clKeep();} // after the toast, which lands in the network's log
 // base: the revision this push replaces; a newer one in the cloud is refused unless the player chose to overwrite it.
-async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;UI.clBusy=true;const h=clHash(S);let r;
+async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;UI.clBusy=true;if(!await clIdle()||!clLocal()){UI.clBusy=false;return;}const h=clHash(S);let r;
   try{r=await clApi('PUT','/save',{base:base===undefined?CL.rev:base,save:packSave(S)});}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
   if(r.st===200){CL.rev=r.j.rev|0;CL.at=String(r.j.at||'');CL.h=h;UI.clErr='';clKeep();return;}
   if(r.st===401)return clLost();if(r.st===409)return cloudConflict(r.j);UI.clErr=clMsg(r.st,r.j);}
-const cloudTick=()=>{if(CL&&!UI.clConf&&clDirty())cloudPush();};
+const cloudTick=()=>{if(CL&&!UI.clConf&&!RW.job&&clDirty())cloudPush();};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')cloudTick();else cloudPull();});
 function cloudConflict(j){const m=j.meta||{},side=(lab,name,day,cash)=>`<div class="kv"><span>${lab}</span><b>${esc(name)} · ${esc(dateStr(Math.max(0,day|0)))} · ${tr('save.cash_in_the_bank',{cash:fmt$(+cash||0)})}</b></div>`;
   UI.clConf={rev:Math.max(0,j.rev|0)};UI.clOpen=false;

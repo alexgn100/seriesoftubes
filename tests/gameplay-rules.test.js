@@ -41,7 +41,6 @@ const EXCEPTIONS = {
     cun: 'China (#59)',
     cxc: 'buys from Spectre-um, which is transit-free',
     drz: 'a transit-free Tier 2',
-    dtk: 'transit-free incumbent',
     etc: 'Cuba: buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     ets: 'transit-free in the Gulf',
     ftr: 'buys from Very-Zone, which is transit-free',
@@ -69,7 +68,6 @@ const EXCEPTIONS = {
     tmt: 'buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     tmx: 'transit-free in Mexico',
     tmy: 'Malaysian incumbent, peers for its own reach',
-    tng: 'a transit-free Tier 2',
     tpr: 'Australian (#148)',
     tsf: 'Indonesian incumbent, peers for its own reach',
     tsy: 'Australian, transit-free (#148)',
@@ -99,6 +97,8 @@ const REAL_NAMES = [
   'AMS-IX', 'Any2', 'BCIX', 'CoreSite', 'DE-CIX', 'Digital Realty', 'Equinix', 'France-IX', 'Interxion', 'IX.br', 'JPIX', 'LINX', 'NAPAfrica', 'NetIX', 'NIX', 'NL-ix', 'SIX', 'Telehouse',
   // cables
   '2Africa', 'Amitié', 'Dunant', 'EllaLink', 'Equiano', 'Grace Hopper', 'Hibernia Express', 'Jupiter', 'MAREA', 'PEACE', 'SEA-ME-WE 6',
+  // cable ships, their operators and maintenance clubs
+  'ACMA', 'ASEAN Explorer', 'ASEAN Protector', 'ASEAN Restorer', 'Cable Innovator', 'Cable Retriever', 'Global Marine', 'Léon Thévenin', 'MECMA', 'Orange Marine', 'Pierre de Fermat', 'René Descartes', 'SEAIOCMA', 'Sophie Germain', 'Sovereign', 'Wave Sentinel', 'Yokohama Zone',
   // vendors
   'Arista', 'Brocade', 'Ciena', 'Cisco', 'Extreme Networks', 'Huawei', 'Infinera', 'Juniper', 'MikroTik', 'Nokia',
 ];
@@ -119,9 +119,9 @@ test('W1: every city has a country code, a region and real coordinates', () => {
 
 test('W2: every country on the map has at least two consumer networks of its own', () => {
   // "Own": the network names the country in its home markets (cc) and has a PoP there. Consumer networks are the
-  // eyeballs, and the Tier 2 incumbents that sell to homes and phones in their home markets.
+  // eyeballs, and the Tier 1 and Tier 2 incumbents (Doitsche, Tangerine) that sell to homes and phones there.
   const rows = J(`(()=>{const cs={};for(const c of CITIES)if(!c.off)(cs[c.cc]=cs[c.cc]||[]).push(c.id);
-    return Object.keys(cs).sort().map(cc=>[cc,NETS.filter(n=>(n.type==='eye'||n.type==='t2')&&[].concat(n.cc||[]).includes(cc)&&n.pops.some(p=>CITY[p].cc===cc)).map(n=>n.name)]);})()`);
+    return Object.keys(cs).sort().map(cc=>[cc,NETS.filter(n=>n.type!=='cdn'&&[].concat(n.cc||[]).includes(cc)&&n.pops.some(p=>CITY[p].cc===cc)).map(n=>n.name)]);})()`);
   const bad = rows.filter(([cc, own]) => own.length < 2 && !ex('W2', cc))
     .map(([cc, own]) => `${country(cc)} (${cc}) has ${own.length} own eyeball network${own.length === 1 ? '' : 's'}${own.length ? ': ' + own.join(', ') : ''}`);
   fail('W2', bad, 'add a real operator of that country (src/game/30-networks/32-homegrown-eyeballs.js) or list it in EXCEPTIONS with a reason');
@@ -159,11 +159,11 @@ test('N1: network ids and ASNs are unique, ASNs are valid', () => {
   fail('N1', J("NETS.filter(n=>!Number.isInteger(n.asn)||n.asn<1||n.asn>4294967294||n.asn>=64512&&n.asn<=65534).map(n=>n.id)"), 'use the real, public ASN');
 });
 
-test('N2: names are puns: no network, cable, exchange, data center, router or optic carries a real name', () => {
+test('N2: names are puns: no network, cable, exchange, data center, router, optic or cable ship carries a real name', () => {
   const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'").replace(/\s+/g, ' ').trim();
   const real = new Set(REAL_NAMES.map(norm));
   const names = J(`[...NETS.map(n=>['network',n.name]),...CABLES.map(c=>['cable',c.name]),...XIX.map(x=>['exchange',x.name]),
-    ...CITIES.flatMap(c=>[['exchange',c.ix],['data center',c.dc],['data center',c.dc2]]),...RG.map(r=>['router',r.n]),...Object.values(OPT).map(o=>['optic',o.n]),...Object.values(SEAT_ROUTES).flat().map(r=>['cable',r[2]])].filter(x=>x[1])`);
+    ...CITIES.flatMap(c=>[['exchange',c.ix],['data center',c.dc],['data center',c.dc2]]),...RG.map(r=>['router',r.n]),...Object.values(OPT).map(o=>['optic',o.n]),...Object.values(SEAT_ROUTES).flat().map(r=>['cable',r[2]]),...SHIPS.map(x=>['cable ship',x.n]),...LAY_SHIPS.map(n=>['cable ship',n]),...Object.values(SHIP_CLUBS).map(c=>['maintenance club',c.n])].filter(x=>x[1])`);
   fail('N2', names.filter(([, n]) => real.has(norm(n))).map(([k, n]) => `${k} “${n}” is a real name`), 'find a pun');
   fail('N2', names.filter(([, n]) => /-ish\b/i.test(n)).map(([k, n]) => `${k} “${n}”`), 'no lazy -ish names: find a real pun, or keep the plain word');
 });
@@ -230,9 +230,9 @@ test('M2: presets are ordered: Change Freeze never harsher than On-call, BGP at 
 
 test('M3: every subsystem that can annoy the player reads a rule', () => {
   // [function, what it must read]
-  const reads = [['dayTick', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'],
+  const reads = [['dayPost', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'],
     ['soldOut', "rule('market')"], ['hwMul', "rule('market')"], ['leadDays', "rule('lead')"], ['pniLead', 'leadDays'],
-    ['dfBuildDays', 'leadDays'], ['dayTick', "rule('clock')"], ['snub', "rule('market')"]];
+    ['dfBuildDays', 'leadDays'], ['dayPre', "rule('clock')"], ['snub', "rule('market')"]];
   fail('M3', reads.filter(([f, r]) => !ev(`typeof ${f}==='function'&&${f}.toString().includes(${JSON.stringify(r)})`)).map(([f, r]) => `${f}() does not read ${r}`), 'gate it on the ruleset (src/game/40-progress/30-rules.js)');
   // and in play: no chaos and no market means a quiet year
   const g = load();

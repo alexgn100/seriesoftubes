@@ -12,8 +12,8 @@ Object.assign(ACT,{
    after();const msg=tr('utilities.kit_applied',{city:CITY[city].name});if(modal)utilitiesModal(city,msg);else toast(esc(msg),'good');},
  utilityCaches:({city,quote,modal})=>{const q=utilityCaches(city);if(!q||!q.add.length)return;
    if(q.key!==quote){if(modal)utilitiesModal(city,tr('utilities.quote_changed'));else{renderPanel();toast(tr('utilities.quote_changed'));}return;}
-   if(!portGate(city,q.add.length))return;
-   for(const c of q.add)S.caches.push({id:uid(),city,net:c.net,site:c.site});
+   if(!portGate(city,q.ports))return;
+   for(const c of q.add)S.caches.push({id:uid(),city,net:c.net,site:c.site,...(c.g?{g:c.g}:{})});
    sfx('build');after();const msg=tr('utilities.caches_requested',{n:q.add.length,city:CITY[city].name});if(modal)utilitiesModal(city,msg);else toast(esc(msg),'good');},
  utilityPeers:({city}={})=>{if(!S)return;const rows=utilityPeers();let n=0;
    for(const row of rows)for(const id of row.requests){S.peers[id+'@'+row.ix]=true;n++;}

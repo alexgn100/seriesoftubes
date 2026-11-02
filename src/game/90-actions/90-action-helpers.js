@@ -20,12 +20,31 @@ function optCost(o){return Math.round(OPT[o].cost*techMul(OPT[o].lvl)*hwMul('opt
 const sysNext=l=>l.sys==='lite'?'roadm':l.sys==='roadm'?'cl':null,sysUpCost=l=>{const t=sysNext(l);return t?sysCost(t)*(t==='cl'&&l.own?Math.max(1,l.pairs|0):1):0;};
 function pairBtn(l){if(!l.own||!isRdm(l.sys)||l.ready>S.day)return '';const n=Math.max(1,l.pairs|0);if(n>=pairsMax(l))return `<span class="meta" style="align-self:center">${tr('action_helpers.n_fiber_pairs_lit_the_trench',{n})}</span>`;
   const full=(l.ch||[]).length+soldSlots(l)>=chMax(l),c=pairCost(l);return btn(l.sub?tr('action_helpers.light_fiber_pair_n_price',{n:n+1,price:fmt$(c)}):tr('action_helpers.light_fiber_pair_n_price_mo',{n:n+1,price:fmt$(c),mo:fmt$(ampCount(l.km)*AMP_MO)}),'addPair',{id:l.id},full?'pink sm':'ghost sm',!full||S.cash<c);}
-function chWhy(l,o){const O=OPT[o];if(!techOk('opt',o,O.lvl))return tr('action_helpers.unlocks_at_customer_level_n',{n:O.lvl});if(O.sys==='roadm'&&!isRdm(l.sys))return tr('action_helpers.needs_a_roadmaster_9000_line_system');if(!optMode(o,l)){const mx=optModes(o,l).at(-1)[1];if(l.sub&&l.own&&!l.seat)return tr('action_helpers.this_channel_reaches_max_km_on',{max:mx.toLocaleString(),span:spanKm(l).toLocaleString()});return tr('action_helpers.too_far_even_at_its_slowest',{span:spanKm(l).toLocaleString(),max:mx.toLocaleString()});}
+function chWhy(l,o){const O=OPT[o];if(!techOk('opt',o,O.lvl))return tr('action_helpers.unlocks_at_customer_level_n',{n:O.lvl});if(O.sys==='roadm'&&!isRdm(l.sys))return tr('action_helpers.needs_a_roadmaster_9000_line_system');if(!optMode(o,l)){const mx=optModes(o,l).at(-1)[1];if(l.sub&&l.own&&!l.seat){const v={max:mx.toLocaleString(),span:spanKm(l).toLocaleString()};
+    // Terminals and engineering only stretch the long-haul transponders: where they cannot help this optic, say what reaches instead.
+    if(!optMode(o,withSubUps(l))){const alt=Object.keys(OPT).filter(x=>(OPT[x].sys!=='roadm'||isRdm(l.sys))&&optMode(x,withSubUps(l))).map(x=>OPT[x].n);if(alt.length)return tr('action_helpers.upgrades_cannot_stretch_this_optic',{...v,optics:alt.join(', ')});}
+    return tr('action_helpers.this_channel_reaches_max_km_on',v);}return tr('action_helpers.too_far_even_at_its_slowest',{span:spanKm(l).toLocaleString(),max:mx.toLocaleString()});}
   if((l.ch||[]).length+soldSlots(l)>=chMax(l))return soldSlots(l)?tr('action_helpers.sys_is_full_max_channels_sold',{sys:DF_SYS[l.sys].n,max:chMax(l),sold:soldSlots(l)}):tr('action_helpers.sys_is_full_max_channels',{sys:DF_SYS[l.sys].n,max:chMax(l)});
   for(const c of [l.a,l.b]){const p=S.pops[c];if(p&&RG[p.rgen||0].cls<O.rg)return tr('action_helpers.needs_routers_with_pn_ports_or',{pn:RG[mainRG(O.rg)].pn,city:CITY[c].name});}return '';}
 function bbCost(c){return 15000+CITY[c].P*20;}
-function after(){if(pzOn()){pzAfter();return;}if(S)purgeInc();compute();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
+/* A click that changes nothing routing reads (the log, offers, cash, names, settings…) keeps the routing it has:
+   compute() gives the same R again for the same state (tests/compute-idempotent), so it is skipped. The key is the save
+   without the fields routing never reads (tests/route-skip checks each one); any other change routes again. */
+const RK_SKIP=new Set(['name','log','offers','usedNames','stats','cash','seen','tut','ach','achP','won','loanOffers','loanStrikes','uiSpeed','cam','richTold','demo','nextEvent','nextFail','done','confReg','auNews','calV','solWon','seatOff','chartSet','t1Now','ltv','capDeal','auV','pdeskRep','sv']);
+function routeKey(){const o={};for(const k in S)if(!RK_SKIP.has(k))o[k]=S[k];return JSON.stringify(o);}
+function routeIfChanged(){const k=S&&!pzOn()?routeKey():null;if(k&&k===UI.rk&&R===UI.rkR)return false;compute();UI.rk=k;UI.rkR=R;return true;}
+function after(){if(pzOn()){pzAfter();return;}if(S)purgeInc();routeIfChanged();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
 const isTablet=()=>innerWidth>760&&innerWidth<=1200;
 function selectLink(id){UI.sel={type:'link',id};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;$('panel').classList.remove('full');renderPanel();renderLeft();}
+// Frame the whole drawn line (cables bend far from the straight one) in the part of the map the panel leaves free:
+// above a phone's bottom sheet, left of the side panel. Long links zoom out to fit; short ones zoom in like a city.
+// A puzzle keeps its own framing beside the puzzle card (pzCam).
+function focusLink(id){if(pzOn())return;const l=S.links.find(x=>x.id===id);if(!l||!CITY[l.a]||!CITY[l.b])return;const pts=linkGeom(l).pts;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;for(const [x,y] of pts){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+  const P=$('panel'),r=P&&!P.hidden&&P.getBoundingClientRect();let fl=0,fr=CW,ft=70,fb=CH;
+  if(r&&r.width>0){if(r.width>CW*0.6)fb=Math.min(fb,r.top);else fr=Math.min(fr,r.left);}
+  // Phones leave a thin strip above the sheet: a fixed margin would eat most of it.
+  const m=(a,b)=>Math.max(40,b-a-Math.min(100,(b-a)*0.3)),fw=m(fl,fr),fh=m(ft,fb),z=clamp(Math.min(fw/Math.max(1,x1-x0),fh/Math.max(1,y1-y0),Math.max(cam.z,1.2)),ZMIN,ZMAX);
+  cam.z=z;cam.x=(x0+x1)/2-((fl+fr)/2-CW/2)/z;cam.y=(y0+y1)/2-((ft+fb)/2-CH/2)/z;wrapCam();}
 function selectCity(c){UI.sel={type:'city',id:c};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;const P=$('panel');if(P)P.classList.remove('full');if(!S.pops[c])UI.tab='cust';renderPanel();}
 
