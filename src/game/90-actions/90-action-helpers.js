@@ -8,7 +8,20 @@ function pairLinks(a,b){return S.links.filter(l=>(l.a===a&&l.b===b)||(l.a===b&&l
 function prunePairMet(){const m=S.pairMet;if(!m)return;const k=new Set(S.links.map(edgeKey));for(const x of Object.keys(m))if(!k.has(x))delete m[x];}
 // Short, busy subsea routes (London–Amsterdam, London–Paris) sell dark fiber pairs too.
 function subDfCable(a,b){return cablesOk(a,b).filter(c=>CAB[c.cid].df).sort((x,y)=>x.km-y.km)[0]||null;}
-function dfAllowed(a,b){if(isSub(a,b))return !!subDfCable(a,b);return cnCity(a)===cnCity(b)&&!uaePair(a,b)&&!landX(a,b);}
+function dfAllowed(a,b){if(noTalk(a,b))return false;if(isSub(a,b))return !!subDfCable(a,b);return cnCity(a)===cnCity(b)&&!uaePair(a,b)&&!landX(a,b);}
+// A link starts at one of your POPs. The map only drags one from a POP, but a typed order (the agent API) names both ends.
+function linkFromWhy(a){return S.pops[a]?'':tr('action_helpers.you_have_no_pop_in_city',{city:CITY[a].name});}
+function linkFromOk(a){const w=linkFromWhy(a);if(w){toast(w,'bad');sfx('err');}return !w;}
+// ...and ends at a city you could build a POP in (#203): a typed order can name one the map does not show.
+function linkToOk(b){if(S.pops[b]||cityOn(b))return true;toast(popOffWhy(b),'bad');sfx('err');return false;}
+// A retired small city (off: true) takes no new POP; the nearest open city in its country stands in for it.
+function popOffWhy(c){const C=CITY[c],near=CITIES.filter(o=>!o.off&&o.cc===C.cc).sort((x,y)=>kmBetween(c,x.id)-kmBetween(c,y.id))[0];
+  return tr('action_helpers.city_is_off_the_map_small',{city:C.name,near:near?near.name:''});}
+// Why a city takes no exchange of your own. The reasons a POP would not fix come first.
+function foundIxWhy(c){const C=CITY[c];if(C.cn)return tr('link_panels.running_an_exchange_in_mainland');
+  if(S.myIx[c])return tr('action_helpers.you_already_run_ix_in_city',{ix:esc(S.myIx[c].name),city:C.name});
+  if(C.ix)return tr('action_helpers.city_already_has_an_exchange_ix',{city:C.name,ix:esc(C.ix)});
+  return S.pops[c]?'':tr('action_helpers.you_have_no_pop_in_city_build',{city:C.name});}
 /* Optics you unplug go on a spares shelf instead of in the bin (#45): the next channel of that type uses a spare
    for free (only the regen sites' transponders are new), or you sell it on eBuy for part of the price. */
 const SPARE_RESALE=0.4,spareN=o=>(S&&S.spares&&S.spares[o])|0,spareValue=o=>Math.round(optCost(o)*SPARE_RESALE);
@@ -33,7 +46,7 @@ function bbCost(c){return 15000+CITY[c].P*20;}
 const RK_SKIP=new Set(['name','log','offers','usedNames','stats','cash','seen','tut','ach','achP','won','loanOffers','loanStrikes','uiSpeed','cam','richTold','demo','nextEvent','nextFail','done','confReg','auNews','calV','solWon','seatOff','chartSet','t1Now','ltv','capDeal','auV','pdeskRep','sv']);
 function routeKey(){const o={};for(const k in S)if(!RK_SKIP.has(k))o[k]=S[k];return JSON.stringify(o);}
 function routeIfChanged(){const k=S&&!pzOn()?routeKey():null;if(k&&k===UI.rk&&R===UI.rkR)return false;compute();UI.rk=k;UI.rkR=R;return true;}
-function after(){if(pzOn()){pzAfter();return;}if(S)purgeInc();routeIfChanged();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
+function after(){if(pzOn()){pzAfter();return;}NOC.dirty=true;if(S)purgeInc();routeIfChanged();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
 const isTablet=()=>innerWidth>760&&innerWidth<=1200;
 function selectLink(id){UI.sel={type:'link',id};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;$('panel').classList.remove('full');renderPanel();renderLeft();}
 // Frame the whole drawn line (cables bend far from the straight one) in the part of the map the panel leaves free:
@@ -46,5 +59,5 @@ function focusLink(id){if(pzOn())return;const l=S.links.find(x=>x.id===id);if(!l
   // Phones leave a thin strip above the sheet: a fixed margin would eat most of it.
   const m=(a,b)=>Math.max(40,b-a-Math.min(100,(b-a)*0.3)),fw=m(fl,fr),fh=m(ft,fb),z=clamp(Math.min(fw/Math.max(1,x1-x0),fh/Math.max(1,y1-y0),Math.max(cam.z,1.2)),ZMIN,ZMAX);
   cam.z=z;cam.x=(x0+x1)/2-((fl+fr)/2-CW/2)/z;cam.y=(y0+y1)/2-((ft+fb)/2-CH/2)/z;wrapCam();}
-function selectCity(c){UI.sel={type:'city',id:c};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;const P=$('panel');if(P)P.classList.remove('full');if(!S.pops[c])UI.tab='cust';renderPanel();}
+function selectCity(c){UI.sel={type:'city',id:c};UI.confirm=null;UI.offerAt=null;if(isTablet()||isPhone())UI.leftOpen=false;const P=$('panel');if(P)P.classList.remove('full');if(!S.pops[c])UI.tab='cust';renderPanel();}
 

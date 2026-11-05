@@ -11,8 +11,10 @@ src/                         the game page, in pieces
   i18n/en.js                 the English for every label → inlined at the top of the page's <script>
   styles/NN-*.css            → pasted into the page's <style>, in path order
   game/NN-area/NN-*.js       → pasted into the page's <script>, in path order
+  agent/NN-*.js              → the agent facade the MCP server drives: development page only (@include-dev)
 site/                        static files copied to the build as they are (dictionaries, icons, sw.js…)
-scripts/lib/page.js          the assembler: <!-- @include DIR --> → every file under src/DIR, sorted
+scripts/lib/page.js          the assembler: <!-- @include DIR --> → every file under src/DIR, sorted;
+                             <!-- @include-dev DIR --> the same, in the development page only
 scripts/build.js             _site/ = site/ + the assembled page, version-stamped, release notes baked in
 ```
 
@@ -29,27 +31,34 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `30-networks/` | Other ASes (`NETS`), rival exchanges (`XIX`), the long tail, traffic shares (`NSH`) |
 | `40-progress/` | Customer types (`BIZ_T`), `LEVELS` and their requirements, `GOALS`; the per-save ruleset (`S.rules`, `rule()`, `PRESETS`, `chaosMul()`, `leadDays()`) |
 | `50-state.js` | The globals `S`, `R`, `UI`; `emptyR()` |
-| `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
+| `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`), the sales desk (`S.sales`, `salesDay()`, `salesShape()` on new offers) |
 | `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering desk (requests answered by policy), peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
-| `80-simulation/` | Dijkstra, RouteScript, where a DDoS flood goes (`ddosLoad()`/`ddosAfter()`, called by `compute()`), `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
+| `80-simulation/` | Dijkstra, RouteScript, where a DDoS flood goes (`ddosLoad()`/`ddosAfter()`, called by `compute()`), `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, the customer lifecycle (contracts, renewals, the bandwidth market, why customers leave), geography pricing and latency, second sites and service |
 | `85-incidents/` | `addInc()`, DDoS attacks (targets, sizes, scoring, the NOC card) and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()`, the chaos monkey, cable ships (`50-cable-ships.js`: a subsea cut sends a club ship from its port along the cable routes; voyages in `S.fleet`, drawn by `96-map/88-cable-ships.js`) |
 | `88-days/` | `dayTick()`, new offers, badges, `checkGoals()` |
 | `90-actions/` | The `ACT` map, one file per area (`const ACT` in `10-interface.js`, `Object.assign(ACT,…)` in the rest), and their helpers |
 | `91-save.js`, `92-audio.js` | Save, export and import; sound effects |
 | `93-ui/` | DOM helpers (`$`, `btn`, `morph`), the phone tab bar, install pitch, HUD, left panel, city and link panels, decommissioning |
-| `94-dashboard/` | Scenario and level progress, where to meet a network, customers and connections overviews, lease swaps, the NOC dashboard, the bank, hints |
+| `94-dashboard/` | Scenario and level progress, where to meet a network, customers and connections overviews, cities with no POP yet, lease swaps, the NOC dashboard and its own window for a second display (`90-noc-window.js`: this page at `?noc=<slot>`, a read-only copy of `S` and `R` over a BroadcastChannel, clicks sent back to the game; `91-noc-wall.js`: its wallboard), the bank, hints |
 | `95-modals/` | Toasts, notifications, modals, title screen, what's new, help, the link and own-cable modals |
-| `96-map/` | The canvas: resize, land and clouds, settings, level of detail, link geometry, `draw()`, the world layer, cities, input and click delegation |
+| `96-map/` | The canvas: resize, land and clouds, settings, level of detail, link geometry, how each tube looks, the WebGL map (the default, 2D as fallback: context, background, tubes, and the sprite atlas cities, labels and markers are drawn from, in 2D too), `draw()`, the world layer, cities, input and click delegation |
 | `99-loop.js` | `frame()` and `boot()` |
 
 `src/styles/` holds the CSS the same way: base, HUD, drawers, toasts, modal, tablet, then phone.
+
+`src/agent/` is the agent facade (`window.TUBES`): the typed commands, reads and screens the MCP server plays
+through. It is assembled into the **development page** only (`npm run dev`, the MCP server, tests that ask for it);
+the page players get never has it ([ADR 0004](adr/0004-dev-only-code.md)). Its top-level names all start with
+`api`/`API_`, and nothing outside `src/agent/` may use them. Where it must reach into the game (agent mode in the
+player's tab locks the clock and draws its badge and Settings section), the game offers `HOOKS` and the flag
+`UI.clockLocked` (`50-state.js`), empty and false in the page players get, and `runClock(dt)` (`99-loop.js`).
 
 Rules for the source (checked by `tests/build.test.js` and the assembler): files are named
 `NN-lower-case.js`/`.css`, end with a newline and never close their `<script>`/`<style>`; top-level code
 may only use top-level values from earlier files; tables people add to have one entry per line, the
 id-keyed ones sorted. New features get their own file in the right folder (`edit-the-game` skill).
-Development runs on `npm run dev` (assembles on every request, reloads on save);
-`npm run page -- -o FILE` writes the assembled page.
+Development runs on `npm run dev` (assembles the development page on every request, reloads on save);
+`npm run page -- -o FILE` writes the page players get, `npm run page -- --source --dev -o FILE` the development page.
 
 ## Other files
 
@@ -63,21 +72,23 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | `scripts/lib/page.js` | Assembles the page from `src/` (also from a git ref with `--ref`, for performance baselines) |
 | `scripts/lib/compile-labels.js` | Shrinks labels to short ids in the shipped page and dictionaries |
 | `scripts/build.js` | Builds `_site/` for GitHub Pages: copies `site/`, writes the page, stamps `__VERSION__`/`__BUILD_DATE__`, bakes release notes, writes `version.json` |
-| `scripts/dev.js` | `npm run dev`: development server, no dependencies |
+| `scripts/dev.js` | `npm run dev`: development server (loopback unless `--host`), serving the development page and hosting the agent relay |
 | `scripts/test.js` | `npm test`: runs every `tests/*.test.js` |
 | `scripts/release-notes.js` | Extracts a version's CHANGELOG bullets |
 | `scripts/perf-bench.js`, `perf-browser.js`, `perf-stats.js`, `perf-fixture.js` | Big-network benchmark, base vs head, headless and in Chromium as a desktop and a throttled phone, with a significance test per row (posted on every PR by `perf.yml` + `perf-comment.yml`), and the generator of its save, `tests/fixtures/big-network.json` |
-| `scripts/mcp.js`, `scripts/lib/mcp-game.js`, `scripts/lib/mcp-page.js` | The game as a local MCP server: typed tools to play, inspect and debug it from an AI client ([MCP.md](MCP.md)) |
+| `scripts/gpu-bench.js`, `scripts/lib/gpu-bench-client.js` | `npm run bench:gpu -- --save FILE`: the map in your own browser on your own graphics card, 2D against WebGL, scenario by scenario; the table shows in the page and in the terminal |
+| `scripts/mcp.js`, `scripts/lib/mcp-game.js`, `scripts/lib/mcp-headless.js`, `src/agent/` | The game as a local MCP server, on the official SDK over stdio or HTTP: typed tools to play, inspect and debug it from an AI client, headless or in the player's own tab ([MCP.md](MCP.md)) |
+| `scripts/agent/relay.js`, `scripts/lib/mcp-browser.js`, `scripts/lib/relay-client.js` | The agent relay `npm run dev` hosts at `/agent`, and the MCP server's side of it: how a tool reaches the game in the player's tab |
 | `scripts/i18n-check.js`, `scripts/i18n-add.js`, `scripts/lib/dict.js` | Translation coverage and dictionary order; adding, renaming and removing entries |
 | `scripts/legacy/` | The splitter that made `src/` from the old `site/index.html` (and gave its text labels), and `port-branch.js`, which carries older branches over |
-| `tests/harness.js` | Loads the assembled page in jsdom with a seeded `Math.random` and a fake canvas |
+| `tests/harness.js` | Loads the assembled page in jsdom with a seeded `Math.random` and a fake canvas: the players' page, or the development page with `{agent: true}` |
 | `.github/workflows/ci.yml` | Tests and build on every push and PR |
 | `.github/workflows/auto-release.yml` | On a `package.json` version bump on `main`: test, tag, GitHub release from the CHANGELOG, start the deploy |
 | `.github/workflows/release.yml` | Builds and deploys to GitHub Pages, the only workflow that can |
 | `.github/workflows/weekly-puzzle.yml` | Sunday 03:37 UTC: makes the week's puzzle, commits it to `main` (data only, no release) and starts `release.yml` for the live release tag with `weekly=true` |
 | `scripts/weekly-puzzle.js`, `site/puzzles/weekly/` | The weekly puzzle generator and its output, one `<key>.json` per week plus `index.json` (see below) |
 | `scripts/weekly-scenario.js`, `scripts/lib/scenario-bot.js`, `site/scenarios/weekly/` | The weekly scenario generator, its reference player and its output (see below) |
-| `docs/adr/` | Decisions: GitHub Pages only (0001), one page assembled at build (0002), translations by label (0003) |
+| `docs/adr/` | Decisions: GitHub Pages only (0001), one page assembled at build (0002), translations by label (0003), development-only code (0004) |
 
 ## Globals
 

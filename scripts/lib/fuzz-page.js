@@ -1,9 +1,9 @@
-// Runs inside a game page (scripts/route-fuzz.js loads two: main's and this checkout's), next to scripts/lib/mcp-page.js.
+// Runs inside a game page (scripts/route-fuzz.js loads two: main's and this checkout's).
 // The driver picks every move with its own seeded random numbers and sends the same calls to both pages, so the pages
 // stay in lockstep; this file only offers what a player could do now (buttons on screen, POPs, cities) and digests what
 // routing gave, as strings the driver compares.
 (() => {
-  const DENY = new Set(['animSet', 'cont', 'exportSave', 'importGo', 'importPick', 'install', 'langSet', 'menu', 'mute', 'newgame', 'phonePlay', 'phoneSpeed',
+  const DENY = new Set(['animSet', 'cont', 'exportSave', 'importGo', 'importPick', 'install', 'langSet', 'mapSet', 'menu', 'mute', 'newgame', 'phonePlay', 'phoneSpeed',
     'prefSet', 'pzShare', 'resetAsk', 'settings', 'settingsClose', 'share', 'shareDl', 'shareGo', 'slotBack', 'slotDel', 'slotDelGo', 'slotExport', 'slotMenu',
     'slotRetry', 'slotSpace', 'slotSwitch', 'slotTake', 'soundSet', 'speed', 'start', 'toTitle', 'traceCopy', 'updateLater', 'updateNow', 'vpSet', 'wsShare',
     // Leave the game or open what is not this game: the title screen, menus of other modes, AI helpers that fetch.
@@ -58,7 +58,14 @@
     if (w.where === 'city') { UI.sel = { type: 'city', id: w.city }; UI.tab = w.tab; renderAll(); return btns($('panel')); }
     if (w.where === 'link') { if (!S.links.some((l) => l.id === w.id)) return []; UI.sel = { type: 'link', id: w.id }; renderAll(); return btns($('panel')); }
     if (w.where === 'dash') { $('dash').hidden = false; UI.dtab = w.tab; renderDash(); const b = btns($('dash')); return b; }
-    if (w.where === 'left') { UI.left = w.tab; UI.leftOpen = true; renderLeft(); return btns($('leftBody')); }
+    if (w.where === 'left') {
+      UI.left = w.tab; UI.leftOpen = true; renderLeft(); let b = btns($('leftBody'));
+      if (w.tab !== 'noc') return b;
+      // The backbone, Auto-TE and DDoS settings moved from the NOC tab into the Routing & DDoS modal: offer them here on
+      // both pages, in one order, so main's page (settings in the tab) and this one (behind the button) stay in lockstep.
+      if (typeof routingBody === 'function' && b.some((x) => x.act === 'routingOpen')) { const d = document.createElement('div'); d.innerHTML = routingBody(); b = b.filter((x) => x.act !== 'routingOpen').concat(btns(d)); }
+      return b.sort((x, y) => (sig(x) < sig(y) ? -1 : sig(x) > sig(y) ? 1 : 0));
+    }
     if (w.where === 'openLink') { if (!S.pops[w.a]) return []; openLinkModal(w.a, w.b); return modalOpen() ? btns($('modal')) : []; }
     return [];
   };
@@ -123,7 +130,7 @@
       for (const x of ixIdsIn(c)) if (S.ixp[x] === undefined) add('buyIx', { city: x, tier: S.day % 3 });
       for (const n of NETS) if (n.pops.includes(c)) { if (S.day % 2 === 0 || n.cache) add('pni', { city: c, net: n.id, tier: n.id.length % 3 }); if (n.cache) add('cache', { city: c, net: n.id }); }
       for (const n of NETS) if (sellsAt(n, c) && (n.id.length + S.day) % 4 === 0) add('buyTransit', { city: c, net: n.id, tier: (S.day >> 2) % 3 });
-      add('addRouter', { city: c }); add('upRouter', { city: c, g: 1 + (S.day % 4) }); add('foundIx', { city: c }); add('launchBB', { city: c }); add('addSite', { city: c });
+      add('addRouter', { city: c }); add('upRouter', { city: c, g: 1 + (S.day % 4) }); if (!ixName(c) && !CITY[c].cn) add('foundIx', { city: c }); add('launchBB', { city: c }); add('addSite', { city: c });
     }
     for (const c of S.caches) add('rmCache', { id: c.id });
     for (const l of S.links) { add('setStandby', { id: l.id, on: !l.standby }); add('setMetric', { id: l.id, v: ['backup', 'avoid', 'prefer', 'normal'][(l.id.length + S.day) % 4] }); add('upLink', { id: l.id, tier: (S.day % 4) }); add('rmLink', { id: l.id }); add('addParallel', { id: l.id }); }
@@ -147,8 +154,15 @@
     return r + '\n' + fl + '\n' + pf;
   };
   const parts = () => { const o = {}; if (!R) return o; for (const k of Object.keys(R)) o[k] = JSON.stringify(R[k]); o.fl = R.fl ? JSON.stringify(R.fl) : ''; return o; };
-  const sDigest = () => JSON.stringify(S);
-  const sParts = () => { const o = {}; for (const k of Object.keys(S)) o[k] = JSON.stringify(S[k]); return o; };
+  // A field only this checkout's game has (a new feature's state, on S or on its customers and offers) cannot match main
+  // yet: the driver passes those (drop) and they are left out; every field both games have must still match.
+  const sKeys = () => ({ top: Object.keys(S), items: [...new Set([...(S.biz || []), ...(S.offers || [])].flatMap((x) => Object.keys(x)))] });
+  const sDrop = (drop) => { if (!drop || (!drop.top.length && !drop.items.length)) return S; const o = {};
+    for (const k of Object.keys(S)) if (!drop.top.includes(k)) o[k] = S[k];
+    for (const k of ['biz', 'offers']) if (Array.isArray(o[k])) o[k] = o[k].map((x) => { const y = {}; for (const f of Object.keys(x)) if (!drop.items.includes(f)) y[f] = x[f]; return y; });
+    return o; };
+  const sDigest = (drop) => JSON.stringify(sDrop(drop));
+  const sParts = (drop) => { const s = sDrop(drop), o = {}; for (const k of Object.keys(s)) o[k] = JSON.stringify(s[k]); return o; };
   /* After a move: what the move routed (a), routing again from the same state (b: on this checkout's page the kept
      tables are used), and routing from that state with the cache off (c: RC.on=false where there is an RC). b and c
      route from the same previous R; c's R is kept, as a plain compute would. */
@@ -163,5 +177,6 @@
     if (keep) UI.rkR = R;
     return { a, b, c };
   };
-  window.__fz = { direct, lists, start, state, screen, press, close, poke, day, routing, parts, sDigest, sParts, check, errs, modalOpen };
+  const acts = () => Object.keys(ACT);
+  window.__fz = { acts, direct, lists, start, state, screen, press, close, poke, day, routing, parts, sKeys, sDigest, sParts, check, errs, modalOpen };
 })();

@@ -1,7 +1,8 @@
 /* ---------- daily tick ---------- */
 /* A day is two halves around its routing: dayPre() (the world moves on), compute(), dayPost() (bills, moods, offers).
    In play the routing can run in a worker in between (28-route-worker.js); tests and the fallback run it in one go. */
-function dayTick(){const d=dayPre();if(d===false)return;compute();dayPost(d);}
+// UI.tick: what the day itself announces, which quiet notifications may keep to the NOC log.
+function dayTick(){UI.tick=true;try{const d=dayPre();if(d===false)return;compute();dayPost(d);}finally{UI.tick=false;}}
 function dayPre(){
   if(!S||S.lost||!rule('clock'))return false; // no clock (puzzles): no days, no bills, nothing fires
   S.day++;
@@ -47,7 +48,7 @@ function dayPost(d){
       (a.sla||(a.sla=[])).push(b.id);b.slaFor=a.start;S.cash-=SLA_PEN;b.mood=Math.max(0,b.mood-18);S.stats.sla=(S.stats.sla||0)+1;
       toast(tr('day_tick.sla_breach_name_the_attack_on',{name:esc(b.name),city:CITY[a.city].name,pen:fmt$(SLA_PEN)}),'bad');sfx('err');}}
   // businesses mood
-  const ids=linkIds(),frr=coreFrr()&&S.links.some(l=>l.cut)?.5:1;const bhT=new Set(ddosAll().filter(a=>a.bh).map(a=>a.tgt));for(const b of S.biz.slice()){if(eventTick(b,d)||capPendTick(b,d))continue;b.pm=b.mood;if(bhT.has(b.id))continue;const sf=bizSf(b,ids),reachOk=BIZ_T[b.type].l2||BIZ_T[b.type].fiber||R.reach>0.99||scnRule('local'),scrubOk=b.type!=='scrub'||(hasScrub()&&!scrubFar(b.city)),divOk=reqOk(b);
+  const ids=linkIds(),frr=(coreFrr()&&S.links.some(l=>l.cut)?.5:1)*(rule('moods')==='patient'?.5:1);const bhT=new Set(ddosAll().filter(a=>a.bh).map(a=>a.tgt));for(const b of S.biz.slice()){if(eventTick(b,d)||capPendTick(b,d))continue;b.pm=b.mood;if(bhT.has(b.id))continue;const sf=bizSf(b,ids),reachOk=BIZ_T[b.type].l2||BIZ_T[b.type].fiber||R.reach>0.99||scnRule('local'),scrubOk=b.type!=='scrub'||(hasScrub()&&!scrubFar(b.city)),divOk=reqOk(b);
     if(sf>=0.95&&reachOk&&scrubOk&&divOk)b.mood=Math.min(100,b.mood+2);
     else if(S.day-(b.since||0)<15){}
     else{b.mood-=frr*(Math.max(0,0.95-sf)*45+(!reachOk?3:0)+(!scrubOk?4:0)+(!divOk?3:0));
@@ -56,6 +57,10 @@ function dayPost(d){
         toast(tr('day_tick.name_is_furious_fix_service_in',{name:esc(b.name),city:CITY[b.city].name})+(why?`<br><i>${esc(why)}</i>`:'')+(paused?`<br><b>${tr('common.game_paused')}</b>`:''),'bad',[{l:tr('common.show_me'),act:'custGo',args:{id:b.id}}].concat(paused?[resumeAct()]:[]));sfx('err');}
       else if(b.mood<60&&!b.warn60&&pref('warnUnhappy')){b.warn60=true;const why=bizWhy(b)[0];toast(tr('day_tick.name_is_getting_unhappy_happiness_p',{name:esc(b.name),p:Math.round(b.mood),city:CITY[b.city].name})+(why?`<br><i>${esc(why)}</i>`:''),'',[{l:tr('common.show_me'),act:'custGo',args:{id:b.id}}]);}}
     if(b.mood>60)b.warned=false;if(b.mood>75)b.warn60=false;}
+  // contracts: renewals, growth, haggles and leaving (75-customer-lifecycle.js)
+  clDay(d);
+  // the sales desk: meetings booked, golf played (38-sales-desk.js)
+  salesDay(d);
   // own IX members join
   for(const c in S.myIx){const m=S.myIx[c];if(d>=m.next&&m.members.length<myFab(c).max){
     const cands=NETS.filter(n=>n.type!=='t1'&&!m.members.includes(n.id)&&(n.pops.includes(c)||n.pops.some(p=>CITY[p].reg===CITY[c].reg)));
@@ -66,7 +71,7 @@ function dayPost(d){
   // offers
   S.offers=S.offers.filter(o=>o.exp>d);
   brTick();
-  if(S.offers.length<5&&Math.random()<(0.05+0.01*(S.lvl||1))*(ppol()==='closed'?0.6:1)*(confSpOn()?SP_OFFERS:1))spawnOffer();
+  if(S.offers.length<5&&Math.random()<(0.05+0.01*(S.lvl||1))*(ppol()==='closed'?0.6:1)*(confSpOn()?SP_OFFERS:1)*salesSpawn()){const n0=S.offers.length;spawnOffer();mktPrice(n0);salesShape(n0);}
   // failures & events
   // Chaos (the rules) scales how often: calm waits about three times as long, spicy comes almost twice as often, none never.
   let dirty=false;const cm=chaosMul();
@@ -87,12 +92,12 @@ function dayPost(d){
   // money trouble
   if(S.cash<0){S.neg++;if(S.neg===1)toast(tr('day_tick.you_are_in_the_red_cancel'),'bad');}
   else S.neg=0;
-  if(S.cash<-100000){S.lost=true;track('bankrupt');showLose();return;}
+  if(S.cash<-100000){if(rule('broke')==='rescue')rescueLoan();else{S.lost=true;track('bankrupt');showLose();return;}}
   {const c=cal(d);if(c.m===0&&c.d===1&&[2,3,5].includes(c.y))track('game_year_'+c.y,true);}
   if(d%10===0)save();
 }
 function spawnOffer(){
-  const mine=spMine(Object.keys(S.pops)),lv=lvl();
+  const mine=spMine(Object.keys(S.pops).filter(bizCity)),lv=lvl();
   const types=['dia','dia','game','host'];if(mine.length>=2)types.push('l2vpn','l2vpn');if(S.day>60)types.push('scrub');
   if(lv>=2)types.push('isp','stream','edu','host','hft','bulk','event','event');if(mine.length>=3&&lv>=2)types.push('sdwan','sdwan');
   if(S.links.some(l=>l.kind==='df'&&l.ready<=S.day))types.push('wwave','wwave');if(S.links.some(l=>l.kind==='df'&&l.own&&l.ready<=S.day))types.push('dfpair');if(lv>=3)types.push('gpu','gpu','onramp','onramp');if(lv>=4)types.push('ai','ai','hyper','hyper');
@@ -128,5 +133,7 @@ function spawnOffer(){
   if(Math.random()<(T.lv>=3?0.65:0.3))reqs.push(pick(pool));
   if(T.lv>=3&&Math.random()<0.35){const more=pool.filter(k=>!reqs.includes(k));if(more.length)reqs.push(pick(more));}
   const r2=Math.round(rate*(1+reqs.reduce((a,k)=>a+REQS[k].bonus,0)));
-  S.offers.push({id:uid(),city,city2,name,type:t,bw,rate:r2,reqs,latMax:T.lat?+(kmBetween(city,city2)/200*1.35).toFixed(1):null,exp:S.day+40});
+  // A latency ceiling must be one something you can build meets (#273), as diverse paths must be possible.
+  const latMax=T.lat?latMaxOf(city,city2):null;if(T.lat&&!(Math.min(latFloor(city,city2),bestLat(city,city2))<=latMax))return;
+  S.offers.push({id:uid(),city,city2,name,type:t,bw,rate:r2,reqs,latMax,exp:S.day+40});
 }

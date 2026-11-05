@@ -2,6 +2,8 @@
    device in a hall of fame, so there is always something grand to work towards. */
 const RARITY={c:{n:tr('common.common'),col:'#16A866'},r:{n:tr('common.rare'),col:'#3A7BEA'},e:{n:tr('common.epic'),col:'#9D4EDD'},l:{n:tr('common.legendary'),col:'#FF8A3D'}};
 const st=()=>S.stats||{};
+// Round Cape Horn: a wave on the old ring, or your own cable whose surveyed path passes south of Tierra del Fuego (#272).
+const hornLink=l=>(l.cable==='sam1'&&[l.a,l.b].includes('bue')&&[l.a,l.b].includes('scl'))||(l.kind==='df'&&l.own&&l.sub&&Array.isArray(l.seaPath)&&l.seaPath.some(p=>p[1]<-55&&p[0]>-75&&p[0]<-60));
 const BADGES=[
  {id:'hello',i:'👋',t:tr('common.hello_neighbour'),d:tr('badges.bring_up_your_first_peering_session'),r:'c',ok:()=>R.sessions>=1},
  // Keeps its old id so badges already earned (in saves and the hall of fame) carry over.
@@ -22,7 +24,7 @@ const BADGES=[
  {id:'shed',i:'🔌',t:tr('common.stage_six'),d:tr('badges.ride_out_load_shedding_on_your'),r:'r',ok:()=>(st().shed||0)>=1},
  {id:'metro3',i:'🏢',t:tr('badges.two_buildings_three_cities'),d:tr('badges.have_a_second_site_in_3'),r:'r',ok:()=>Object.values(S.pops).filter(p=>p.site2).length>=3},
  {id:'penguin',i:'🐧',t:tr('common.lonely_penguin'),d:tr('badges.light_a_wave_on_the_humboldt'),r:'e',ok:()=>S.links.some(l=>l.cable==='humb')},
- {id:'horn',i:'⛵',t:tr('badges.the_long_way_round'),d:tr('badges.run_a_link_round_cape_horn'),r:'e',ok:()=>S.links.some(l=>l.cable==='sam1'&&[l.a,l.b].includes('bue')&&[l.a,l.b].includes('scl'))},
+ {id:'horn',i:'⛵',t:tr('badges.the_long_way_round'),d:tr('badges.run_a_link_round_cape_horn'),r:'e',ok:()=>S.links.some(hornLink)},
  {id:'six',i:'🌍',t:tr('common.six_continents'),d:tr('badges.pops_in_every_region_on_the'),r:'e',ok:()=>regionsCount()>=6},
  {id:'giants',i:'🏭',t:tr('badges.friend_of_giants'),d:tr('badges.hold_deals_at_3_different_ai'),r:'e',ok:()=>new Set(S.biz.filter(b=>BIZ_T[b.type]&&BIZ_T[b.type].mega).flatMap(b=>bCities(b))).size>=3},
  {id:'landlord',i:'🧵',t:tr('common.trench_landlord'),d:tr('badges.lease_hundreds_of_fiber_pairs_to'),r:'e',ok:()=>S.biz.some(b=>b.type==='pairs')},
@@ -42,11 +44,11 @@ const BADGES=[
  {id:'brrr',i:'🇧🇷',t:tr('common.samba_peering'),d:tr('badges.ports_on_ix_brrr_in_sao'),r:'e',ok:()=>['sao','rio','for'].every(c=>S.ixp[c]!==undefined)},
  {id:'bingo',i:'🎰',t:tr('badges.de_kicks_bingo'),d:tr('badges.ports_at_all_six_de_kicks'),r:'e',ok:()=>DK_CITIES.filter(c=>CITY[c]&&CITY[c].ix).every(c=>S.ixp[c]!==undefined)},
  {id:'fire',i:'🌋',t:tr('badges.ring_of_fire'),d:tr('badges.pops_all_the_way_round_the'),r:'e',ok:()=>['lax','tok','tpe','mnl','jkt','syd','akl','scl'].every(c=>S.pops[c])},
- {id:'curtain',i:'🎭',t:tr('badges.iron_curtain_call'),d:tr('badges.pops_in_warsaw_prague_vienna'),r:'e',ok:()=>['waw','prg','vie','bud','buh','sof','beg','tll'].every(c=>S.pops[c])},
+ {id:'curtain',i:'🎭',t:tr('badges.east_side_story'),d:tr('badges.pops_in_warsaw_prague_vienna'),r:'e',ok:()=>['waw','prg','vie','bud','buh','sof','beg','tll'].every(c=>S.pops[c])},
  {id:'islands',i:'🏝️',t:tr('common.island_hopper'),d:tr('badges.pops_in_reykjavik_dublin_london'),r:'e',ok:()=>['rek','dub','lon','cbo','tpe','mnl','tok','akl'].every(c=>S.pops[c])},
  {id:'wall',i:'🧱',t:tr('badges.through_the_wall'),d:tr('badges.run_a_licensed_pop_in_mainland'),r:'e',ok:()=>cnOk()&&Object.keys(S.pops).some(cnCity)},
  {id:'beaver',i:'🦫',t:tr('common.dam_it'),d:tr('badges.have_your_fiber_chewed_through_by'),r:'e',ok:()=>!!(st().f||{}).beaver},
- {id:'croc',i:'🐊',t:tr('common.darwin_award'),d:tr('badges.have_your_fiber_bitten_by_a'),r:'l',ok:()=>!!(st().f||{}).croc},
+ {id:'croc',i:'🐊',t:tr('common.snap_judgement'),d:tr('badges.have_your_fiber_bitten_by_a'),r:'l',ok:()=>!!(st().f||{}).croc},
  {id:'unbreak',i:'🛡️',t:tr('common.unbreakable'),d:tr('badges.survive_100_incidents_without'),r:'l',ok:()=>(st().survived||0)>=100},
  {id:'lv13',i:'🌐',t:tr('badges.is_this_the_internet'),d:tr('badges.reach_customer_level_13'),r:'l',ok:()=>(S.lvl||1)>=13},
  {id:'gigawatt',i:'⚛️',t:tr('common.gigawatt_landlord'),d:tr('badges.hold_an_ai_wan_a_training'),r:'l',ok:()=>['aiwan','mtrain','ingest','pairs'].every(t=>S.biz.some(b=>b.type===t))},
@@ -65,7 +67,7 @@ const BADGES=[
  {id:'scenall',i:'🏆',t:tr('common.scenario_grandmaster'),d:tr('badges.complete_every_scenario'),r:'l',ok:()=>!!(S.scn&&S.scn.done&&S.scn.id!=='weekly')&&SCN.every(x=>scnHof()[x.id])},
  {id:'elephant',i:'🐘',t:tr('badges.i_survived_the_elephant'),d:tr('badges.live_through_the_day_half_the'),r:'l',secret:true,ok:()=>!!S.phpDone&&!(S.ev.php>S.day)},
  {id:'vigil',i:'⚖️',t:tr('common.vigilante'),d:tr('badges.fire_the_hackback_3000tm_and_flatten'),r:'e',secret:true,ok:()=>(st().vigilante||0)>=1},
- {id:'nullroute',i:'💥',t:tr('common.collateral_damage'),d:tr('badges.blackhole_one_of_your_own_cities'),r:'r',ok:()=>(st().rtbh||0)>=1},
+ {id:'nullroute',i:'💥',t:tr('common.splash_damage'),d:tr('badges.blackhole_one_of_your_own_cities'),r:'r',ok:()=>(st().rtbh||0)>=1},
  {id:'toaster',i:'🍞',t:tr('common.toaster_wrangler'),d:tr('badges.weather_a_ddos_with_your_defences'),r:'c',ok:()=>(st().ddosHeld||0)>=1},
  {id:'cleanpipe',i:'🚿',t:tr('common.clean_pipes'),d:tr('badges.turn_on_a_transit_clean_pipe'),r:'r',ok:()=>S.transit.some(t=>t.clean)},
  {id:'lamb',i:'🐐',t:tr('common.sacrificial_lamb'),d:tr('badges.run_a_sacrificial_pni_choke_point'),r:'r',ok:()=>S.pni.some(p=>p.sacrif)},
@@ -85,7 +87,8 @@ const BVAR={freeze:{k:'freeze',lv:1,i:'🧊',n:N_('badges.variant_freeze_dried')
 const BVAR_IDS=['freeze','oncall','bgp'],bvar=k=>own(BVAR,k)?BVAR[k]:BVAR.oncall;
 // The preset this save plays under ('oncall' for every save from before rulesets), and the variant it earns (null: none).
 const rulePre=()=>(typeof rulePreset==='function'?rulePreset():(S&&S.rules&&S.rules.preset))||'oncall';
-function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:own(BVAR,p)?p:'oncall';}
+// Best Effort earns the gentlest variant, Freeze-dried.
+function badgeVar(){if(!S||S.mode==='sandbox')return null;const p=rulePre();return p==='sandbox'||p==='puzzle'?null:p==='soft'?'freeze':own(BVAR,p)?p:'oncall';}
 // The hall of fame is this device's localStorage, so it is checked like a save: unknown variants count as standard.
 function hof(){let h;try{h=JSON.parse(localStorage.getItem('sot-badges')||'{}');}catch(e){h=null;}if(!h||typeof h!=='object'||Array.isArray(h))return {};
   for(const k of Object.keys(h)){const x=h[k];if(!x||typeof x!=='object'){delete h[k];continue;}const vs=x.vs&&typeof x.vs==='object'&&!Array.isArray(x.vs)?x.vs:{};

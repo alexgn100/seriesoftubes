@@ -11,7 +11,7 @@ let BIGEYE=null;const bigEye=()=>BIGEYE||(BIGEYE=CITIES.slice().sort((x,y)=>y.P-
 // Worked out at most once a day (and again when the network changes shape): offers spawn far less often than that.
 let SPOTC=null;
 function spots(){const lv=lvl(),k=S.day+'|'+lv+'|'+S.links.length+'|'+Object.keys(S.pops).length+'|'+charter();if(SPOTC&&SPOTC.s===S&&SPOTC.k===k)return SPOTC.v;const v=spots0(lv);SPOTC={s:S,k,v};return v;}
-function spots0(lv){const out=[];if(gatesOpen()||S.scn)return out;const up=t=>BIZ_T[t].lv>lv,mine=Object.keys(S.pops);
+function spots0(lv){const out=[];if(gatesOpen()||S.scn)return out;const up=t=>BIZ_T[t].lv>lv,mine=Object.keys(S.pops).filter(bizCity);
   if(up('hft')){const f=FIN.filter(c=>S.pops[c]);for(let i=0;i<f.length;i++)for(let j=i+1;j<f.length;j++){const a=f[i],b=f[j],ms=bestLat(a,b);if(ms<=latMaxOf(a,b))out.push({t:'hft',a,b,k:'lat',n:+ms.toFixed(1)});}}
   const dci=['onramp','ai','hyper'].filter(up);
   if(dci.length)for(const l of S.links){if(l.kind!=='df'||l.sub||l.ready>S.day||linkDown(l))continue;const g=dfCap(l);
@@ -58,7 +58,7 @@ const seatRoute=name=>Object.values(SEAT_ROUTES).flat().find(r=>r[2]===name);
 function seatOffer(c,d){const rs=(c?SEAT_ROUTES[c]||[]:Object.values(SEAT_ROUTES).flat()).filter(r=>isCity(r[0])&&isCity(r[1])&&(c||S.pops[r[0]]||S.pops[r[1]])&&!S.links.some(l=>l.seat&&l.cname===r[2]));
   if(!rs.length)return null;const r=rs[hstr(S.asn+'|seat|'+d)%rs.length];return {a:r[0],b:r[1],name:r[2],km:seatKm(r[0],r[1]),exp:d+SEAT_EXP};}
 function seatConf(c){if(S.seatOff||lvl()<SEAT_LV||S.scn)return;S.seatOff=seatOffer(c,S.day);if(S.seatOff)toast(tr('specialist.a_consortium_is_selling_seats_on',{name:esc(S.seatOff.name),a:CITY[S.seatOff.a].name,b:CITY[S.seatOff.b].name}),'goal',[{l:tr('common.show_me'),act:'leftTab',args:{t:'deals'}}]);}
-function seatSection(){const o=S.seatOff;if(!o||o.exp<=S.day)return '';const pop=[o.a,o.b].filter(c=>!S.pops[c]).reduce((x,c)=>x+popCost(c),0);
+function seatSection(){const o=S.seatOff;if(!o||o.exp<=S.day)return '';const pop=[o.a,o.b].filter(c=>!S.pops[c]).reduce((x,c)=>x+newPopCost(c),0);
   return `<div class="inc" style="background:#E6F4FF"><div class="nm">🚢 ${tr('specialist.consortium_seat_name',{name:esc(o.name)})}</div><div class="meta">${tr('specialist.a_b_km_km_ready_in',{a:CITY[o.a].name,b:CITY[o.b].name,km:o.km.toLocaleString(),n:seatDays(o.km),ms:linkLat({kind:'df',own:true,sub:true,km:o.km,seaDesign:'standard'}).toFixed(1)})} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>
   <div class="meta">${tr('specialist.your_own_fiber_pairs_on_a')}${pop?' '+tr('specialist.includes_pops_at_the_landings_price',{price:fmt$(pop)}):''}</div>
   <div class="btns">${SEAT_N.map(n=>{const c=seatCost(o.km,n)+pop;return btn(`${trn('specialist.n_fiber_pairs',n)} <small>${fmt$(c)} · ${tr('common.price_mo',{price:fmt$(seatMo(o.km,n))})}</small>`,'seatBuy',{n},'sm',S.cash<c);}).join('')}${btn(tr('common.decline'),'seatNo',{},'ghost sm')}</div></div>`;}

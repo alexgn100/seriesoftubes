@@ -992,7 +992,7 @@ test('#63 incidents you can fix with one click sit above hot ports in the NOC', 
   assert.ok(fix >= 0 && hot >= 0 && free >= 0, 'all three are shown');
   assert.ok(fix < hot, 'the paid fix comes before the hot ports');
   assert.ok(fix < free, 'and before incidents without a fix');
-  assert.ok(t.indexOf('DDoS scrubbing') > fix, 'status lines come after the incidents');
+  assert.ok(t.indexOf('Incidents so far') > fix, 'status lines come after the incidents');
   assert.deepEqual(errors, []);
 });
 
@@ -1267,7 +1267,7 @@ test('#51 a dark fiber shows what is rented out, and spare capacity can be liste
   ev("for(let i=0;i<120&&!S.biz.some(b=>b.link==='df1');i++)brTick();renderPanel()");
   const b = JSON.parse(ev("JSON.stringify(S.biz.find(x=>x.link==='df1'))"));
   assert.equal(b.type, 'wwave');
-  assert.equal(b.rate, ev(`Math.round(waveMo(450,false,2)*0.55*${b.slots}*0.9)`), 'the usual alien-wave price minus the broker');
+  assert.equal(b.rate, ev(`(()=>{const F=dfLeaseMo(450)+ampCount(450)*AMP_MO,M=brMarket('fra','ams');let r=0;for(let i=0;i<${b.slots};i++)r+=F*WW_SHARE*(1-WW_FALL*Math.min(1,i/M));return Math.round(r*0.9)})()`), 'the alien-wave price, priced against the fiber, minus the broker');
   assert.ok(txt().includes(b.name), 'the customer is listed on the fiber');
   assert.match(txt(), new RegExp(`Free channels\\s*${62 - b.slots} / 64`));
   assert.equal(ev("S.links[0].list?S.links[0].list.w:0"), 4 - b.slots, 'the listing shrinks by what sold');
@@ -1285,7 +1285,7 @@ test('#51 a dark fiber shows what is rented out, and spare capacity can be liste
 
 test('#126 you can zoom in far enough, and pick a short link between two close cities', () => {
   const { ev, errors } = load();
-  ev("ACT.start({city:'sao'});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;for(const c of ['cpq'])ACT.buildPop({city:c});UI.pending=null;UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal('sao','cpq');ACT.buildLink({tier:1});closeModal()");
+  ev("ACT.start({city:'sao'});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;for(const c of ['sao','cpq'])ACT.buildPop({city:c});UI.pending=null;UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal('sao','cpq');ACT.buildLink({tier:1});closeModal()");
   assert.ok(ev('ZMAX') >= 16);
   const id = ev("S.links.find(l=>l.a==='sao'||l.b==='sao').id");
   // the middle of the drawn link, on screen, fully zoomed in on it

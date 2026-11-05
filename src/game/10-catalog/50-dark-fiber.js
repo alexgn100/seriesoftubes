@@ -16,11 +16,13 @@ const OPT={
  tp16:{n:'Sienna WaveMagic 1.6T',g:1600,cost:70000,reach:4000,modes:[[1600,4000],[1200,5500],[800,7000],[400,12000]],rg:2,lvl:4,sys:'roadm',blurb:tr('dark_fiber.big_shelf_big_reach_big_invoice')},
  tp32:{n:'Sienna WaveMagic 3.2T',g:3200,cost:130000,reach:1500,modes:[[3200,1500],[1600,4000],[1200,5500],[800,7000],[400,12000]],rg:4,lvl:8,sys:'roadm',blurb:tr('dark_fiber.twice_the_wavemagic_full_speed_only')},
 };
-const dfLeaseMo=km=>Math.round(400+km*1.0);
+// A leased fiber pair, per month. Dear enough that it pays off at a couple of 400G waves, as dark fiber does (#203);
+// a lease already signed keeps its price (l.mo).
+const dfLeaseMo=km=>Math.round(600+km*1.5);
 const dfBuildCost=km=>Math.round((25000+km*120)*hwMul('build'));
 const dfBuildDays=km=>leadDays(Math.round(120+km*0.25)),IRU_DAYS=30;
 const ampCount=km=>Math.max(0,Math.floor(km/AMP_EVERY));
-const fmtCap=g=>g>=1000?(+(g/1000).toFixed(1))+'T':g+'G';
+const fmtCap=g=>g>=999950?(+(g/1e6).toFixed(g>=9.995e6?0:1))+'P':g>=1000?(+(g/1000).toFixed(1))+'T':g+'G';
 const WAVECO=['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','Bolt Technology','youNetworks','G&T (Gin and Transit)'];
 const MONTHS=[tr('common.jan'),tr('common.feb'),tr('common.mar'),tr('common.apr'),tr('common.may'),tr('common.jun'),tr('common.jul'),tr('common.aug'),tr('common.sep'),tr('common.oct'),tr('common.nov'),tr('common.dec')];
 const REG={AM:tr('common.americas'),SA:tr('common.south_america'),EU:tr('common.europe'),AF:tr('common.africa'),AS:tr('common.asia'),OC:tr('common.oceania')};

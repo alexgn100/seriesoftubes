@@ -11,18 +11,33 @@ const { load } = require('./harness');
 const EXCEPTIONS = {
   // W2: countries with fewer than two consumer networks of their own, because real life has fewer.
   W2: {
+    AD: 'Andorra Telecom is by law the only telecom operator',
+    BN: "Since 2019 the state's UNN owns every network in Brunei; the retail brands have none of their own",
     CU: 'Cuba has one state operator (ETECSA); Cubacel is its own mobile brand',
     DJ: 'Djibouti Telecom is the monopoly for homes and phones',
+    ER: "EriTel, the state's, is the only network in Eritrea",
+    FM: 'FSM Telecom is the only operator on Pohnpei',
+    GL: 'Greenland has one operator (Tusass), for homes, phones and the cables',
+    KP: 'Star JV is the only network in North Korea',
+    MC: "Monaco Telecom is the principality's only fixed and mobile operator",
     MH: 'the Marshall Islands have one telco (NTA)',
     PN: 'Pitcairn has no network at all: land your own cable (#124)',
     SH: 'St Helena has one operator (Sure South Atlantic)',
+    TM: 'Turkmentelecom is the state gateway, and TMCell the state mobile operator behind it',
+    TV: 'Tuvalu Telecommunications Corporation is the only telco',
+    YE: "In Sanaa, YemenNet is the only internet gateway; the mobile operators' data goes through it",
   },
   // W3: cities nobody sells transit in.
   W3: {
     ivc: 'Invercargill waits for its AI campus; nobody sells transit there yet',
+    jub: 'Nobody sells transit in Juba: MTN and Zain haul it in from abroad',
     pcn: 'Pitcairn: no cable, no network, land your own (#124)',
     prr: 'Prince Rupert is a remote town with no carrier in it',
+    smr: 'San Marino buys its transit from Italian carriers in Bologna and Rimini; nobody sells it in the town',
+    sre: "Sucre has no exchange or carrier facility: Bolivia's transit is bought in La Paz",
     stg: 'Stuttgart is the Only Spätzle-IX scenario city: peering only, by design (#114)',
+    yfb: 'Iqaluit has no fiber, only satellite: land your own cable (the real plan runs from Nuuk)',
+    yyj: 'Victoria buys from Telus and Rogers, consumer networks only in the game: link it from Vancouver',
   },
   // N3: networks in no founding Tier 1's customer cone. Old saves need PNIs with the founding five for Tier 1,
   // so anyone outside their cones has to be peered with directly.
@@ -41,6 +56,7 @@ const EXCEPTIONS = {
     cun: 'China (#59)',
     cxc: 'buys from Spectre-um, which is transit-free',
     drz: 'a transit-free Tier 2',
+    ert: 'Russia: buys from Rostelecomedy (#70)',
     etc: 'Cuba: buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     ets: 'transit-free in the Gulf',
     ftr: 'buys from Very-Zone, which is transit-free',
@@ -54,7 +70,6 @@ const EXCEPTIONS = {
     meo: 'Portuguese incumbent, peers for its own reach',
     mgf: 'Russia: buys from Rostelecomedy (#70)',
     npt: 'Australian (#148)',
-    ert: 'Russia: buys from Rostelecomedy (#70)',
     opt: 'Australian, buys from SingTell (#148)',
     pnt: 'Australian (#148)',
     rtc: 'Russia (#70)',
@@ -63,6 +78,7 @@ const EXCEPTIONS = {
     spc: 'transit-free incumbent',
     stb: 'satellite: peers for its own reach',
     stc: 'transit-free in Saudi Arabia',
+    stj: 'North Korea’s only links are China Unicorn and Rostelecomedy',
     teg: 'owns the land crossing; transit-free',
     tim: 'buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     tmt: 'buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
@@ -88,15 +104,15 @@ const EXCEPTIONS = {
 // The real names the puns are based on. No network, cable, exchange, data center, router or optic may be called one.
 const REAL_NAMES = [
   // Tier 1s and carriers
-  'AT&T', 'BICS', 'Cogent', 'GTT', 'Hurricane Electric', 'Level 3', 'Level3', 'Liquid', 'Liquid Intelligent Technologies', 'Lumen', 'NTT', 'Orange', 'PCCW', 'Seacom', 'Singtel', 'Sparkle', 'Tata', 'Tata Communications', 'Telia', 'Telxius', 'Vodafone', 'Zayo',
+  'AT&T', 'Bell Aliant', 'BICS', 'Cogent', 'GlobalConnect', 'GTT', 'Hurricane Electric', 'Level 3', 'Level3', 'Liquid', 'Liquid Intelligent Technologies', 'Lumen', 'Northwestel', 'NTT', 'Orange', 'PCCW', 'SaskTel', 'Seacom', 'Singtel', 'Sparkle', 'Tata', 'Tata Communications', 'Telia', 'Telxius', 'Tusass', 'Vodafone', 'Zayo',
   // content and clouds
   'Akamai', 'Alibaba Cloud', 'Amazon', 'Amazon Web Services', 'AWS', 'Baidu', 'ByteDance', 'Cloudflare', 'Facebook', 'Fastly', 'Google', 'Mercado Libre', 'Meta', 'Microsoft', 'Netflix', 'Tencent', 'TikTok', 'VK', 'VKontakte', 'Yandex',
   // eyeballs and incumbents
-  'A1', 'A1 Telekom Austria', 'AIS', 'Airtel', 'Algérie Télécom', 'Altibox', 'Altice', 'America Movil', 'Angola Cables', 'Antel', 'ASTCA', 'Aussie Broadband', 'Bell', 'Bell Canada', 'Belong', 'Bemobile', 'Brisanet', 'BT', 'BTC', 'Cable & Wireless', 'Cable Bahamas', "CAN'L", 'Canal+', 'CANTV', 'CelcomDigi', 'China Mobile', 'China Telecom', 'China Unicom', 'Chunghwa Telecom', 'Citymesh', 'Claro', 'Comcast', 'Cosmote', 'Cox', 'CV Telecom', 'Deutsche Telekom', 'Dhiraagu', 'Dialog', 'Digi', 'Digicel', 'Djezzy', 'Djibouti Telecom', 'DNA', 'Docomo', 'Docomo Pacific', 'Dodo', 'du', 'Eastlink', 'Elisa', 'Emtel', 'Entel', 'ER-Telecom', 'Etisalat', 'ETECSA', 'Ethio Telecom', 'Exetel', 'Far EasTone', 'Fastweb', 'FINTEL', 'Flow', 'Free', 'Frontier', 'GCI', 'Globe', 'Google Fiber', 'Grameenphone', 'GSL Networks', 'GTA', 'Hawaiian Telcom', 'HKBN', 'HKT', 'iiNet', 'Jazz', 'Jio', 'KDDI', 'KPN', 'KT', 'Kyivstar', 'Launtel', 'Leaptel', 'LG U+', 'Liberty Latin America', 'lifecell', 'LMT', 'Magyar Telekom', 'Maroc Telecom', 'Mascom', 'Mauritius Telecom', 'MegaFon', 'MEO', 'Mobily', 'Movicel', 'Movistar', 'Movitel', 'MTC', 'MTN', 'mts', 'Neptune', 'Netvigator', 'Norlys', 'NOS', 'Nova', 'NTA', 'NTT Docomo', 'Oi', 'Omantel', 'One Communications', 'One NZ', 'Ooredoo', 'OPT', 'Optimum', 'Optus', 'Palau Mobile', 'Paradise Mobile', 'Pentanet', 'PLDT', 'PNCC', 'POST', 'Proximus', 'PTCL', 'Reliance Jio', 'Robi', 'Rogers', 'Rostelecom', 'Safaricom', 'SFR', 'Síminn', 'SK Broadband', 'Sky', 'SLT', 'Sonic', 'Spark', 'Spectrum', 'Spintel', 'Starlink', 'StarHub', 'STC', 'Superloop', 'Sure', 'Swisscom', 'T-Mobile', 'Tango', 'TCC', 'TDC', 'Tele2', 'Telecel', 'Telecom Argentina', 'Telecom Egypt', 'Telecom Fiji', 'Telecom Namibia', 'Telekom Malaysia', 'Telekom Srbija', 'Telenet', 'Telenor', 'Telikom PNG', 'Telkomsel', 'Telma', 'Telmex', 'TelOne', 'Telstra', 'Telus', 'Tet', 'TIM', 'Tigo', 'TPG', 'True', 'True Move', 'TSTT', 'Turk Telekom', 'Unitel', 'UPC', 'Verizon', 'Viettel', 'Vini', 'Virgin Media', 'Vivacom', 'Vivo', 'VNPT', 'Vocus', 'Yas', 'Yettel', 'YouSee', 'Zeop',
+  ', ', 'A1', 'A1 Telekom Austria', 'Afghan Telecom', 'Africell', 'Airtel', 'AIS', 'Algérie Télécom', 'Altibox', 'Altice', 'America Movil', 'Andorra Telecom', 'Angola Cables', 'Antel', 'Areeba', 'ASTCA', 'ATH Kiribati', 'Aussie Broadband', 'AWCC', 'Azercell', 'Aztelekom', 'Batelco', 'Belize Telemedia', 'Bell', 'Bell Canada', 'Belong', 'Beltelecom', 'Bemobile', 'Bezeq International', 'BH Telecom', 'Bhutan Telecom', 'Bitė', 'Brisanet', 'BT', 'BTC', 'Cable & Wireless', 'Cable Bahamas', 'Cablenet', 'Celtiis', 'Cenpac', 'Comores Telecom', 'Congo Telecom', 'Crnogorski Telekom', 'CST', 'Cyta', 'Earthlink', 'Econet', 'EPTC', 'EriTel', 'FL1', 'FSM Telecommunications Corporation', 'Gabon Telecom', 'Gamtel', 'GETESA', 'GO', 'Guyana Telephone & Telegraph', 'Hoi Internet', 'Hormuud', 'Hrvatski Telekom', 'Kazakhtelecom', 'Kcell', 'Kyrgyztelecom', 'L", ', 'Lao Telecom', 'Libyana', 'LTT', 'Magticom', 'Mattel', 'Mauritel', 'MCI', 'Melita', 'MobiCom', 'Moldtelecom', 'Monaco Telecom', 'MPT', 'Muni', 'Natcom', 'Ncell', 'Nepal Telecom', 'Niger Telecoms', 'O!', 'Ocean Link', 'Ogero', 'One Albania', 'Partner', 'SAFITEL', 'SBIN', 'Silknet', 'Slovak Telekom', 'SMART', 'Smart Axiata', 'Somtel', 'Speednet', 'Star JV', 'Sudani', 'Sudatel', 'Syrian Telecom', 'Syriatel', 'Tashi InfoComm', 'TashiCell', 'TCI', 'Team Telecom Armenia', 'Telecel', 'Telecom Liechtenstein', 'Telecom Vanuatu', 'Telekom Slovenije', 'Telenet San Marino', 'Telesur', 'Telia Lietuva', 'Timor Telecom', 'TNM', 'Togocom', 'Tojiktelecom', 'touch', 'Turkmentelecom', 'Tuvalu Telecommunications Corporation', 'Ucom', 'Unified National Networks', 'Unitel', 'Univision', 'UNN', 'Uztelecom', 'YemenNet', 'Zain',
   // exchanges and data centers
-  'AMS-IX', 'Any2', 'BCIX', 'CoreSite', 'DE-CIX', 'Digital Realty', 'Equinix', 'France-IX', 'Interxion', 'IX.br', 'JPIX', 'LINX', 'NAPAfrica', 'NetIX', 'NIX', 'NL-ix', 'SIX', 'Telehouse',
+  'AMS-IX', 'ANIX', 'Any2', 'ArmIX', 'BALT-IX', 'BCIX', 'BENIN-IX', 'BFIX', 'BHNIX', 'Borneo-IX', 'btIX', 'BY-IX', 'CAMIX', 'CIX', 'CNX', 'CoreSite', 'CyIX', 'DANIX', 'DE-CIX', 'DigiCo', 'Digital Realty', 'Equinix', 'France-IX', 'GABIX', 'GREX', 'HIX', 'Interxion', 'IRAQ-IXP', 'iseek', 'IX.br', 'ix.kw', 'IXP-GUINEE', 'IXP-HN', 'IXP.ge', 'IXP.mk', 'IXPN', 'JPIX', 'KAZ-GOV-IX', 'KG-IX', 'KIVIX', 'LebIX', 'LINX', 'LIONEX1', 'Manama IX', 'MD-IX', 'Michcom-IX', 'MISPA-IXP', 'MIXP', 'MLIX', 'NAPAfrica', 'NetIX', 'NEXTDC', 'NIX', 'NIX.SK', 'NIXA', 'NL-ix', 'npIX', 'RegPEX', 'SIX', 'SIX.SK', 'SIXP', 'SKNIX', 'SNS-IX', 'SUR-IX', 'SVGIX', 'Tehran IX', 'Telehouse', 'TGIX', 'TIX', 'TJ-IX', 'VIX.VU', 'VNIX-HN', 'WIX-NZ', 'WLG-IX',
   // cables
-  '2Africa', 'Amitié', 'Dunant', 'EllaLink', 'Equiano', 'Grace Hopper', 'Hibernia Express', 'Jupiter', 'MAREA', 'PEACE', 'SEA-ME-WE 6',
+  '2Africa', 'Amitié', 'BDSNi', 'CADMOS', 'CARCIP', 'Ceiba-1', 'Ceiba-2', 'DARE1', 'Darwin-Jakarta-Singapore Cable', 'Deep Blue One', 'Dunant', 'East Micronesia Cable', 'Eastern Caribbean Fiber System', 'EllaLink', 'Epic Malta-Sicily Cable System', 'Equiano', 'FALCON', 'Fibralink', 'GO-1', 'Grace Hopper', 'Greenland Connect', 'Greenland Connect North', 'Hibernia Express', 'ICN1', 'Interchange Cable Network 1', 'Jupiter', 'MAREA', 'MedNautilus', 'Melita 1', 'North West Cable System', 'PEACE', 'SEA-ME-WE 6', 'SG-SCS', 'Southern Caribbean Fiber', 'TLSSC', 'Tuvalu Vaka Cable', 'UGARIT', 'Vaka', 'X-Link',
   // cable ships, their operators and maintenance clubs
   'ACMA', 'ASEAN Explorer', 'ASEAN Protector', 'ASEAN Restorer', 'Cable Innovator', 'Cable Retriever', 'Global Marine', 'Léon Thévenin', 'MECMA', 'Orange Marine', 'Pierre de Fermat', 'René Descartes', 'SEAIOCMA', 'Sophie Germain', 'Sovereign', 'Wave Sentinel', 'Yokohama Zone',
   // vendors
@@ -206,33 +222,38 @@ test('N7: presence is real: PoPs are cities, exchange ports only where the netwo
 // ---------- Modes and rules ----------
 
 test('M1: On-call is the classic game: the default rules, and what old saves load as', () => {
-  assert.deepEqual(J("(({preset,mods,...r})=>r)(makeRules('oncall'))"), J("(({mods,...r})=>r)(RULE_DEF)"), 'M1: On-call is RULE_DEF');
+  assert.deepEqual(J("(({preset,mods,...r})=>r)(makeRules('oncall'))"), J("(({mods,...r})=>{for(const k of RULE_LATE)delete r[k];return r;})(RULE_DEF)"), 'M1: On-call is RULE_DEF');
+  assert.deepEqual(J("(()=>{const o=S.rules;S.rules=makeRules('oncall');const v=Object.keys(RULE_OK).map(rule);S.rules=o;return v;})()"), J("Object.keys(RULE_OK).map(k=>RULE_DEF[k])"), 'M1: and plays as RULE_DEF');
   assert.equal(ev("(()=>{const o=S.rules;delete S.rules;const p=rulePreset();S.rules=o;return p;})()"), 'oncall', 'M1: no rules means On-call');
   // the seeded On-call games are the rest of the suite (tests/game.test.js, tests/rules.test.js); they must stay green
 });
 
-test('M2: presets are ordered: Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler', () => {
-  const P = J('PRESETS'), C = J('CHAOS'), lead = { quick: 0, real: 1 };
-  assert.ok(C[P.freeze.chaos].m <= C[P.oncall.chaos].m && C[P.oncall.chaos].m <= C[P.bgp.chaos].m, 'M2: chaos');
-  assert.ok(lead[P.freeze.lead] <= lead[P.oncall.lead] && lead[P.oncall.lead] <= lead[P.bgp.lead], 'M2: lead times');
-  assert.ok(!P.freeze.market || P.oncall.market, 'M2: market');
+test('M2: presets are ordered: Best Effort never harsher than Change Freeze, Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler', () => {
+  const P = J('PRESETS'), C = J('CHAOS'), D = J('RULE_DEF'), lead = { quick: 0, real: 1 }, v = (p, k) => P[p][k] !== undefined ? P[p][k] : D[k];
+  assert.ok(C[P.soft.chaos].m <= C[P.freeze.chaos].m && C[P.freeze.chaos].m <= C[P.oncall.chaos].m && C[P.oncall.chaos].m <= C[P.bgp.chaos].m, 'M2: chaos');
+  assert.ok(lead[P.soft.lead] <= lead[P.freeze.lead] && lead[P.freeze.lead] <= lead[P.oncall.lead] && lead[P.oncall.lead] <= lead[P.bgp.lead], 'M2: lead times');
+  assert.ok((!P.soft.market || P.freeze.market) && (!P.freeze.market || P.oncall.market), 'M2: market');
+  // The softenings only Best Effort has: every other Normal preset keeps the classic game's.
+  for (const k of ['sea', 'confs', 'broke', 'moods', 'pnis']) for (const p of ['freeze', 'oncall', 'bgp']) assert.equal(v(p, k), D[k], `M2: ${p} keeps ${k}`);
+  assert.deepEqual(['sea', 'confs', 'broke', 'moods', 'pnis'].map((k) => v('soft', k)), ['timer', false, 'rescue', 'patient', 'instant'], 'M2: Best Effort softens them all');
   assert.ok(P.bgp.market && P.bgp.money === 'normal' && P.bgp.gates === 'ladder', 'M2: BGP keeps every hardship');
   // seeded: the same network for a year under each preset
   const n = {};
-  for (const p of ['freeze', 'oncall', 'bgp']) {
+  for (const p of ['soft', 'freeze', 'oncall', 'bgp']) {
     const g = load();
     g.ev(`beginGame('Order','fra',${JSON.stringify({ mode: 'normal', preset: p })});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});__reseed(4242);for(let i=0;i<360;i++)dayTick()`);
     n[p] = g.ev('S.inc.length+S.stats.survived+(S.stats.incidents||0)');
     assert.deepEqual(g.errors, []);
   }
-  assert.ok(n.freeze <= n.oncall && n.oncall <= n.bgp, `M2: incidents in a year: freeze ${n.freeze}, on-call ${n.oncall}, bgp ${n.bgp}`);
+  assert.ok(n.soft <= n.freeze && n.freeze <= n.oncall && n.oncall <= n.bgp, `M2: incidents in a year: soft ${n.soft}, freeze ${n.freeze}, on-call ${n.oncall}, bgp ${n.bgp}`);
 });
 
 test('M3: every subsystem that can annoy the player reads a rule', () => {
   // [function, what it must read]
   const reads = [['dayPost', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'],
     ['soldOut', "rule('market')"], ['hwMul', "rule('market')"], ['leadDays', "rule('lead')"], ['pniLead', 'leadDays'],
-    ['dfBuildDays', 'leadDays'], ['dayPre', "rule('clock')"], ['snub', "rule('market')"]];
+    ['dfBuildDays', 'leadDays'], ['dayPre', "rule('clock')"], ['snub', "rule('market')"], ['fireFailure', 'shipsOn()'],
+    ['upcomingConfs', 'confsOn()'], ['pniLead', 'pniNow()'], ['dayPost', "rule('broke')"], ['dayPost', "rule('moods')"], ['toast', 'quietOn()']];
   fail('M3', reads.filter(([f, r]) => !ev(`typeof ${f}==='function'&&${f}.toString().includes(${JSON.stringify(r)})`)).map(([f, r]) => `${f}() does not read ${r}`), 'gate it on the ruleset (src/game/40-progress/30-rules.js)');
   // and in play: no chaos and no market means a quiet year
   const g = load();
@@ -388,6 +409,31 @@ test('F5: rented capacity never outgrows the route\'s market (#203)', () => {
   g.ev("S.links.push({id:'f',a:'jed',b:'gdx',kind:'df',own:true,sys:'roadm',ch:[],km:9089,ready:0,day:0,cut:0,mo:1,trench:'own:f',pairs:1});compute();__reseed(5);ACT.listFiber({id:'f',w:120,p:1})");
   g.ev('for(let d=0;d<1500;d++){brTick();if(d%7===0)spawnOffer();}for(const o of S.offers.filter(o=>o.link===\'f\'))ACT.accept({id:o.id})');
   assert.ok(g.ev("brSold('jed','gdx')") <= g.ev("brMarket('jed','gdx')"), 'F5: no more than the route wants');
+  assert.deepEqual(g.errors, []);
+});
+
+test('F6: an alien wave is priced against its fiber, and a full route earns a few times its lease (#203)', () => {
+  const g = load();
+  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=6;S.biz=[];S.offers=[]");
+  for (const [a, b] of [['lon', 'par'], ['lon', 'nyc'], ['fra', 'sin'], ['nyc', 'sjc'], ['jed', 'gdx']]) {
+    const r = JSON.parse(g.ev(`(()=>{const l={id:'f6${a}${b}',a:'${a}',b:'${b}',kind:'df',own:true,sys:'cl',ch:[],km:Math.round(kmBetween('${a}','${b}')),ready:0,day:0,cut:0,mo:1,pairs:2};S.links.push(l);
+      const F=dfLeaseMo(l.km)+ampCount(l.km)*AMP_MO,M=brMarket(l.a,l.b),rs=[];
+      for(let i=0;i<M;i++){const r=wwRate(l,1);rs.push(r);S.biz.push({id:uid(),type:'wwave',link:l.id,slots:1,rate:r,city:l.a,city2:l.b,name:'n'+i,bw:1,mood:80,since:0,reqs:[]});}
+      return JSON.stringify({F,rs});})()`));
+    assert.ok(r.rs[0] <= 0.3 * r.F + 1, `F6: ${a}-${b} first wave ${r.rs[0]} vs fiber ${r.F}`);
+    for (let i = 1; i < r.rs.length; i++) assert.ok(r.rs[i] <= r.rs[i - 1], `F6: ${a}-${b} never dearer than the one before`);
+    const full = r.rs.reduce((x, y) => x + y, 0);
+    assert.ok(full < 8 * r.F, `F6: ${a}-${b} full route ${(full / r.F).toFixed(1)}× its lease`);
+  }
+  assert.deepEqual(g.errors, []);
+});
+
+test('F7: extra crews cut a build on land to half its planned time at most (#203)', () => {
+  const g = load();
+  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e11;S.lvl=4;for(const c of ['fra','mad'])if(!S.pops[c])ACT.buildPop({city:c})");
+  const km = Math.round(g.ev("kmBetween('fra','mad')")), days = g.ev(`dfBuildDays(${km})`), d0 = g.ev('S.day');
+  g.ev(`S.links.push({id:'f7',a:'fra',b:'mad',kind:'df',own:true,sys:'roadm',ch:[],km:${km},ready:S.day+${days},day:S.day,cut:0,mo:1,trench:'own:f7',pairs:1});ACT.crews({id:'f7',all:1});for(let i=0;i<50;i++)ACT.crews({id:'f7'})`);
+  assert.ok(g.ev("S.links.find(l=>l.id==='f7').ready") - d0 >= days / 2, 'F7: never under half the planned build');
   assert.deepEqual(g.errors, []);
 });
 

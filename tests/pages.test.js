@@ -60,6 +60,20 @@ test('pages: every local file the site refers to is in the build', () => {
   for (const m of html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="(https?:[^"]+)"/g)) assert.match(m[1], /^https:\/\/fonts\.googleapis\.com\//);
 });
 
+test('pages: the build carries no agent code, and is the page assembled without it', () => {
+  // src/agent/ (the facade the MCP server drives) is development-only: one line in src/index.html, expanded by
+  // the dev server and the MCP server, never by the build (docs/adr/0004-dev-only-code.md).
+  const html = read('index.html');
+  assert.doesNotMatch(html, /@include/, 'no include marker survives');
+  for (const n of ['TUBES', 'API_CMD', 'API_DOMAINS', 'apiCall', 'apiDispatch']) assert.doesNotMatch(html, new RegExp(`\\b${n}\\b`), `${n} is not shipped`);
+  const { load } = require('./harness');
+  const { ev, errors } = load({ file: path.join(OUT, 'index.html') });
+  assert.equal(ev('typeof TUBES'), 'undefined');
+  ev("ACT.start({});ACT.launchBB({city:'fra'});for(let i=0;i<10;i++)dayTick()");
+  assert.ok(ev('S.day') >= 10);
+  assert.deepEqual(errors, []);
+});
+
 test('pages: only the release workflow deploys, and only with the GitHub Pages actions', () => {
   const dir = path.join(root, '.github', 'workflows');
   for (const f of fs.readdirSync(dir)) {
@@ -80,7 +94,9 @@ test('pages: the shipped page and dictionaries, with labels shrunk to ids, still
   for (const [lang, word] of [['en', 'Customers'], ['it', 'Clienti'], ['fr', null]]) {
     const { ev, errors } = load(lang === 'en' ? { file } : { file, lang, dir });
     ev("ACT.start({});S.cash=1e8;ACT.launchBB({city:'fra'});for(let i=0;i<40;i++)dayTick();ACT.leftTab({t:'noc'});renderAll()");
-    const text = ev("['hud','leftBody','panelBody','modalCard','toasts'].map(i=>document.getElementById(i)?.textContent||'').join(' ')");
+    // Text node by text node: a raw label sits inside one, while two elements' text run together ("facendo." then
+    // "proprio ora") only looks like one.
+    const text = ev("['hud','leftBody','panelBody','modalCard','toasts'].map(i=>{const e=document.getElementById(i);if(!e)return '';const w=document.createTreeWalker(e,NodeFilter.SHOW_TEXT),out=[];while(w.nextNode())out.push(w.currentNode.nodeValue);return out.join(' ');}).join(' ')");
     if (word) assert.ok(text.includes(word), `${lang}: ${word}`);
     assert.doesNotMatch(text, /\b[a-z_]+\.[a-z0-9_]{6,}\b/, `${lang}: no raw labels`);
     assert.equal(ev("tr(FLOOD_WHO[0])"), ev("tr('failures.a_botnet_of_40_000_smart')"), `${lang}: labels kept for saves still translate`);

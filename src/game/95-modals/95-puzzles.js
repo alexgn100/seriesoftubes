@@ -13,24 +13,49 @@ function pzFlowRow(x){const f=x.f,ok=x.full&&x.fast,u=f.g?Math.min(1,x.g/f.g):0;
   return `<div class="pzf${ok?' ok':''}"><div class="kv"><span>${f.t==='l2'?'🔗':'👀'} ${esc(pzFlowName(f))}${f.be?` <span class="tag st">${tr('puzzles.best_effort')}</span>`:''}</span><b>${fmtG(x.g)} / ${fmtG(f.g)}</b></div><div class="bar ${ok?'':u>=0.999?'warn':'bad'}"><i style="width:${(u*100).toFixed(1)}%"></i></div>${lat?`<div class="meta">${tr('puzzles.latency')}${lat}</div>`:''}${f.t==='l2'?pzRouteCtl(x.i):''}</div>`;}
 // A circuit's path: the metrics, or the lowest latency.
 function pzRouteCtl(i){const b=S.biz.find(x=>x.id===pzFlowId(i));if(!b)return '';return `<div class="seg pzrt">${['normal','fast'].map(m=>btn(RT[m],'pzRoute',{i,m},b.route===m?'pink sm':'ghost sm')).join('')}</div>`;}
-function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hidden=false;el.classList.toggle('ar',!!S.ar);if(S.ar){arRender(el);return;}
+// The three stars as three goals in plain words, in star order. The first one not met is the current one: it says what
+// is wrong and what to do, and `look` is where "Show me" takes the map. mark: what the map rings in red (pzDrawMarks).
+function pzGoals(e){const P=S.pz,cn=c=>esc(CITY[c].name),list=cs=>{const nm=cs.map(cn);try{return new Intl.ListFormat(LANG,{type:'conjunction'}).format(nm);}catch(e){return nm.join(', ');}};
+  const g1={done:e.goal,t:tr('puzzles.goal_deliver')},g2={done:e.goal&&e.cheap,t:tr('puzzles.goal_budget'),v:P.budget?tr('puzzles.goal_x_of_y',{x:fmt$(e.spend),y:fmt$(P.budget)}):''},g3={done:e.goal&&e.n1,t:tr('puzzles.goal_n1')};
+  const x=e.flows.slice().sort((a,b)=>(a.f.be?1:0)-(b.f.be?1:0)).find(x=>!(x.full&&x.fast));
+  if(x){const f=x.f,got=fmtG(x.g),g=fmtG(f.g),eye=f.t==='eye',nm=esc(pzFlowName(f));
+    g1.hint=eye?(x.g>0?tr('puzzles.hint_eye_short',{city:cn(f.a),got,g}):tr('puzzles.hint_eye_none',{city:cn(f.a)}))
+      :!x.full?(x.g>0?tr('puzzles.hint_l2_short',{name:nm,got,g}):tr('puzzles.hint_l2_none',{name:nm})):tr('puzzles.hint_l2_slow',{name:nm,ms:x.ms==null?'—':x.ms.toFixed(1),cap:f.ms});
+    g1.look={c:f.a};g1.mark={cities:eye?[f.a]:[f.a,f.b]};}
+  else{const t=e.tw.find(t=>!t.ok);if(t)g1.hint=`${pzTwistTxt(t)}.`;}
+  if(e.goal&&!e.cheap)g2.hint=tr('puzzles.hint_over',{x:fmt$(e.spend-P.budget)});
+  if(!P.budget)g2.v=tr('puzzles.free');
+  if(e.goal&&e.cheap&&!e.n1&&e.worst){const w=e.worst,cs=[...new Set(w.lost.flatMap(q=>{const f=P.dem[q.i];return f.t==='l2'?[f.a,f.b]:[f.a];}))],l=S.links.find(q=>pzUnit(q)===w.u);
+    g3.hint=tr('puzzles.hint_cut',{where:pzUnitName(w.u),list:list(cs),g:fmtG(w.g)});g3.look={u:w.u};g3.mark={cities:cs,link:l&&l.id};}
+  else if(e.goal&&!e.cheap&&!e.n1&&e.worst){const w=e.worst,l=S.links.find(q=>pzUnit(q)===w.u);g3.mark={cities:[],link:l&&l.id};}
+  const gs=[g1,g2,g3],cur=gs.findIndex(g=>!g.done);if(cur>=0)gs[cur].cur=true;return gs;}
+// One goal row: ⭐ met (each goal is a star), 👉 the one to work on (with its hint and Show me), a number while it waits its turn.
+function pzGoalRow(g,i){const ic=g.done?'⭐':g.cur?'👉':`<i>${i+1}</i>`;
+  return `<div class="pzgoal${g.done?' done':g.cur?' cur':''}"><div class="pzgl"><span class="pzgi">${ic}</span><b>${g.t}</b>${g.v?`<span class="pzgv">${g.v}</span>`:''}</div>`
+    +(g.cur&&g.hint?`<div class="pzgh">${g.hint}${g.look?' '+btn(tr('puzzles.show_me'),'pzLook',g.look,'sm pzshow'):''}</div>`:'')+`</div>`;}
+// A delivered eyeball flow is a chip; anything still short, a circuit or a latency cap keeps its full row.
+const pzChip=x=>`<span class="pzchip">👀 ${esc(CITY[x.f.a].name)} <b>${fmtG(x.f.g)}</b> ✓</span>`;
+function pzRender(){const el=$('pzBox');if(!pzOn()){el.hidden=true;return;}el.hidden=false;el.classList.toggle('ar',!!S.ar);UI._pzPhone=isPhone();if(S.ar){el.classList.toggle('dock',UI._pzPhone);(UI._pzPhone?arDock:arRender)(el);return;}
   const e=pzEval(),P=S.pz,d=pzDef(P.id),pk=d&&PZ_PACKS.find(x=>x.id===d.pack);
-  const star=(on,l)=>`<span class="${on?'on':''}">⭐<small>${l}</small></span>`;
-  let h=`<div class="grab" data-grab="pz" aria-hidden="true"></div><div class="pzh"><div class="grow"><div class="eyebrow">${pk?esc(pk.n):P.theme&&own(PZ_WK_THEMES,P.theme)?`${PZ_WK_THEMES[P.theme].i} ${tr('puzzles.weekly_puzzle')} · ${tr(PZ_WK_THEMES[P.theme].t)}`:tr('puzzles.weekly_puzzle')}</div><h3>${esc(pzName(d||P))}</h3></div>${btn('☰','puzzleMenu',{},'ghost sm')}</div>`;
+  // A phone gets fixed overlays that never scroll (97-puzzles-phone.js).
+  el.classList.toggle('dock',UI._pzPhone);if(UI._pzPhone){pzDock(el,e);return;}
+  const sp=fmt$(e.spend);
+  // The status bar stays at the top of the card, whatever scrolls: the puzzle, its stars, the money, undo and the menu.
+  let h=`<div class="pztop" data-grab="pz"><div class="grab" aria-hidden="true"></div><div class="pzh"><div class="grow"><div class="eyebrow">${pk?esc(pk.n):P.theme&&own(PZ_WK_THEMES,P.theme)?`${PZ_WK_THEMES[P.theme].i} ${tr('puzzles.weekly_puzzle')} · ${tr(PZ_WK_THEMES[P.theme].t)}`:tr('puzzles.weekly_puzzle')}</div><h3>${esc(pzName(d||P))}</h3></div>`
+    +`<button class="b ghost sm" data-act="pzUndo" data-args="{}" aria-label="${esc(tr('puzzles.undo'))}" title="${esc(tr('puzzles.undo'))}"${UI.pzHist&&UI.pzHist.length?'':' disabled'}>↶</button>${btn('☰','puzzleMenu',{},'ghost sm')}</div>`;
+  const gs=pzGoals(e),cur=gs.find(g=>g.cur);UI.pzMark=!UI.pzMk&&cur&&cur.mark||null;
+  h+=`<div class="pzgoals">${gs.map(pzGoalRow).join('')}</div></div>`;
   if(d)h+=`<p class="pzj">${esc(d.j)}</p>`;else if(P.wj)h+=`<p class="pzj">${esc(pzTxt(P.wj))}</p>`;
-  h+=`<div class="pzs">${star(e.goal,tr('puzzles.delivered'))}${star(e.goal&&e.cheap,P.budget?tr('puzzles.budget'):tr('puzzles.free'))}${star(e.goal&&e.n1,'N-1')}</div>`;
   if(P.src.length)h+=`<div class="pzsrc">🗄️ ${tr('puzzles.content_lives_in_list',{list:P.src.map(c=>esc(CITY[c].name)).join(', ')})}</div>`;
-  h+=`<div class="pzfl">${e.flows.map(pzFlowRow).join('')}</div>`;
+  const chip=x=>x.f.t==='eye'&&!x.f.ms&&!x.f.be&&x.full&&x.fast,rows=e.flows.filter(x=>!chip(x)).sort((a,b)=>(a.full&&a.fast?1:0)-(b.full&&b.fast?1:0)),chips=e.flows.filter(chip);
+  h+=`<div class="pzfl">${rows.map(pzFlowRow).join('')}${chips.length?`<div class="pzchips">${chips.map(pzChip).join('')}</div>`:''}</div>`;
   // Cities to avoid cannot be built in at all, so they read as a rule, not as a box to tick.
   for(const t of e.tw)h+=t.k==='avoid'?`<div class="pztw rule">🚫 ${tr('puzzles.rule_not_via_list',{list:P.avoid.map(c=>esc(CITY[c].name)).join(', ')})}</div>`:`<div class="pztw ${t.ok?'ok':''}">${t.ok?'✓':'✗'} ${pzTwistTxt(t)}</div>`;
-  const sp=fmt$(e.spend);
-  h+=P.budget?`<div class="pzbud"><div class="kv"><span>${tr('puzzles.spent_x_of_y',{x:sp,y:fmt$(P.budget)})}</span><b>${e.cheap?'✓':'✗'}</b></div><div class="bar ${e.cheap?(e.spend>P.budget*0.85?'warn':''):'bad'}"><i style="width:${Math.min(100,e.spend/P.budget*100).toFixed(1)}%"></i></div></div>`
-    :`<div class="pzbud"><div class="kv"><span>${tr('puzzles.spent_x',{x:sp})}</span><b>${tr('puzzles.no_budget_star_on_the_house')}</b></div></div>`;
-  const w=e.worst;
-  h+=!e.goal?`<div class="pzn1">🛡 ${tr('puzzles.n_1_deliver_everything_first')}</div>`:e.n1?`<div class="pzn1 on">🛡 ${tr('puzzles.survives_any_single_cut_under_load')}</div>`
-    :`<div class="pzn1 bad">⚠️ ${tr('puzzles.a_cut_on_where_drops_g',{where:pzUnitName(w.u),g:fmtG(w.g)})}<br><small>${w.lost.map(x=>esc(pzFlowName(P.dem[x.i]))).join(', ')}</small></div>`;
+  if(!P.budget)h+=`<div class="pzbud"><div class="kv"><span>${tr('puzzles.spent_x',{x:sp})}</span><b>${tr('puzzles.no_budget_star_on_the_house')}</b></div></div>`;
+  if(e.n1)h+=`<div class="pzn1 on">🛡 ${tr('puzzles.survives_any_single_cut_under_load')}</div>`;
   if(UI.pzMk)h+=`<div class="btns">${btn('⏩ '+tr('puzzles.skip_the_monkey'),'pzMkSkip',{},'big')}</div>`;else if(e.goal)h+=`<div class="btns">${btn(tr('puzzles.let_the_chaos_monkey_loose'),'pzMonkey',{},'sm')}</div>`;
-  h+=`<div class="btns">${btn('↶ '+tr('puzzles.undo'),'pzUndo',{},'ghost sm',!(UI.pzHist&&UI.pzHist.length))}${btn(tr('puzzles.reset'),'pzReset',{},'ghost sm',!S.links.length&&!Object.keys(S.pops).length)}${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'ghost sm')}</div>`;
+  // Undo sits in the status bar; leaving is in ☰ with the puzzle list.
+  h+=`<div class="btns pzfoot">${btn(tr('puzzles.reset'),'pzReset',{},'ghost sm',!S.links.length&&!Object.keys(S.pops).length)}${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}</div>`;
   if(h!==UI._pzh){UI._pzh=h;morph(el,h);}}
 // Trenches on a pair get numbers, cables their names, so parallel links say where they run.
 function pzTrench(l){if(l.cable)return esc(CAB[l.cable].name);const us=[...new Set(pairLinks(l.a,l.b).filter(x=>!x.cable).map(pzUnit))];return tr('puzzles.trench_n',{n:us.indexOf(pzUnit(l))+1});}
@@ -44,7 +69,7 @@ function pzPopSection(c){const p=S.pops[c],g=p.rgen||0,rt=p.routers||1,G=RG[g],c
   <h4 class="sub4">${tr('puzzles.router_model')}</h4>`;
   h+=PZ_RG.map(i=>{const M=RG[i],why=i===g?'':modelFits(c,i);return `<div class="row${i===g?' on':''}"><div class="grow"><div class="nm">${esc(M.n)}${i===g?` <span class="tag st on">${tr('puzzles.installed')}</span>`:''}</div><div class="meta">${tr('puzzles.model_facts',{cap:fmtG(M.cap),ports:M.ports,wave:LT[M.maxLT].n})}</div>${why?`<div class="why">${esc(why)}</div>`:''}</div>${i===g?'':btn(dl(pzRtCost(i,rt)-cur),'pzRtModel',{city:c,g:i},'ghost sm',!!why)}</div>`;}).join('');
   return h;}
-function pzPanel(sel){if(S.ar)return arPanel(sel);const head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
+function pzPanel(sel){if(S.ar)return arPanel(sel);if(isPhone())return pzPanelPhone(sel);const head=(eb,name,facts)=>`<div class="ph"><div style="min-width:0"><div class="eyebrow">${eb}</div><h2>${name}</h2>${facts?`<div class="facts">${facts}</div>`:''}</div><button class="x" data-act="closePanel" aria-label="${tr('common.close')}">×</button></div>`;
   if(sel.type==='city'){const c=sel.id,k=pzKind(c),p=S.pops[c],C=CITY[c],P=S.pz;if(!k)return '';
     const eb=k==='goal'?tr('puzzles.goal_city'):k==='via'?tr('puzzles.stepping_stone_optional'):k==='off'?tr('puzzles.not_in_the_plan'):tr('puzzles.off_limits');
     let h=head(`${PZ_ICON[k]} ${eb}`,esc(C.name),p?`<span class="fact mine">${tr('common.your_pop')}</span>`:'')+'<div class="scroll">';
@@ -128,7 +153,7 @@ function pzMenu(){pzWkEnsure();const p=pzLoad(),tot=pzStarsTotal(p),max=PZ.lengt
   <p class="tagline">${tr('puzzles.no_clock_no_bills_real_traffic')}</p>`;
   // Once, after the puzzles got traffic: the old stars are kept on the wall, the new set starts at zero.
   if(p.old&&!p.noted){h+=`<div class="pznote">🖼️ ${tr('puzzles.puzzles_got_traffic_note',{n:p.old})}</div>`;p.noted=1;pzStore(p);}
-  if(pzOn())h+=`<div class="btns" style="margin:8px 0">${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
+  if(pzOn())h+=`<div class="btns" style="margin:8px 0">${isPhone()&&!S.ar?btn(tr('puzzles.reset'),'pzReset',{},'ghost',!S.links.length&&!Object.keys(S.pops).length):''}${(UI.pzTop||0)>0&&(UI.pzTop||0)<3?btn(tr('puzzles.finish_here'),'pzFinish',{},'sm'):''}${btn(UI.pzFrom==='game'?tr('puzzles.back_to_my_network'):tr('puzzles.back_to_the_title'),'pzLeave',{},'')}${btn(tr('puzzles.keep_building'),'closeModal',{},'ghost')}</div>`;
   h+=arMenuRows();
   h+=pzWkRow();
   // The packs' own total, right above them: it is what unlocks the next pack (#231). Runs and weeklies count their own.

@@ -43,8 +43,8 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | Id | Rule | Why |
 | --- | --- | --- |
 | M1 | On-call is the classic game: it equals `RULE_DEF`, and a save without rules loads as On-call. The seeded suites (`tests/game.test.js`, `tests/rules.test.js`) are its behaviour. | Old saves never change under them. |
-| M2 | Presets are ordered: Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler (chaos, lead times, market; and a seeded year of incidents). | The names promise it. |
-| M3 | Every subsystem that can annoy the player reads a rule: outages and events (`chaos`), DDoS, sold-out routes, de-peering and hardware prices (`market`), lead times (`lead`), the clock. A quiet ruleset gives a quiet year. | Rules are presets of flags, not separate code. |
+| M2 | Presets are ordered: Best Effort never harsher than Change Freeze, Change Freeze never harsher than On-call, BGP at 3 a.m. never gentler (chaos, lead times, market; and a seeded year of incidents). Only Best Effort mends sea cuts without ships, skips conferences, rescues instead of game over, has patient customers and instant PNIs. | The names promise it. |
+| M3 | Every subsystem that can annoy the player reads a rule: outages and events (`chaos`), DDoS, sold-out routes, de-peering and hardware prices (`market`), lead times (`lead`), the clock, cable ships (`sea`), conferences (`confs`), going broke (`broke`), customer patience (`moods`), PNI delivery (`pnis`), and the day's toasts (quiet notifications). A quiet ruleset gives a quiet year. | Rules are presets of flags, not separate code. |
 | M4 | Scenarios and the weekly challenge always run On-call plus their own `S.scn.rules`. | Fair scores. |
 | M5 | Sandbox has no locked feature: open gates, every level, own cables, endless money. | It is a sandbox. |
 
@@ -66,6 +66,8 @@ These are what the game promises, held up by `tests/gameplay-rules.test.js` (one
 | F3 | A specialist path (#187) only brings a customer type in below its level when the network can already serve it, or nearly: the spotted cities have POPs, the latency is met, the fiber carries at least three quarters of the smallest order. | Capability, not luck: an offer you cannot fulfil with a reasonable build is a trap. |
 | F4 | The chaos monkey visits only On-call and BGP at 3 a.m. (never Change Freeze, Sandbox, puzzles or scenarios), not before day 180, for 120 to 240 days; while it is here its snips replace the ordinary failures, each snip heals within a week, and it goes after tubes with no other way round first. | A test of resilience you can prepare for, not a pile-on: the reward goes to networks built with a second path. |
 | F5 | Capacity you rent to other carriers never outgrows the route's market: a broker listing sells over time as carriers between the two cities want it, and neither it nor a random offer sells past what both cities' eyeballs support (a landing town counts the big city it serves). | Rent that scales with your own glass and not with demand is a money machine (#203). |
+| F6 | An alien wave rents for at most 30% of what its fiber costs a month (lease plus amplifiers), each wave sold between two cities is never dearer than the one before, and a route sold out to its market earns less than eight times that cost. | A buyer would lease the fiber rather than pay many times its price; the old price made one wave worth the whole fiber and a full route 11 to 35 times its lease (#203). |
+| F7 | Extra crews cut a build on land to half its planned time at most. | Permits, rights of way and trenching set the pace; a 1,000-day build finishing tomorrow made lead times meaningless (#203). |
 
 ## DDoS
 

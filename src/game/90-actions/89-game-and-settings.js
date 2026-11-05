@@ -23,7 +23,7 @@ Object.assign(ACT,{
  importPick:()=>{let f=$('importIn');if(!f){f=document.createElement('input');f.type='file';f.accept='.json,application/json';f.id='importIn';f.hidden=true;document.body.appendChild(f);f.addEventListener('change',()=>{importFile(f.files[0]);f.value='';});}f.click();},
  importGo:()=>{const s0=UI.importing;if(!s0)return;UI.importing=null;const prev=S;let nx;try{nx=migrate(JSON.parse(JSON.stringify(s0)));}catch(e){nx=null;}if(nx&&pzOn())pzLeave();const was=S;
    // An import is a new network next to the others: the one playing here is saved and kept.
-   try{if(!nx)throw 0;S=nx;compute();checkGoals();}catch(e){S=was;if(S)compute();renderAll();toast(tr('game_and_settings.import_failed_that_save_is_damaged'),'bad');sfx('err');return;}UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;UI.speed=S.uiSpeed===undefined?1:S.uiSpeed;if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;}}closeModal();$('modal').hidden=true;{const im=S;S=was;slotLeave();S=im;}slotNew();delete S.sv;compute();renderAll();save(true);toast(tr('game_and_settings.welcome_back_name_imported_and_saved',{name:esc(S.name)}),'good');sfx('coin');track('game_import');},
+   try{if(!nx)throw 0;S=nx;compute();checkGoals();}catch(e){S=was;if(S)compute();renderAll();toast(tr('game_and_settings.import_failed_that_save_is_damaged'),'bad');sfx('err');return;}UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;setSpeed(S.uiSpeed===undefined?1:S.uiSpeed);if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;}}closeModal();$('modal').hidden=true;{const im=S;S=was;slotLeave();S=im;}slotNew();delete S.sv;compute();renderAll();save(true);toast(tr('game_and_settings.welcome_back_name_imported_and_saved',{name:esc(S.name)}),'good');sfx('coin');track('game_import');},
  cloud:()=>{UI.clOpen=true;UI.clDel=false;UI.clErr='';openModal(cloudModal());cloudProbe();},
  cloudClose:()=>{UI.clOpen=false;if(!S||!UI.started)showTitle();else closeModal();},
  cloudLogin:({reg})=>cloudAuth(reg?'register':'login',$('clUser')&&$('clUser').value,$('clPass')&&$('clPass').value),
@@ -45,7 +45,7 @@ Object.assign(ACT,{
  settings:()=>{UI.setOpen=true;openModal(settingsHtml());},
  settingsClose:()=>{UI.setOpen=false;if(!S||!UI.started)showTitle();else closeModal();},
  prefSet:({v})=>{const [k,b]=String(v).split(':');if(!own(PREF_DEF,k))return;setPref(k,b==='1');sfx('click');refreshSettings();},
- vpSet:({v})=>{vpOn(v==='on');refreshSettings();},
+ vpSet:({v})=>{diagOn(v==='on');refreshSettings();},
  resetAsk:()=>openModal(`<h2 style="font-size:26px">${tr('game_and_settings.start_a_new_network')}</h2><p class="tagline">${tr('game_and_settings.name_and_everything_it_owns_will',{name:esc(S?S.name:tr('common.your_network'))})}</p><div class="btns">${btn(tr('game_and_settings.delete_and_start_over'),'newgame',{},'red big')}${btn(tr('common.keep_playing'),'closeModal',{},'ghost big')}</div>`),
  whatsNewShow:()=>whatsNew(true,true),
  updateNow:()=>{save(true);location.reload();},

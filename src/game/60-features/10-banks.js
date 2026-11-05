@@ -78,6 +78,27 @@ function spawnLoanOffer(emergency){
   S.loanOffers.push(o);
   toast(tr('banks.bank_would_like_to_lend_you',{bank:esc(B.name),amount:fmt$(amount)})+'<br>'+(emergency?tr('banks.they_heard_you_might_be_in'):tr('banks.terms_apply_several_terms')),emergency?'bad':'goal',[{l:tr('common.open_bank'),act:'bank',args:{}}]);
 }
+/* Good credit can pick up the phone (#251), from AA up. The rate and the limit follow from the rating alone, so calling again
+   gets nothing better and rolls no dice. Bankers being bankers, weird conditions apply: this week's quirk (CALL_ODD, turning
+   over every 7 days) comes on top of the usual ones. What you owe already uses up the limit, and the limit replaces the
+   revenue share of a BIG_LOAN. */
+const CALL_AMTS=[1e5,5e5,1e6,5e6,1e7],CALL_MONTHS=36;
+const CALL_TERMS={AA:{bank:'gs',apr:.075,x:6,covs:['golf','continents2'],odd:2},AAA:{bank:'gs',apr:.06,x:8,covs:['golf'],odd:1}};
+const CALL_ODD=['yacht','oddpops','friday','nephew','nobude','kehrwoche','forms','app'];
+const callOdd=T=>{const w=Math.floor(S.day/7)*3;return Array.from({length:T.odd},(_,i)=>CALL_ODD[(w+i)%CALL_ODD.length]);};
+const loanDebt=()=>S.loans.reduce((a,l)=>a+(BANKS[l.bank].equity?0:l.bal),0);
+const callLimit=T=>Math.max(0,(R.revMo||0)*T.x-loanDebt());
+// The new offer replaces an earlier called one; offers that came by themselves stay.
+function callOffer(amount){const T=CALL_TERMS[rating()];if(!T||!CALL_AMTS.includes(amount)||S.cash>=RICH_NO_LOANS||amount>callLimit(T))return null;
+  const o={id:uid(),bank:T.bank,amount,exp:S.day+25,covs:T.covs.concat(callOdd(T)),apr:T.apr,term:CALL_MONTHS,pay:Math.round(annuity(amount,T.apr,CALL_MONTHS)),call:1};
+  S.loanOffers=S.loanOffers.filter(x=>!x.call);S.loanOffers.push(o);return o;}
+// Best Effort has no game over: deep in the red, the Ministry of Tubes lends what it takes to be back in the black,
+// cheap, over five years, no conditions. The repayments are still yours.
+const RESCUE_APR=0.02,RESCUE_TERM=60;
+function rescueLoan(){const amount=niceAmt(Math.max(250000,-S.cash+Math.max(150000,(R.costMo||0)*2)));
+  S.cash+=amount;S.stats.rescues=(S.stats.rescues||0)+1;S.neg=0;
+  S.loans.push({id:uid(),bank:'gov',start:S.day,amount,got:amount,bal:amount,apr:RESCUE_APR,apr0:RESCUE_APR,pay:Math.round(annuity(amount,RESCUE_APR,RESCUE_TERM)),left:RESCUE_TERM,term:RESCUE_TERM,share:0,covs:[],base:{sub:S.links.filter(x=>x.sub).length}});
+  track('rescue');toast(`<b>${tr('banks.bank_stepped_in',{bank:esc(BANKS.gov.name)})}</b><br>${tr('banks.a_rescue_loan_of_amount_keeps',{amount:fmt$(amount),pay:fmt$(Math.round(annuity(amount,RESCUE_APR,RESCUE_TERM)))})}`,'bad',[{l:tr('common.open_bank'),act:'bank',args:{}}]);sfx('coin');}
 function loanTick(d){
   // conditions: 15-day grace, then a penalty every 30 days while broken
   for(const l of S.loans){const B=BANKS[l.bank];

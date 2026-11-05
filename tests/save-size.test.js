@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { until } = require('./net');
 
 // Make the browser's storage refuse the save: 'QuotaExceededError' (too big) or 'SecurityError' (not allowed).
 const refuse = name => `window.__err=${JSON.stringify(name)};{const P=Object.getPrototypeOf(localStorage),set=P.setItem;
@@ -39,7 +40,9 @@ const bigBiz = "ACT.start({});S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buildPop
   "S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',own:true,km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});" +
   "for(let i=0;i<300;i++){const slots=1+i%4;S.biz.push({id:'w'+i,city:'fra',city2:'ams',reqs:[],latMax:null,route:'normal',name:'Carrier '+i,type:'wwave',bw:1,rate:4000,mood:100-i%9*1.37,since:i,sites:null,link:'df1',slots,what:wwWhat(S.links.find(l=>l.id==='df1'),slots),pm:i%2?100:99,warned:i%5===0,warn60:false});}" +
   "S.biz.push({id:'l2',city:'fra',city2:'ams',reqs:['diverse'],latMax:3.2,route:'fast',name:'Fast Co',type:'hft',bw:5,rate:900,mood:80,since:0,sites:null,slots:0,pm:81,warned:false,warn60:true});" +
-  "S.biz.push({id:'d1',city:'fra',city2:null,reqs:[],latMax:null,route:'normal',name:'Plain Co',type:'dia',bw:5,rate:600,mood:100,since:0,sites:null,slots:0});compute()";
+  "S.biz.push({id:'d1',city:'fra',city2:null,reqs:[],latMax:null,route:'normal',name:'Plain Co',type:'dia',bw:5,rate:600,mood:100,since:0,sites:null,slots:0});" +
+  // Signed customers carry a contract (#178): when the term ends and the market it was priced in.
+  "for(const b of S.biz)if(clOn(b)){b.te=400;b.mk=1;}compute()";
 const sorted = "JSON.stringify(S.biz.map(b=>Object.keys(b).sort().map(k=>[k,b[k]])))";
 
 test('#176 saves leave customer defaults out, and loading puts them back exactly', () => {
@@ -71,7 +74,8 @@ test('#176 an older, unpacked save still loads the same', () => {
 });
 
 // Compressing runs in the background: wait for it, without depending on how long it takes.
-const settle = async (ev, cond) => { for (let i = 0; i < 400 && !ev(cond); i++) await new Promise(r => setTimeout(r, 5)); assert.ok(ev(cond), cond); };
+// Waits for the page's async work (storage, channels) to land: up to 20 s, as a busy runner may need.
+const settle = async (ev, cond, what) => assert.ok(await until(() => ev(cond)), what || cond);
 const huge = "for(let i=0;i<12000;i++){const slots=1+i%4;S.biz.push({id:'h'+i,city:'fra',city2:'ams',name:'Huge Carrier '+i,type:'wwave',bw:1,rate:4000+i,mood:100,since:i,link:'df1',slots,what:wwWhat(S.links.find(l=>l.id==='df1'),slots)});}compute()";
 
 test('#176 small saves stay plain JSON, written at once', () => {

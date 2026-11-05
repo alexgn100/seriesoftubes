@@ -305,3 +305,30 @@ test('nothing syncs while the route worker has half a day in flight', async () =
     assert.deepEqual(a.errors, []);
   } finally { await s.close(); }
 });
+
+test('a NOC window never syncs: it shows a copy of the game, which only the game window syncs', async (t) => {
+  const s = await server();
+  const { browser } = require('./harness');
+  const { until } = require('./net');
+  try {
+    const b = browser();
+    const G = load({ browser: b, fetch: (u, o) => fetch(s.base + u, o) });
+    t.after(() => G.dom.window.close());
+    G.ev("UI.pitched=true;ACT.start({});closeModal();UI.speed=0;for(let i=0;i<5;i++)dayTick();save(true)");
+    await G.ev("cloudAuth('register','kim','password1')");
+    assert.equal(G.ev('CL.rev'), 1);
+    let calls = 0;
+    const W = load({ browser: b, url: 'https://tests.invalid/?noc=' + G.ev('UI.slot'), fetch: (u, o) => { calls++; return fetch(s.base + u, o); } });
+    t.after(() => W.dom.window.close());
+    assert.ok(await until(() => W.ev('UI.started===true')), 'the window got its first copy');
+    const login = W.ev("localStorage.getItem('sot-cloud')");
+    await W.ev('cloudPull()');
+    await W.ev("cloudPull('go')");
+    W.ev('cloudTick()');
+    W.ev("document.dispatchEvent(new Event('visibilitychange'))");
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(calls, 0, 'not a single request from the NOC window');
+    assert.equal(W.ev("localStorage.getItem('sot-cloud')"), login);
+    assert.deepEqual(W.errors, []);
+  } finally { await s.close(); }
+});

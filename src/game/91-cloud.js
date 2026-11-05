@@ -42,7 +42,8 @@ async function cloudAuth(kind,u,p){u=String(u||'').trim();p=String(p||'');UI.clU
 /* Bring the linked network up to date. how: undefined in the background, 'go' when the player asked (it may link the open
    network, or bring the cloud copy in as a new one), 'take' to load the cloud copy over the linked network whatever happens.
    Linked and open: same revision → push if we played; newer in the cloud → load it, or ask if we played too. */
-async function cloudPull(how){if(!CL||UI.clBusy||UI.clConf)return;const here=clLocal(),mine=clSlot();
+async function cloudPull(how){if(!CL||NOC.win||UI.clBusy||UI.clConf)return;// a NOC window shows a copy of the game: only the game window syncs
+  const here=clLocal(),mine=clSlot();
   if(!how&&!here&&mine)return;// the linked network syncs when it is opened again
   UI.clBusy=true;let r;
   try{r=await clApi('GET','/save?have='+(how==='take'||how&&!here?-1:CL.rev));}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
@@ -63,7 +64,7 @@ function adoptSave(s0,fresh){let nx;try{nx=migrate(JSON.parse(JSON.stringify(s0)
   if(fresh&&pzOn())pzLeave();const was=S;
   try{S=nx;compute();checkGoals();}catch(e){S=was;if(S)compute();renderAll();return false;}
   if(fresh){const im=S;S=was;slotLeave();S=im;slotNew();}
-  UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;
+  UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;setSpeed([0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1);
   if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;}}
   closeModal();$('modal').hidden=true;compute();renderAll();save(true);return true;}
 function cloudAdopt(s,rev,at,fresh){const local=clLocal();if(!adoptSave(s,fresh)){UI.clErr=tr('save.the_cloud_save_is_damaged_and');return;}
@@ -75,7 +76,7 @@ async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;UI.clBusy=tr
   try{r=await clApi('PUT','/save',{base:base===undefined?CL.rev:base,save:packSave(S)});}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
   if(r.st===200){CL.rev=r.j.rev|0;CL.at=String(r.j.at||'');CL.h=h;UI.clErr='';clKeep();return;}
   if(r.st===401)return clLost();if(r.st===409)return cloudConflict(r.j);UI.clErr=clMsg(r.st,r.j);}
-const cloudTick=()=>{if(CL&&!UI.clConf&&!RW.job&&clDirty())cloudPush();};
+const cloudTick=()=>{if(CL&&!NOC.win&&!UI.clConf&&!RW.job&&clDirty())cloudPush();};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')cloudTick();else cloudPull();});
 function cloudConflict(j){const m=j.meta||{},side=(lab,name,day,cash)=>`<div class="kv"><span>${lab}</span><b>${esc(name)} · ${esc(dateStr(Math.max(0,day|0)))} · ${tr('save.cash_in_the_bank',{cash:fmt$(+cash||0)})}</b></div>`;
   UI.clConf={rev:Math.max(0,j.rev|0)};UI.clOpen=false;

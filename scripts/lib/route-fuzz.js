@@ -56,7 +56,7 @@ const LEFT = ['nets', 'noc', 'deals', 'goals'];
 const PRESETS = ['freeze', 'oncall', 'bgp'];
 // How often a button is pressed against the others on screen: what changes the network often, looking around rarely.
 const BUILD = /^(buy\w*|pni\w*All|pni|peer|peerAll|unpeer|cache|cacheSite|rmCache|buildLink|buildPop|launchBB|accept|decline|dropBiz|takeLoan|repayLoan|lag[TPI]x?|setPref|setCarry|setStandby|setMetric|togglePrem|cleanPipe|sacrif|rs|foundIx|myIxUp|addRouter|rmRouter|upRouter|addSite|rmSite|siteSet|decomToggle|rmLink|upLink|addParallel|cancel\w*|upVxc|buyNni|rmNni|buildScrub|scrubUp|rmScrub|addGen|regen|addCh|rmCh|addPair|upSys|spares|layShip|crews|fixInc|seaPackage|subUpgrade|orderCable|orderDf|ownCab|opsHire|opsToggle|opsParam|opsCap|opsPop|opsTpl|opsNewPop|popStdSet|coreSet|teRecipe|dkOptOut|dkStay|utility\w*|listFiber|unlistFiber|leaseSwap|custGo|confGo|confSponsor|seatBuy|charter|cnPrem|applyCn|ad|ddosAuto|pz(Pop|RmPop|Link|AddPar|Tier|RmLink|RtAdd|RtRm|RtModel|Route|Via|Div)|setRoute|route|via|metricSet)$/;
-const UIACT = /^(tab|dashTab|leftTab|\w*Sort|\w*Filter|pniGrp|trace\w*|focusCity|findGo|selLink|dashLink|logAll|tailTog|listMore|netFocus|netFilter|meetGo|phoneTab|dashClose|connF|connCity|connNet|connFor|custF|custCity|opsOpen|decomOpen|linkCheck)$/;
+const UIACT = /^(tab|dashTab|leftTab|\w*Sort|\w*Filter|pniGrp|trace\w*|focusCity|findGo|selLink|dashLink|logAll|tailTog|listMore|netFocus|netFilter|meetGo|phoneTab|dashClose|connF|connCity|connNet|connFor|custF|custCity|popGo|popsReg|opsOpen|decomOpen|linkCheck)$/;
 const DW = { launchBB: 4, accept: 4, buyTransit: 3, pni: 3, buyIx: 3, setPref: 4, cache: 2, peerAll: 2, setCarry: 2, takeLoan: 2 };
 const weight = (b) => (BUILD.test(b.act) ? 8 : UIACT.test(b.act) ? 0.3 : 1);
 
@@ -78,8 +78,10 @@ function playGame(pages, seed, opts = {}) {
     const [x, y] = both('check');
     for (const k of ['a', 'b', 'c']) if (x[k] !== y[k]) { fail(where + ': routing (' + k + ') base vs head', { diff: firstDiff(base.call('parts'), head.call('parts')) }); return false; }
     if (y.b !== y.c) { fail(where + ': head cached vs uncached', { diff: 'R from the kept tables differs from a fresh route' }); return false; }
-    const [s1, s2] = both('sDigest');
-    if (s1 !== s2) { fail(where + ': game state S', { diff: firstDiff(base.call('sParts'), head.call('sParts')) }); return false; }
+    // Fields only this checkout's game has are left out on both sides (see sKeys in fuzz-page.js).
+    const [k1, k2] = both('sKeys'), drop = { top: k2.top.filter((k) => !k1.top.includes(k)), items: k2.items.filter((k) => !k1.items.includes(k)) };
+    const [s1, s2] = both('sDigest', drop);
+    if (s1 !== s2) { fail(where + ': game state S', { diff: firstDiff(base.call('sParts', drop), head.call('sParts', drop)) }); return false; }
     return true;
   };
 
@@ -96,7 +98,10 @@ function playGame(pages, seed, opts = {}) {
   if (!div) compare('start');
 
   // A screen's buttons on both pages; the same list or a divergence.
-  const screen = (w) => { const [a, b] = both('screen', w); same('buttons of ' + JSON.stringify(w), a, b); return a || []; };
+  // Buttons for actions main's page does not have (a new feature's) are left out: the driver only presses what both have.
+  let baseActs = null;
+  const screen = (w) => { const [a, b0] = both('screen', w); baseActs = baseActs || new Set(base.call('acts'));
+    const b = Array.isArray(b0) ? b0.filter((x) => baseActs.has(x.act)) : b0; same('buttons of ' + JSON.stringify(w), a, b); return a || []; };
   const press = (b, where) => { acts[b.act] = (acts[b.act] || 0) + 1; const [e1, e2] = both('press', b); same('press ' + where, e1, e2); note(where + ' ' + b.act + JSON.stringify(b.args) + (e1 ? ' !' + e1 : '')); };
   // Answer whatever window opened, a few levels deep, then close it.
   const modal = (bias) => {

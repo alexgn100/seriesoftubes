@@ -1,7 +1,7 @@
 /* Cable ships on the map (85-incidents/50-cable-ships.js): club ships at anchor off their ports, sailing out to a cut,
    splicing on site and sailing home; lay ships along a cable you are building. Where they are comes from S.fleet and
    the clock, so nothing here is saved; their routes are worked out once per voyage and kept in SHIP_PATH. */
-const SHIP_PATH=new Map(),SHIP_HITS=[];
+const SHIP_PATH=new Map(),SHIP_HITS=[],SHIP_CLEAR=46;
 // Off the port: the first point of a cable leaving it, so a ship rides at anchor at sea and not in town.
 function shipHomePt(s){const k='h:'+s.id;let p=SHIP_PATH.get(k);if(p)return p;const C=CITY[s.home];p=[C.x,C.y];
   for(const cp of CABLE_PAIRS){if(cp.a===s.home){p=cp.pts[1].slice();break;}if(cp.b===s.home){p=cp.pts[cp.pts.length-2].slice();break;}}
@@ -24,20 +24,25 @@ function shipAt(s,T){const f=S.fleet&&S.fleet[s.id],H=shipHomePt(s);if(!f||T>=f.
   else{p=1-(T-f.done)/Math.max(0.01,f.back-f.done);mode='back';}
   p=clamp(p,0,1);const [x,y]=polyAt(r.pts,r.cum,p),[x2]=polyAt(r.pts,r.cum,clamp(p+(mode==='back'?-0.01:0.01),0,1));return {x,y,m:mode,dx:x2-x||1};}
 // A cartoon cable ship: red hull, white bridge, the yellow bow sheave cable ships are known by; a wake when under way.
-function shipSprite(x,y,face,sc,col,now,mode){const c=ctx;c.save();c.translate(x,y+Math.sin(now/420+x*0.05)*1.2*sc);c.scale(face*sc,sc);
+function shipSprite(x,y,face,sc,col,now,mode){const bl=mode==='work'&&Math.floor(now/350)%2;
+  stamp(['ship',col,face,mode,bl?1:0].join('|'),52,32,26,18,sc,x,y+Math.sin(now/420+x*0.05)*1.2*sc,c=>{c.scale(face,1);
   if(mode!=='port'&&mode!=='work'){c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=1.6;c.beginPath();c.moveTo(-10,3);c.quadraticCurveTo(-16,1,-22,4);c.moveTo(-10,5);c.quadraticCurveTo(-15,8,-21,9);c.stroke();}
   c.fillStyle=col;c.strokeStyle='#1E2640';c.lineWidth=1.6;c.lineJoin='round';c.beginPath();c.moveTo(-11,0);c.lineTo(11,0);c.lineTo(8,6);c.lineTo(-9,6);c.closePath();c.fill();c.stroke();
   c.fillStyle='#fff';c.beginPath();c.rect(-7,-7,8,7);c.fill();c.stroke();c.fillStyle='#1E2640';c.fillRect(-5,-5,4,2);
   c.beginPath();c.arc(9,-2,2.6,0,7);c.fillStyle='#FFD23F';c.fill();c.stroke();
-  if(mode==='work'&&Math.floor(now/350)%2){c.fillStyle='#FFD23F';c.font='900 11px sans-serif';c.textAlign='center';c.fillText('✦',12,-8);}
-  c.restore();}
+  if(bl){c.fillStyle='#FFD23F';c.font='900 11px sans-serif';c.textAlign='center';c.fillText('✦',12,-8);}},true);}
 function drawShips(ks,now){SHIP_HITS.length=0;if(!S||pzOn()||!S.fleet)return;
   const T=S.day+(UI.speed?clamp(acc/DAY_MS,0,0.999):0),z=cam.z,sc=Math.max(0.85,Math.min(1.5,Math.sqrt(z)))*(lodFar()?0.9:1.05),list=[];
   for(const s of SHIPS){const p=shipAt(s,T);if(p.m==='port'&&z<1.1)continue;list.push({p,s,col:s.club==='prv'?'#7A5CFF':'#FF4D5E'});}
   for(const l of S.links)if(layOwn(l)&&l.ready>S.day&&T>=layStart(l)){const g=linkGeom(l),q=layDone(l,T),two=!!l.ship2;
     const put=(t,k,dir)=>{const [x,y]=polyAt(g.pts,g.cum,clamp(t,0,1)),[x2]=polyAt(g.pts,g.cum,clamp(t+dir*0.01,0,1));list.push({p:{x,y,m:'lay',dx:x2-x||dir},lay:l,k,col:'#16A866'});};
     if(two){put(q/2,0,1);put(1-q/2,1,-1);}else put(q,0,1);}
-  for(const it of list)for(const k of ks){const [sx,sy]=toS(it.p.x,it.p.y,k);if(sx<-30||sx>CW+30||sy<-30||sy>CH+30)continue;
+  // A ship near its port keeps SHIP_CLEAR px from the city's marker on screen (out along the line from the city), so a tap
+  // on the city does not land on the ship: at anchor the ship rides only a few km out, which is no distance zoomed out.
+  const clr=SHIP_CLEAR*iconScale();
+  for(const it of list)for(const k of ks){let [sx,sy]=toS(it.p.x,it.p.y,k);
+    if(it.s){const C=CITY[it.s.home],[cx,cy]=toS(C.x,C.y,k),dx=sx-cx,dy=sy-cy,d=Math.hypot(dx,dy);if(d<clr){const ux=d>0.5?dx/d:0.8,uy=d>0.5?dy/d:0.6;sx=cx+ux*clr;sy=cy+uy*clr;}}
+    if(sx<-30||sx>CW+30||sy<-30||sy>CH+30)continue;
     const oy=it.p.m==='work'?-18*sc:0;shipSprite(sx,sy+oy,it.p.dx<0?-1:1,sc,it.col,now,it.p.m);SHIP_HITS.push({x:sx,y:sy+oy,r:14*sc,it});}}
 function shipHit(cx,cy){const r=cv.getBoundingClientRect(),x=cx-r.left,y=cy-r.top;let best=null,bd=Infinity;
   for(const h of SHIP_HITS){const d=Math.hypot(h.x-x,h.y-y);if(d<=h.r+6&&d<bd){bd=d;best=h.it;}}return best;}
