@@ -1,12 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { lit } = require('../scripts/lib/js-literal');
 
 function setup(ev) {
   ev("ACT.start({});S.cash=1e9;S.lvl=6;S.nextFail=S.nextEvent=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});S.pops.ams.rgen=3;ACT.buyIx({city:'ams',tier:1});compute()");
 }
 // Math.random returns these, then 0.5: [ask?, which IX, a real network?, (which one), fresh PeeringDB?]
-const seq = (ev, a) => ev(`(()=>{const q=${JSON.stringify(a)};Math.random=()=>q.length?q.shift():0.5;})()`);
+const seq = (ev, a) => ev(`(()=>{const q=${lit(a)};Math.random=()=>q.length?q.shift():0.5;})()`);
 const REAL = [0.01, 0.01, 0.01, 0.01, 0.01], STALE = [0.01, 0.01, 0.9, 0.1], FRESH = [0.01, 0.01, 0.9, 0.9];
 
 test('peering requests are answered by policy: Open accepts all, Selective the worthwhile ones, Closed none', () => {
@@ -108,9 +109,9 @@ test('old saves with inbox, max-prefix and Large Peering Model state load and pl
 test('max-prefix incidents can no longer fire', () => {
   const { ev, errors } = load();
   setup(ev);
-  assert.equal(ev("fireFailure.toString().includes('maxpfx')"), false);
-  ev("S.day=100;const src=fireFailure.toString().replace(/^function fireFailure/,'function').replace('let tot=opts.reduce',\"opts.splice(0,opts.length,['funny',1]);let tot=opts.reduce\");window.__ff=eval('('+src+')')");
-  ev("__reseed(7);for(let i=0;i<200;i++){__ff();S.inc=S.inc.filter(x=>x.type!=='maxpfx'||(window.__mp=1,0));}");
+  assert.equal(ev("failureRun.toString().includes('maxpfx')"), false);
+  ev("S.day=100;const src=failureRun.toString().replace(/^function\* failureRun/,'function*').replace('let tot=opts.reduce',\"opts.splice(0,opts.length,['funny',1]);let tot=opts.reduce\");window.__ff=eval('('+src+')')");
+  ev("__reseed(7);for(let i=0;i<200;i++){runNow(__ff());S.inc=S.inc.filter(x=>x.type!=='maxpfx'||(window.__mp=1,0));}");
   assert.equal(ev('!!window.__mp'), false);
   assert.equal(ev("typeof inboxDay+typeof ibx+typeof ACT.inboxRaiseAll+typeof ACT.inboxBot"), 'undefinedundefinedundefinedundefined');
   assert.deepEqual(errors, []);

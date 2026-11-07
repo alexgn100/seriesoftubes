@@ -104,7 +104,7 @@ function drawFrame(now){
   const farL=lodFar();
   // Which cities show an offer bubble (a big one?) or an incident marker, worked out once for all of them.
   CM.off=new Set();CM.big=new Set();for(const o of S.offers){const big=BIZ_T[o.type].lv>=3||BIZ_T[o.type].event;for(const c of bCities(o)){CM.off.add(c);if(big)CM.big.add(c);}}
-  CM.inc=new Set(S.inc.filter(i=>i.type!=='leak').map(i=>i.ref));CM.far=farL;
+  CM.inc=new Set(S.inc.filter(i=>i.type!=='leak').map(i=>i.ref));CM.far=farL;CM.dish=pieDishMap();CM.dl=CM.dish&&R&&R.pie?R.pie.load:null;
   // Zoomed in, crowded small cities give way to bigger ones and become dots (75-city-size.js).
   const csc=cityScale(sc);if(farL)for(const v of vis)v.dem=false;else cityRoom(vis,csc);
   if(pzOn()&&!farL)for(const v of vis)if(pzQuiet(v.C.id))v.dem=true;
@@ -126,7 +126,7 @@ function drawFrame(now){
   // the chaos monkey (woken here after a reload, wherever it last snipped)
   if(UI.mk)mkDraw(ks);else if(mkOn()&&!pzOn()&&CITY[S.monkey.c])mkStart(S.monkey.c);
   // floaters
-  for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1){FLOATS.splice(i,1);continue;}
+  for(let i=FLOATS.length-1;i>=0;i--){const f=FLOATS[i],a=(now-f.t)/1600;if(a>1||f.s!==S){FLOATS.splice(i,1);continue;}
     const font='800 17px "Baloo 2", sans-serif';if(f.w===undefined){ctx.font=font;f.w=ctx.measureText(f.text).width;}
     for(const k of ks){const [sx,sy]=toS(f.x,f.y,k);ctx.globalAlpha=1-a*a;textStamp(f.text,font,17,f.w,f.col,'#fff',4,sx,sy-a*40);ctx.globalAlpha=1;}}
 }

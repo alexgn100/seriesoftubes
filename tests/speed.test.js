@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { lit } = require('../scripts/lib/js-literal');
 
 // A network on four continents: POPs, waves, transit, IX ports, PNIs, caches and customers.
 function bigNet(ev) {
@@ -117,7 +118,7 @@ test('the map keeps fiber capacities for one frame only, and skips links above o
   const calls = (body) => ev(`(()=>{cam.x=CITY.fra.x;cam.y=CITY.fra.y+${'2000'};cam.z=2;${body};const n=ctx.calls.n;draw(0);return ctx.calls.n-n;})()`);
   const withLinks = calls(''), links = ev('JSON.stringify(S.links)');
   assert.equal(withLinks, calls('S.links=[]'));
-  ev(`S.links=JSON.parse(${JSON.stringify(links)})`);
+  ev(`S.links=JSON.parse(${lit(links)})`);
   assert.deepEqual(errors, []);
 });
 
@@ -237,6 +238,22 @@ test('payday money floaters fade after a long pause instead of piling up', () =>
   assert.deepEqual(errors, []);
 });
 
+test("a new network starts without the last one's money floating over its map", () => {
+  const { ev, errors } = load();
+  bigNet(ev);
+  ev("closeModal();ACT.animSet({v:'on'});setPref('pauseFurious',false);setPref('pauseIncident',false);window.__clk=5000;performance.now=()=>__clk;last=__clk;UI.speed=1");
+  const run = (ms) => { for (let t = 0; t < ms; t += 16) ev('__clk+=16;frame(__clk)'); };
+  run(2000);
+  ev('while(cal(S.day+1).d!==1)dayTick();acc=DAY_MS');
+  run(16);
+  assert.ok(ev('FLOATS.length') > 0, 'payday shows the money');
+  // A new game straight away: it waits, paused, for the player's first POP, and the clock of the floaters with it.
+  ev("ACT.newgame();ACT.start({});closeModal();UI.speed=0");
+  run(100);
+  assert.equal(ev('FLOATS.length'), 0, "the old network's floaters are gone");
+  assert.deepEqual(errors, []);
+});
+
 test('the map is not drawn while the dashboard covers the whole screen', () => {
   const { ev, errors } = load();
   bigNet(ev);
@@ -272,7 +289,7 @@ test('the map is not drawn while the dashboard covers the whole screen', () => {
 function plainCompute(ev) {
   const src = ev('compute.toString()');
   let plain = src
-    .replace('if(!lst.hi&&ALONE[fci])', 'if(false)')
+    .replace('if(!lst.hi&&!lst.mx&&ALONE[fci])', 'if(false)')
     .replace('if(!GN){\n        // One scan', 'if(false){\n        // One scan')
     .replace('const ns=e.nets||NET_IDS;', 'const ns=NET_IDS;')
     .replace('if(P.dead)return 0;', '').replaceAll('if(r<=1e-6){P.dead=1;return 0;}', '')
@@ -336,7 +353,7 @@ test('Auto-TE routes around a full link exactly like the plain path', () => {
     S.ixp={};S.pni=[];S.caches=[];S.te={on:true,day:0};S.core={lv:2,run:2,legacy:true};S.nextFail=1e9;S.nextEvent=1e9;`);
   const sig = () => ev('JSON.stringify({served:R.served,teMoved:R.teMoved,egT:R.egT,load:S.links.map(l=>R.load[l.id]||0),node:R.nodeLoad,t:R.useT})');
   for (const script of ['', 'spill at 70%']) {
-    ev(`S.te.script=${JSON.stringify(script)}`);
+    ev(`S.te.script=${lit(script)}`);
     ev('compute()'); const fast = sig();
     ev('__plain()'); const ref = sig();
     assert.equal(fast, ref, `fast and plain route the same around the full link (${script || 'no script'})`);

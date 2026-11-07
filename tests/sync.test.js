@@ -284,7 +284,7 @@ test('a device with its own networks gets the cloud network as a new one, and ke
   } finally { await s.close(); }
 });
 
-test('nothing syncs while the route worker has half a day in flight', async () => {
+test('nothing syncs while a day is in flight; the push goes up when the day lands', async () => {
   const s = await server();
   try {
     const a = device(s.base);
@@ -292,16 +292,25 @@ test('nothing syncs while the route worker has half a day in flight', async () =
     await a.ev("cloudAuth('register','jana','password1')");
     assert.equal(a.ev('CL.rev'), 1);
     a.ev('for(let i=0;i<3;i++)dayTick()');
-    // A day is out at the worker: S is half a day, which is never saved, so never pushed either.
-    a.ev('RW.job={seq:1}');
+    // A day is out (at the worker, or resting between its steps): S is half a day, never saved, so never pushed either.
+    a.ev('RW.job={seq:1,state:S}');
     a.ev('cloudTick()');
-    assert.equal(a.ev('UI.clBusy'), false, 'the minute tick leaves it alone');
-    a.ev('window.__P=cloudPush()');
     await new Promise((r) => setTimeout(r, 100));
-    assert.equal(a.ev('CL.rev'), 1, 'a push waits for the day to land');
-    a.ev('RW.job=null');
-    await a.ev('__P');
-    assert.equal(a.ev('CL.rev'), 2);
+    assert.equal(a.ev('CL.rev'), 1, 'the minute tick leaves it alone');
+    assert.ok(a.ev('UI.clDue'), 'but the push is due');
+    a.ev('RW.job=null;rwDayDone()');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(a.ev('CL.rev'), 2, 'and goes up when the day lands');
+    assert.equal(a.ev('UI.clDue'), null);
+    // A cloud copy loaded while a push was due: nothing left to send when the day lands.
+    a.ev('RW.job={seq:2,state:S};for(let i=0;i<2;i++)S.day++');
+    a.ev('cloudTick()');
+    assert.ok(a.ev('UI.clDue'));
+    const before = (await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j.rev;
+    await a.ev("cloudPull('take')");
+    a.ev('RW.job=null;rwDayDone()');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal((await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j.rev, before, 'the loaded copy is not pushed back');
     assert.deepEqual(a.errors, []);
   } finally { await s.close(); }
 });

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { lit } = require('../scripts/lib/js-literal');
 
 function start(ev) { ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0"); }
 
@@ -177,7 +178,7 @@ test('routers: wave and port sizes match what the box can actually take', () => 
   assert.equal(ev("LT[RG[3].maxLT].n"), '6.4T');
   // an old save with a 1.6T wave (old tier 3) keeps its 1.6T wave after migration
   const old = ev("(()=>{const s=JSON.parse(JSON.stringify(S));delete s.ltv;s.links=[{id:'x',a:'fra',b:'ams',kind:'wave',tier:3,km:364,mo:1,cut:0}];s.pops.ams={day:0,routers:1};return JSON.stringify(s)})()");
-  assert.equal(ev(`LT[migrate(JSON.parse(${JSON.stringify(old)})).links[0].tier].n`), '1.6T');
+  assert.equal(ev(`LT[migrate(JSON.parse(${lit(old)})).links[0].tier].n`), '1.6T');
 });
 
 test('London–Amsterdam: many cheap cables and dark fiber you can lease under the sea', () => {
@@ -409,9 +410,9 @@ test('#22 Tier 1 networks can lay their own subsea cable', () => {
   const { ev, dom, errors } = load();
   ev("ACT.start({});S.cash=2e8;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'lon'});ACT.buildPop({city:'nyc'});compute()");
   const card = () => dom.window.document.getElementById('modalCard').textContent;
-  // not before Tier 1
+  // not before Tier 1 or customer level 9 (#300)
   ev("UI.lmode='df';UI.via=null;openLinkModal('lon','nyc')");
-  assert.match(card(), /Tier 1 only/);
+  assert.match(card(), /level 9 or Tier 1/);
   assert.match(ev("ownCabWhy('lon','nyc')"), /Tier 1/);
   ev('ACT.orderCable()');
   assert.equal(ev("S.links.filter(l=>l.own&&l.sub).length"), 0, 'refused before Tier 1');
@@ -457,9 +458,9 @@ test('#76 Kansas City, Calgary, Vancouver and Ottawa, with two more Canadian gia
   assert.equal(ev("NET.tlu.up.every(id=>NET[id].type==='t1')&&NET.rgc.up.every(id=>NET[id].type==='t1')"), true);
   // a cut on a Canadian link is often a beaver
   ev("ACT.buildPop({city:'van'});ACT.buildPop({city:'cal'});S.links=[];UI.via=null;openLinkModal('van','cal');ACT.buildLink({tier:1});closeModal()");
-  const src = ev('fireFailure.toString()').replace(/^function fireFailure/, 'function');
+  const src = ev('failureRun.toString()').replace(/^function\* failureRun/, 'function*');
   ev('window.__ff=' + src.replace('type=pick(f);}', "type='cut';}"));
-  ev("for(let i=0;i<40&&!(S.stats.f&&S.stats.f.beaver);i++){for(const l of S.links)l.cut=0;S.inc=[];__ff();}");
+  ev("for(let i=0;i<40&&!(S.stats.f&&S.stats.f.beaver);i++){for(const l of S.links)l.cut=0;S.inc=[];runNow(__ff());}");
   assert.ok(ev("!!(S.stats.f&&S.stats.f.beaver)"), 'a beaver chewed through it');
   ev('checkBadges()');
   assert.ok(ev("(S.badges||[]).includes('beaver')||!!(S.badge&&S.badge.beaver)||BADGES.find(b=>b.id==='beaver').ok()"), 'Dam It');
@@ -503,13 +504,13 @@ test('#79 Benelux: Brussels red tape, the Flanders duopoly, Oostkamp trawlers an
   assert.ok(ev("cablesFor('lon','oos').some(c=>c.cid==='clementine')"));
   ev("ACT.buildPop({city:'lon'});ACT.buildPop({city:'oos'});S.links=[];UI.lmode='wave';UI.via='clementine';openLinkModal('lon','oos');ACT.buildLink({tier:1});closeModal()");
   assert.equal(ev("S.links.length&&S.links[0].sub"), true);
-  const src = ev('fireFailure.toString()').replace(/^function fireFailure/, 'function');
+  const src = ev('failureRun.toString()').replace(/^function\* failureRun/, 'function*');
   ev('window.__ff=' + src.replace('type=pick(f);}', "type='cut';}"));
-  ev("for(let i=0;i<30&&!S.log.some(e=>/trawler|wind-farm/.test(e.t));i++){for(const l of S.links)l.cut=0;S.inc=[];__ff();}");
+  ev("for(let i=0;i<30&&!S.log.some(e=>/trawler|wind-farm/.test(e.t));i++){for(const l of S.links)l.cut=0;S.inc=[];runNow(__ff());}");
   assert.ok(ev("S.log.some(e=>/trawler|wind-farm/.test(e.t))"), 'a North Sea boat found the cable');
   // Bettembourg's chillers run on steam from burning waste wood
   ev("S.pops={bet:{day:0,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0}};window.__ac=" + src.replace('type=pick(f);}', "type='ac';}"));
-  ev("for(let i=0;i<20&&!S.log.some(e=>/waste-wood/.test(e.t));i++){S.pops.bet.hot=0;S.inc=[];__ac();}");
+  ev("for(let i=0;i<20&&!S.log.some(e=>/waste-wood/.test(e.t));i++){S.pops.bet.hot=0;S.inc=[];runNow(__ac());}");
   assert.ok(ev("S.log.some(e=>/waste-wood/.test(e.t))"), 'the forestry strike');
   assert.deepEqual(errors, []);
 });
@@ -691,18 +692,18 @@ test('Australian failures: cockatoos, kangaroos and emus cut land fiber, and rou
   ev("ACT.pickStart({city:'syd'});ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0");
   ev("ACT.buildPop({city:'mel'});S.links=[];UI.via=null;UI.lmode='wave';openLinkModal('syd','mel');ACT.buildLink({tier:1});closeModal()");
   assert.equal(ev('S.links.length'), 1);
-  const src = ev('fireFailure.toString()').replace(/^function fireFailure/, 'function');
+  const src = ev('failureRun.toString()').replace(/^function\* failureRun/, 'function*');
   const AU = /cockatoo|kangaroo|backhoe|emus|Bushfire|copper/;
   ev('window.__cut=' + src.replace('type=pick(f);}', "type='cut';}"));
   let seen = false;
-  for (let i = 0; i < 30 && !seen; i++) { ev('for(const l of S.links)l.cut=0;S.inc=[];__cut()'); seen = AU.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
+  for (let i = 0; i < 30 && !seen; i++) { ev('for(const l of S.links)l.cut=0;S.inc=[];runNow(__cut())'); seen = AU.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
   assert.ok(seen, 'an Australian wildlife cut');
   seen = false;
-  for (let i = 0; i < 80 && !seen; i++) { ev('for(const l of S.links)l.cut=0;S.inc=[];__cut()'); seen = /copper/.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
+  for (let i = 0; i < 80 && !seen; i++) { ev('for(const l of S.links)l.cut=0;S.inc=[];runNow(__cut())'); seen = /copper/.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
   assert.ok(seen, 'copper thieves who find fiber');
   ev('window.__crash=' + src.replace('type=pick(f);}', "type='crash';}"));
   seen = false;
-  for (let i = 0; i < 40 && !seen; i++) { ev('for(const c in S.pops){S.pops[c].down=0;S.pops[c].routers=1;}S.inc=[];__crash()'); seen = /Floptus|huntsman/.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
+  for (let i = 0; i < 40 && !seen; i++) { ev('for(const c in S.pops){S.pops[c].down=0;S.pops[c].routers=1;}S.inc=[];runNow(__crash())'); seen = /Floptus|huntsman/.test(ev("S.inc.map(x=>x.msg).join(' ')")); }
   assert.ok(seen, 'an Australian router crash');
   assert.deepEqual(errors, []);
 });
@@ -737,11 +738,11 @@ test('Pacific islands: real landings, real exchanges only, and island hops carry
   }
   // only islands with a working exchange today get one
   assert.deepEqual(isl.filter(c => ev(`!!CITY['${c}'].ix`)), ['hnl', 'gum', 'hir', 'nou', 'suv']);
-  assert.equal(ev(`NETS.filter(n=>Array.isArray(n.ix)&&n.ix.some(c=>CITY[c]&&!CITY[c].ix&&${JSON.stringify(isl)}.includes(c))).length`), 0);
+  assert.equal(ev(`NETS.filter(n=>Array.isArray(n.ix)&&n.ix.some(c=>CITY[c]&&!CITY[c].ix&&${lit(isl)}.includes(c))).length`), 0);
   // every new network is reachable through a Tier 1, so Tier 1 players keep their reach
-  assert.equal(ev(`NETS.filter(n=>n.type!=='t1'&&n.pops.every(c=>${JSON.stringify(isl)}.includes(c)||['tok','syd','lax'].includes(c))&&n.pops.some(c=>${JSON.stringify(isl)}.includes(c))&&!(n.up||[]).some(u=>NET[u].type==='t1')).map(n=>n.id).join()`), '');
+  assert.equal(ev(`NETS.filter(n=>n.type!=='t1'&&n.pops.every(c=>${lit(isl)}.includes(c)||['tok','syd','lax'].includes(c))&&n.pops.some(c=>${lit(isl)}.includes(c))&&!(n.up||[]).some(u=>NET[u].type==='t1')).map(n=>n.id).join()`), '');
   // a wave across the whole ocean carries far less than the same trip broken at the islands
-  const hop = (path) => ev(`Math.min(...${JSON.stringify(path)}.slice(1).map((c,i)=>Math.max(...cablesFor(${JSON.stringify(path)}[i],c).map(p=>subCarrier(p.km)))))`);
+  const hop = (path) => ev(`Math.min(...${lit(path)}.slice(1).map((c,i)=>Math.max(...cablesFor(${lit(path)}[i],c).map(p=>subCarrier(p.km)))))`);
   const direct = (a, b) => ev(`Math.max(...cablesFor('${a}','${b}').map(p=>subCarrier(p.km)))`);
   assert.equal(direct('sjc', 'syd'), 400);
   assert.equal(hop(['sjc', 'hnl', 'suv', 'syd']), 1600, 'California to Sydney via Hawaii and Fiji');
@@ -783,7 +784,7 @@ test('Atlantic islands and Halifax: real landings, real exchanges only, and isla
   assert.equal(ev("isSub('hfx','mtl')"), false, 'Halifax is on the mainland');
   // exchanges only where one runs today: CVIXP in Praia and HFXIX in Halifax
   assert.deepEqual(isl.concat('hfx').filter(c => ev(`!!CITY['${c}'].ix`)), ['rai', 'hfx']);
-  assert.equal(ev(`NETS.filter(n=>Array.isArray(n.ix)&&n.ix.some(c=>CITY[c]&&!CITY[c].ix&&${JSON.stringify(isl)}.includes(c))).length`), 0);
+  assert.equal(ev(`NETS.filter(n=>Array.isArray(n.ix)&&n.ix.some(c=>CITY[c]&&!CITY[c].ix&&${lit(isl)}.includes(c))).length`), 0);
   // the real landings named in the issue
   const lands = (cid, a, b) => ev(`CABLE_PAIRS.some(p=>p.cid==='${cid}'&&[p.a,p.b].sort().join()==='${[a, b].sort().join()}')`);
   assert.ok(lands('hibx', 'hfx', 'lon') && lands('nuvem', 'bda', 'lis') && lands('sol', 'bda', 'pdl') && lands('ella', 'for', 'rai') && lands('equi', 'lag', 'jam'));
@@ -792,8 +793,8 @@ test('Atlantic islands and Halifax: real landings, real exchanges only, and isla
   assert.equal(ev("CAB.hibx.pairs[0].slice(0,2).join()"), 'nyc,lon');
   assert.equal(ev("CAB.nuvem.pairs[0].slice(0,2).join()"), 'lis,atn');
   // every island network still reaches a Tier 1
-  assert.equal(ev(`NETS.filter(n=>n.type!=='t1'&&n.pops.some(c=>${JSON.stringify(isl)}.includes(c))&&!(n.up||[]).some(u=>NET[u].type==='t1')&&!n.pops.some(c=>!${JSON.stringify(isl)}.includes(c))).map(n=>n.id).join()`), '');
-  const hop = (path) => ev(`Math.min(...${JSON.stringify(path)}.slice(1).map((c,i)=>Math.max(...cablesFor(${JSON.stringify(path)}[i],c).map(p=>subCarrier(p.km)))))`);
+  assert.equal(ev(`NETS.filter(n=>n.type!=='t1'&&n.pops.some(c=>${lit(isl)}.includes(c))&&!(n.up||[]).some(u=>NET[u].type==='t1')&&!n.pops.some(c=>!${lit(isl)}.includes(c))).map(n=>n.id).join()`), '');
+  const hop = (path) => ev(`Math.min(...${lit(path)}.slice(1).map((c,i)=>Math.max(...cablesFor(${lit(path)}[i],c).map(p=>subCarrier(p.km)))))`);
   const direct = (a, b) => ev(`Math.max(...cablesFor('${a}','${b}').map(p=>subCarrier(p.km)))`);
   assert.equal(direct('mia', 'mad'), 1200);
   assert.equal(hop(['mia', 'bda', 'pdl', 'bio']), 1600, 'Florida to Spain via Bermuda and the Azores');

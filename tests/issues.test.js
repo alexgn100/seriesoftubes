@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { lit } = require('../scripts/lib/js-literal');
 
 function base(ev) {
   ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
@@ -39,8 +40,8 @@ test('#5 export writes a file and import restores it, with checks', () => {
   ev("S.cash=1;S.name='Other'");
   assert.match(ev(`parseSave('{"nope":1}').err`), /does not look/);
   assert.match(ev(`parseSave('not json').err`), /not valid JSON/);
-  assert.match(ev(`parseSave(JSON.stringify(Object.assign(JSON.parse(${JSON.stringify(txt)}).S,{lost:true}))).err`), /bankrupt/);
-  ev(`UI.importing=parseSave(${JSON.stringify(txt)}).s;ACT.importGo()`);
+  assert.match(ev(`parseSave(JSON.stringify(Object.assign(JSON.parse(${lit(txt)}).S,{lost:true}))).err`), /bankrupt/);
+  ev(`UI.importing=parseSave(${lit(txt)}).s;ACT.importGo()`);
   assert.equal(ev("S.name"), 'Export Me');
   assert.equal(ev("S.cash"), 1234567);
   assert.equal(ev("JSON.parse(slotRaw(UI.slot)).name"), 'Export Me', 'saved on this device');
@@ -255,8 +256,8 @@ test('LACP trouble, partial packet loss and PMTUD black holes fire, hurt and cle
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
   ev("ACT.buildPop({city:'ams'});UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal();ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.lagT({id:S.transit[0].id,d:1});ACT.buyIx({city:'ams',tier:1});ACT.lagIx({city:'ams',d:1});S.day=100;compute()");
-  const src = ev('fireFailure.toString()').replace(/^function fireFailure/, 'function').replace('let tot=opts.reduce', "opts.splice(0,opts.length,['funny',1]);let tot=opts.reduce");
-  const fire = (t) => { ev('window.__ff=' + src.replace('type=pick(f);}', `type='${t}';}`)); ev('__ff();compute()'); };
+  const src = ev('failureRun.toString()').replace(/^function\* failureRun/, 'function*').replace('let tot=opts.reduce', "opts.splice(0,opts.length,['funny',1]);let tot=opts.reduce");
+  const fire = (t) => { ev('window.__ff=' + src.replace('type=pick(f);}', `type='${t}';}`)); ev('runNow(__ff());compute()'); };
   for (let i = 0; i < 12; i++) { fire('lacp'); }
   assert.ok(ev("S.inc.some(i=>i.type==='lacp')"), 'LACP incidents fire');
   assert.ok(ev("S.transit[0].lacp||S.ev.ixlacp"), 'a LAG is degraded');
@@ -599,17 +600,18 @@ test('#66 #68 subsea optics: engineered glass reaches further, and the same limi
   // counted as land glass it would be 400G, which is what #66 saw
   ev("S.links.find(l=>l.id==='oc').sub=false;compute()");
   assert.equal(ev("dfCap(S.links.find(l=>l.id==='oc'))"), 400);
-  // leased waves: transatlantic London–New York still takes 6.4T (4×1.6T); Paris–Ashburn tops out at 800G
+  // leased waves: transatlantic London–New York still takes 6.4T (4×1.6T); Nantes–Ashburn tops out at 800G
   assert.equal(ev("subWaveWhy(5,cablesFor('lon','nyc')[0].km,true)"), '');
-  assert.match(ev("subWaveWhy(4,cablesFor('par','ash')[0].km,true)"), /at most 1.2T per carrier/);
-  assert.equal(ev("LT[subMaxTier(cablesFor('par','ash')[0].km)].n"), '800G');
+  assert.match(ev("subWaveWhy(4,cablesFor('nte','ash')[0].km,true)"), /at most 1.2T per carrier/);
+  assert.equal(ev("LT[subMaxTier(cablesFor('nte','ash')[0].km)].n"), '800G');
   assert.equal(ev("LT[subMaxTier(14000)].n"), '400G', 'the longest cables carry 400G waves');
   assert.equal(ev("subWaveWhy(5,4000,false)"), '', 'land waves are not capped this way');
   // buying a too-big wave is refused; an old one keeps running
-  ev("UI.pending={a:'par',b:'ash'};UI.via=cablesFor('par','ash')[0].cid;const n=S.links.length;ACT.buildLink({tier:4});window.__d=S.links.length-n");
-  assert.equal(ev('__d'), 0, 'no 1.6T wave across 6,670 km');
+  ev("ACT.buildPop({city:'nte'});S.pops.nte.rgen=3;compute()");
+  ev("UI.pending={a:'nte',b:'ash'};UI.via=cablesFor('nte','ash')[0].cid;const n=S.links.length;ACT.buildLink({tier:4});window.__d=S.links.length-n");
+  assert.equal(ev('__d'), 0, 'no 1.6T wave across 6,473 km');
   ev("ACT.buildLink({tier:3})");
-  const w = "S.links.find(l=>l.kind==='wave'&&l.a==='par')";
+  const w = "S.links.find(l=>l.kind==='wave'&&(l.a==='nte'||l.b==='nte'))";
   assert.equal(ev(`${w}.tier`), 3, '800G is fine');
   ev(`ACT.upLink({id:${w}.id,tier:4})`);
   assert.equal(ev(`${w}.tier`), 3, 'and it cannot be upgraded past the cable');
@@ -685,7 +687,7 @@ test('NOC leased lines tab prices leased dark fiber, own fiber and cables agains
   assert.match(t, /Amsterdam ⇄ Frankfurt/);
   assert.match(t, /Lease dark fiber: .* up front/);
   assert.match(t, /Your own fiber: .* up front/);
-  assert.match(t, /Go transit-free first/, 'own subsea cables stay Tier 1 only');
+  assert.match(t, /level 9, or Tier 1/, 'own subsea cables need customer level 9 or Tier 1 (#300)');
   const land = JSON.parse(ev("JSON.stringify(leaseSwaps().find(x=>x.a==='ams'))"));
   assert.equal(land.ls.length, 2, 'parallel waves on one route are grouped');
   assert.equal(land.cap, 800);
@@ -725,7 +727,7 @@ test('connections in the NOC dashboard can be cancelled right there, after a con
   base(ev);
   ev("ACT.buildPop({city:'ams'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyIx({city:'ams',tier:1});S.pni.push({id:'pn1',city:'fra',net:'nfx',tier:1});S.caches.push({id:'cc1',city:'fra',net:'ggl'},{id:'cc2',city:'fra',net:'ggl'});S.nni.push({city:'fra',prov:'mgp',tier:0});compute();ACT.connOpen()");
   const card = () => ev("document.getElementById('dashCard').textContent");
-  const click = (k, id) => ev(`ACT.connCancel(${JSON.stringify({ k, id })})`);
+  const click = (k, id) => ev(`ACT.connCancel(${lit({ k, id })})`);
   assert.equal(ev("conns().length"), 5);
   const tid = ev("S.transit[0].id");
   click('t', tid);
@@ -769,7 +771,8 @@ test('connections in the NOC dashboard can be upgraded and grown into LAGs right
   assert.equal(ev("S.ixp.ams"), 2);
   assert.ok(tap('buyNni'));
   assert.equal(ev("S.nni[0].tier"), 1);
-  assert.equal(ev("document.querySelector('#dashCard [data-act=\"buyNni\"]')"), null, 'no upgrade past the biggest fabric port');
+  assert.ok(tap('lagNni'), 'a fabric port bundles into a LAG too (#140)');
+  assert.equal(ev("S.nni[0].n"), 2);
   assert.equal(ev("document.getElementById('dash').hidden"), false);
   assert.deepEqual(errors, []);
 });
@@ -912,7 +915,7 @@ test('opening a link on desktop keeps the NOC sidebar available', () => {
 test('#77 waves can join any route already dug between two cities', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'})");
-  const add = r => ev(`UI.via=null;UI.lmode='wave';UI.route=${JSON.stringify(r)};openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal()`);
+  const add = r => ev(`UI.via=null;UI.lmode='wave';UI.route=${lit(r)};openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal()`);
   add('diverse');                                   // first wave: the main route
   add('diverse');                                   // second: a diverse route
   const ts = () => JSON.parse(ev("JSON.stringify(landTrenches('fra','ams').map(t=>[t.k,t.n]))"));
@@ -1218,7 +1221,7 @@ test('#113 Red Sea Crisis wants traffic into Asia for a month, not broadband and
     for(const p of CABLE_PAIRS){if(bp.has(p.cid+':'+p.a+'-'+p.b)||bp.has(p.cid+':'+p.b+'-'+p.a)||bc.has(p.a)||bc.has(p.b))continue;(adj[p.a]=adj[p.a]||[]).push([p.b,p.km]);(adj[p.b]=adj[p.b]||[]).push([p.a,p.km]);}
     const D={mrs:0},P={},Q=['mrs'],seen=new Set();while(Q.length){Q.sort((x,y)=>D[x]-D[y]);const u=Q.shift();if(seen.has(u))continue;seen.add(u);for(const [v,km] of adj[u]||[]){if(D[v]===undefined||D[u]+km<D[v]){D[v]=D[u]+km;P[v]=u;Q.push(v);}}}
     const r=['sin'];while(r[0]!=='mrs')r.unshift(P[r[0]]);return JSON.stringify(r);})()`));
-  const build = (tier) => ev(`for(const c of ${JSON.stringify(route)})if(!S.pops[c])ACT.buildPop({city:c});const r=${JSON.stringify(route)};
+  const build = (tier) => ev(`for(const c of ${lit(route)})if(!S.pops[c])ACT.buildPop({city:c});const r=${lit(route)};
     for(let i=1;i<r.length;i++){UI.pending=null;UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal(r[i-1],r[i]);ACT.buildLink({tier:${tier}});closeModal();}`);
   // the old exploit: broadband with local transit everywhere for 300 Gbps served, and a 10G path
   build(0);
@@ -1313,7 +1316,7 @@ test('#134 an exchange named after its city does not repeat the city in messages
   const labs = JSON.parse(ev("JSON.stringify(lagsN().filter(o=>o.k==='ix').map(o=>o.lab))"));
   assert.ok(labs.includes('IX.brrr Campinas LAG'), labs.join(' | '));
   assert.ok(labs.some(l => / LAG in Frankfurt$/.test(l)), labs.join(' | '));
-  ev("S.inc=[];eval('('+fireFailure.toString().replace(\"if(only)type=only;\",\"type='ixloop';\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')()");
+  ev("S.inc=[];runNow(eval('('+failureRun.toString().replace(\"if(only)type=only;\",\"type='ixloop';\").replace(\"const c=pick(Object.keys(S.ixp));\",\"const c='cpq';\")+')')())");
   const msg = ev("S.inc.map(i=>i.msg).join(' ')");
   assert.match(msg, /IX\.brrr Campinas/);
   assert.doesNotMatch(msg, /in Campinas/);

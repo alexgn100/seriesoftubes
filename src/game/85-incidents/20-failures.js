@@ -2,7 +2,12 @@
 const anchorProne=l=>!!(l.cable&&CAB[l.cable]&&CAB[l.cable].anchor)||anchorPair(l);
 // The wet season in the tropical north (November to April): floods close the tracks, so a cut on land takes twice as long to reach.
 const wetSeason=()=>{const m=cal(S.day).m;return m>=10||m<=3;},wetCut=l=>!l.sub&&!!(CITY[l.a].wet||CITY[l.b].wet)&&wetSeason();
-function fireFailure(only){
+/* failureRun() is a failure as a step of the day (10-day-tick.js): its yield is the routing that tells what it cost,
+   done by the route worker in play. fireFailure() is the same failure all at once, routed on the spot. */
+function fireFailure(only){runNow(failureRun(only));}
+// A step of the day played all at once: every routing it asks for, on the spot (tests, a failure outside a day).
+function runNow(g){dayGo(g,(g,v)=>g.next(v));}
+function* failureRun(only){
   const opts=[];
   const live=S.links.filter(l=>l.kind!=='vxc'&&!linkDown(l));const fabsUsed=[...new Set(S.links.filter(l=>l.kind==='vxc').map(l=>l.prov))];
   if(live.length){opts.push(['cut',2+Math.min(6,live.length/2)]);}
@@ -111,18 +116,20 @@ function fireFailure(only){
   }else if(type==='fabric'){
     const f=pick(fabsUsed);S.ev.fab=S.ev.fab||{};S.ev.fab[f]=S.day+2+Math.floor(Math.random()*3);
     addInc({type,ref:f,until:S.ev.fab[f],msg:tr('failures.fabric_is_having_a_bad_day',{fabric:FAB[f].name}),cost:0});
-  }else if(type==='ddos'){ddosAttack();return;
+  }else if(type==='ddos'){ddosAttack(false);yield;yield* ddosNewsRun();return;
   }
-  compute();
+  // This failure's incident, kept before the routing: the player may repair it (or another) while the worker routes.
   const last=S.inc[S.inc.length-1];
+  yield;
+  if(!last)return;
   last.impact=Math.max(0,before-R.served);
   if(before>1&&last.impact<before*0.03&&type!=='ddos'){S.stats.survived++;toast(`<b>${incTitle(type)}</b><br>${esc(last.msg)} ${tr('failures.traffic_rerouted_customers_barely')}`,'good',[],incOpen(last));}
-  else{const paused=pref('pauseIncident')&&autoPause();toast(`<b>${incTitle(type)}</b><br>${esc(last.msg)}${paused?`<br><b>${tr('common.game_paused')}</b>`:''}`,'bad',(last.cost?[{l:`${last.fix||tr('common.rush_repair')} ${fmt$(last.cost)}`,act:'fixInc',args:{id:last.id}}]:[]).concat(paused?[resumeAct()]:[]),incOpen(last));}
+  else{const paused=pref('pauseIncident')&&autoPause();toast(`<b>${incTitle(type)}</b><br>${esc(last.msg)}${paused?`<br><b>${tr('common.game_paused')}</b>`:''}`,'bad',(last.cost&&S.inc.includes(last)?[{l:`${last.fix||tr('common.rush_repair')} ${fmt$(last.cost)}`,act:'fixInc',args:{id:last.id}}]:[]).concat(paused?[resumeAct()]:[]),incOpen(last));}
   sfx('alert');
 }
 const gamingCount=()=>S.biz.reduce((n,b)=>n+(BIZ_T[b.type]?.gaming?1:0),0);
 const FLOOD_WHO=[N_('failures.a_botnet_of_40_000_smart'),N_('failures.every_unpatched_baby_monitor_in'),N_('failures.a_gaming_clan_that_lost_one'),N_('failures.a_fridge_that_achieved_sentience_and'),N_('failures.a_crypto_bro_shorting_your_stock'),N_('failures.a_teenager_with_a_stolen_credit'),N_('failures.a_rival_isp_s_stress_test'),N_('failures.ten_thousand_smart_light_bulbs'),N_('failures.a_printer_just_one_printer_nobody'),N_('failures.a_botnet_run_from_a_cloud'),N_('failures.somebody_who_did_not_like_your'),N_('failures.the_internet_connected_kettles_of_a')];
-function incTitle(t){return {ring:tr('failures.metro_ring_cut'),site:tr('common.site_outage'),cut:tr('common.fiber_cut'),crash:tr('common.router_crash'),power:tr('common.power_outage'),transit:tr('common.upstream_outage'),ixloop:tr('common.ix_meltdown'),leak:tr('common.route_leak'),ddos:tr('common.ddos_attack'),fabric:tr('common.fabric_outage'),depeer:tr('common.peering_spat'),fatwave:tr('failures.fat_fingered_wave'),label:tr('failures.patch_panel_mishap'),interop:tr('core.interop_failure'),mtu:tr('common.mtu_mismatch'),krroute:tr('failures.rerouted_via_hong_kong'),ctrlplane:tr('failures.control_plane_meltdown'),lacp:tr('common.lacp_trouble'),loss:tr('common.packet_loss'),pmtud:tr('failures.pmtud_black_hole'),oops:tr('common.oops'),cleaner:tr('common.vacuum_incident'),prepend:tr('common.prepend_ageddon'),rpki:tr('common.rpki_invalid'),amp:tr('common.amplifier_failure'),roadmff:tr('failures.fat_fingered_roadm'),optic:tr('common.dead_optic'),maint:tr('common.maintenance_window_3a92'),ac:tr('common.cooling_failure'),hijack:tr('common.bgp_hijack'),shutdown:tr('common.government_shutdown'),redsea:tr('failures.geopolitical_cable_cut')}[t]||tr('common.incident');}
+function incTitle(t){return {ring:tr('failures.metro_ring_cut'),site:tr('common.site_outage'),cut:tr('common.fiber_cut'),crash:tr('common.router_crash'),power:tr('common.power_outage'),transit:tr('common.upstream_outage'),ixloop:tr('common.ix_meltdown'),leak:tr('common.route_leak'),ddos:tr('common.ddos_attack'),fabric:tr('common.fabric_outage'),depeer:tr('common.peering_spat'),fatwave:tr('failures.fat_fingered_wave'),label:tr('failures.patch_panel_mishap'),interop:tr('core.interop_failure'),mtu:tr('common.mtu_mismatch'),krroute:tr('failures.rerouted_via_hong_kong'),ctrlplane:tr('failures.control_plane_meltdown'),lacp:tr('common.lacp_trouble'),loss:tr('common.packet_loss'),pmtud:tr('failures.pmtud_black_hole'),oops:tr('common.oops'),cleaner:tr('common.vacuum_incident'),prepend:tr('common.prepend_ageddon'),rpki:tr('common.rpki_invalid'),amp:tr('common.amplifier_failure'),roadmff:tr('failures.fat_fingered_roadm'),optic:tr('common.dead_optic'),maint:tr('common.maintenance_window_3a92'),ac:tr('common.cooling_failure'),hijack:tr('common.bgp_hijack'),shutdown:tr('common.government_shutdown'),redsea:tr('failures.geopolitical_cable_cut')}[t]||pieIncTitle(t)||tr('common.incident');}
 const LINKCUT_TR=['cut','redsea'],LINKCUT_ID=['fatwave','label','interop'],POPDOWN=['crash','power','oops','cleaner','maint','shutdown'],IXDOWN=['ixloop'],TDOWN=['transit','prepend'],LINKEQ=['mtu','amp','roadmff','optic'];
 function remainUntil(pred){let u=0;for(const x of S.inc)if(pred(x))u=Math.max(u,x.until);return u;}
 // Remove an incident, then restore each affected thing to whatever other incidents still hold it down.
@@ -145,6 +152,7 @@ function clearInc(i){
   else if(T==='ring'){if(S.pops[i.ref])S.pops[i.ref].ringcut=remainUntil(x=>x.type==='ring'&&x.ref===i.ref);}
   else if(T==='ac'){if(S.pops[i.ref])S.pops[i.ref].hot=remainUntil(x=>x.type==='ac'&&x.ref===i.ref);}
   else if(T==='amp'||T==='roadmff'){const l=S.links.find(x=>x.id===i.ref);if(l)l.eqDown=remainUntil(x=>(x.type==='amp'||x.type==='roadmff')&&x.ref===i.ref);}
+  else if(T.startsWith('pie'))pieIncClear(i);
   else if(T==='optic'){const l=S.links.find(x=>x.id===i.ref);if(l&&!S.inc.some(x=>x.type==='optic'&&x.ref===i.ref))l.chFail=null;}
 }
 function purgeInc(){S.inc=S.inc.filter(i=>{const T=i.type;if(LINKCUT_TR.includes(T))return S.links.some(l=>(l.trench||l.id)===i.ref);if(LINKCUT_ID.includes(T)||LINKEQ.includes(T))return S.links.some(l=>l.id===i.ref);if(TDOWN.includes(T))return S.transit.some(t=>t.id===i.ref);if(IXDOWN.includes(T))return S.ixp[i.ref]!==undefined;if(POPDOWN.includes(T)||T==='ac')return !!S.pops[i.ref];return true;});}

@@ -1,8 +1,15 @@
-.git
-.github
-.idea
-.claude
-node_modules
-_site
-docs
-tests
+# The image takes only what docker/Dockerfile copies; everything else (git history, tests, docs, local saves,
+# node_modules, _site) stays out of the build context.
+*
+!package.json
+!package-lock.json
+!src/
+!site/
+!scripts/
+!tests/harness.js
+!docker/docker-entrypoint.sh
+# This fork's game image (Dockerfile, built the release way with scripts/build.js, which bakes the CHANGELOG's notes)
+# and its cloud sync server (docker/sync.Dockerfile, docker-compose.yml).
+!CHANGELOG.md
+!docker/nginx.conf
+!server/

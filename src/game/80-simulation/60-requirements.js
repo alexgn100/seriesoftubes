@@ -1,7 +1,7 @@
 const GRACE_DAYS=60;
 const REQS={
  lat:{only:true,l2:true,bonus:0,l:o=>tr('requirements.one_way_latency_within_max_ms',{max:o.latMax,best:(()=>{const v=R.l2lat[o.id]!==undefined?R.l2lat[o.id]:bestLat(o.city,o.city2);return isFinite(v)?v.toFixed(1)+' ms':tr('common.no_path')})()}),ok:b=>(R.l2lat[b.id]!==undefined?R.l2lat[b.id]:bestLat(b.city,b.city2))<=b.latMax},
- nni:{only:true,bonus:0,l:o=>tr('requirements.comes_in_over_fab_needs_your',{fab:FAB[o.prov]?FAB[o.prov].name:'?',city:CITY[o.city].name,bw:fmtG(o.bw)}),ok:b=>{const pt=nniPort(b.city,b.prov);return !!pt&&nniUsed(b.city,b.prov)<=NNI[pt.tier].g+1e-9;}},
+ nni:{only:true,bonus:0,l:o=>tr('requirements.comes_in_over_fab_needs_your',{fab:FAB[o.prov]?FAB[o.prov].name:'?',city:CITY[o.city].name,bw:fmtG(o.bw)}),ok:b=>{const pt=nniPort(b.city,b.prov);return !!pt&&nniUsed(b.city,b.prov)+(S.biz.includes(b)?0:b.bw)<=nniCap(pt)+1e-9;}},
  diverse:{l:tr('requirements.two_paths_that_share_no_trench'),bonus:.25,l2:true,can:(b,s=S)=>diversityPossible(b.city,b.city2,s),ok:b=>R.div[b.id]!==undefined?!!R.div[b.id]:diversePaths(b.city,b.city2)},
  sharks:{l:tr('requirements.afraid_of_sharks_needs_a_path'),bonus:.2,l2:true,ok:b=>terrestrialPath(b.city,b.city2),can:b=>!!b.city2&&!isSub(b.city,b.city2)},
  nocog:{l:tr('requirements.refuses_cogentle_transit_anywhere_on'),bonus:.15,ok:()=>!S.transit.some(t=>t.net==='cog')},
@@ -15,9 +15,20 @@ const REQS={
  china:{l:tr('requirements.needs_low_loss_reach_into_china'),bonus:.3,ip:true,ok:()=>S.transit.some(premOn)||S.links.some(l=>l.premium)||S.pni.some(p=>NET[p.net].cn&&pniOn(p))},
  scrubbed:{l:tr('requirements.will_only_sign_with_a_network'),bonus:.15,ok:()=>hasScrub()},
  scrubnear:{l:tr('requirements.wants_a_scrubbing_center_on_its'),bonus:.15,ip:true,ok:b=>S.scrubs.some(x=>CITY[x.city].reg===CITY[b.city].reg)},
+ // The shark's orbit promise (99-pie-sales.js): a full sky, a crust at least PIE_PROMISE in orbit. Never on an ordinary offer.
+ skyfull:{only:true,bonus:0,l:()=>tr('requirements.promised_a_full_sky',{p:pct(PIE_PROMISE)}),ok:()=>pieHubs().some(id=>pieCov(id)>=PIE_PROMISE)},
  puns:{l:tr('requirements.their_ceo_hates_puns_please_do'),bonus:.05,ok:()=>true},
 };
-function terrestrialPath(a,b){const ls=S.links.filter(l=>!linkDown(l)&&!l.sub);const adj={};for(const l of ls){(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}const seen=new Set([a]),q=[a];while(q.length){const u=q.shift();if(u===b)return true;for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return false;}
+/* terrestrialPath() asked for many customers at once (the daily mood check, 10-day-tick.js): the islands the live land
+   links make, worked out the first time one asks (TERR.m: city -> island), and two cities with a land path are two
+   cities of one island. Walking the links is what costs (a dark fiber's capacity, every one of them), not the question.
+   TERR names the game and the routing count it was made for: an action between two steps of the day changes a link
+   only through after(), which routes, so the islands are worked out again; another game, and each question walks. */
+let TERR=null;
+function terrIslands(){const adj={};for(const l of S.links)if(!linkDown(l)&&!l.sub){(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}
+  const m=new Map();let n=0;for(const c in adj){if(m.has(c))continue;const q=[c];m.set(c,n);for(let h=0;h<q.length;h++)for(const v of adj[q[h]])if(!m.has(v)){m.set(v,n);q.push(v);}n++;}return m;}
+function terrestrialPath(a,b){if(TERR&&TERR.S===S){if(TERR.gen!==RW.gen||!TERR.m){TERR.gen=RW.gen;TERR.m=terrIslands();}
+    if(a===b)return true;const A=TERR.m.get(a);return A!==undefined&&A===TERR.m.get(b);}const ls=S.links.filter(l=>!linkDown(l)&&!l.sub);const adj={};for(const l of ls){(adj[l.a]=adj[l.a]||[]).push(l.b);(adj[l.b]=adj[l.b]||[]).push(l.a);}const seen=new Set([a]),q=[a];while(q.length){const u=q.shift();if(u===b)return true;for(const v of adj[u]||[])if(!seen.has(v)){seen.add(v);q.push(v);}}return false;}
 const reqOk=b=>(b.reqs||[]).every(k=>REQS[k]&&REQS[k].ok(b));
 // Some requirements only make sense for some customers: nobody can reach another continent without getting wet.
 const reqCan=(k,b)=>!REQS[k].can||REQS[k].can(b);

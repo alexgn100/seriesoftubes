@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
+const { lit } = require('../scripts/lib/js-literal');
 
 // A small network with a hired intern, every order off, no cash floor and no fat fingers (Change Freeze).
 const BASE = "ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.lvl=3;S.nextFail=S.nextEvent=1e9;UI.speed=0;S.rules=makeRules('freeze');" +
@@ -13,7 +14,7 @@ function game(t, extra = '') {
   return h;
 }
 const hire = ev => ev("ACT.opsHire({id:'kevin'});S.ops.floor=0;closeModal()");
-const on = (ev, k, p = {}, cap) => ev(`S.ops.on.${k}=true;S.ops.p.${k}=${JSON.stringify(p)};${cap === undefined ? '' : `S.ops.cap.${k}=${cap};`}`);
+const on = (ev, k, p = {}, cap) => ev(`S.ops.on.${k}=true;S.ops.p.${k}=${lit(p)};${cap === undefined ? '' : `S.ops.cap.${k}=${cap};`}`);
 const shift = ev => ev('opsDay(S.day)');
 const cash = ev => ev('S.cash');
 // The same game twice: the intern's shift in one, the player's own clicks in the other. Both must cost the same and end the same.
@@ -140,18 +141,6 @@ test('PNI: weekly, big enough networks only, paid peering left out by default, a
   assert.deepEqual(errors, []);
 });
 
-test('sales: decline offers below the minimum, sign the ready ones with #185\'s trial', t => {
-  const { ev, errors } = game(t);
-  hire(ev); on(ev, 'sales', { acc: true, min: 5000 });
-  ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
-  ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:30},{id:'gen',city:'fra',name:'Gen',type:'dia',bw:10,rate:600,reqs:['gen'],exp:30}]");
-  shift(ev);
-  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.biz.map(b=>b.id))')), ['big']);
-  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.offers.map(o=>o.id))')), ['gen'], 'unmet requirements wait, the tiny one is gone');
-  assert.match(ev('opsEntry(S.ops.log[0])'), /declined a tiny offer, signed a customer/);
-  assert.deepEqual(errors, []);
-});
-
 test('repairs: rush what has a price, as the Rush repair button would', t => {
   twins(t, "S.links=[{id:'f',a:'fra',b:'ams',kind:'df',sys:'lite',ch:['zr4'],km:450,sub:false,ready:0,cut:0,eqDown:10,mo:1}];S.inc=[{id:'amp',type:'amp',ref:'f',until:10,cost:3000,msg:'amp'}];S.pops.ams={day:0,bb:null,boost:0,down:0,routers:1,gen:false}",
     ev => on(ev, 'repair'), "ACT.fixInc({id:'amp'})", 'S.inc.length');
@@ -234,26 +223,27 @@ test('the shift runs inside dayTick, respects a stopped clock, batches its work 
 test('the NOC gets one notice a week, the shift report; the daily lines stay in the Ops sheet', t => {
   const { ev, errors } = game(t, "S.transit[0].hist=[600]");
   ev('S.day=14');
-  hire(ev); on(ev, 'transit', { x: 1.5 }); on(ev, 'sales', { acc: true, min: 5000 });
+  hire(ev); on(ev, 'transit', { x: 1.5 });
   ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
   const n0 = ev('S.log.length');
   for (let d = 14; d < 21; d++) {
-    if (d === 15) ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:60},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:60}]");
+    if (d === 15) ev('S.transit[0].hist=[6000]');
     ev(`S.day=${d}`); shift(ev);
   }
   assert.equal(ev('S.log.length'), n0, 'a whole week of shifts: no NOC notice yet');
   assert.ok(ev('S.ops.log.length') >= 2, 'the Ops sheet has the daily detail');
   ev('S.day=21'); shift(ev);
   assert.equal(ev('S.log.length'), n0 + 1, 'one notice for the week');
-  assert.match(ev('S.log[0].t'), /^Kevin's week Kevin signed a customer \(\+\$6\.0k\/mo\), topped up transit .*declined a tiny offer.*Week total: \$[\d.]+k up front, \+\$[\d.]+k\/mo\./);
-  assert.equal(ev('S.log[0].k'), 'good');
+  assert.match(ev('S.log[0].t'), /^Kevin's week Kevin topped up transit .*Week total: \$[\d.]+k up front, \+\$[\d.]+k\/mo\./);
+  assert.doesNotMatch(ev('S.log[0].t'), /signed|declined/, 'deals are the sales desk\'s, not the intern\'s');
   ev('S.day=22'); shift(ev);
   assert.equal(ev('S.log.length'), n0 + 1, 'and nothing more until the next week ends');
-  // Only the sales order now: one tiny offer declined on day 23, reported when the week ends.
-  ev("for(const k in S.ops.on)S.ops.on[k]=false;S.ops.on.sales=true;S.offers=[{id:'t2',city:'fra',name:'T2',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=23");shift(ev);
-  ev("S.day=28");shift(ev);
+  // A week that only stopped at the budget, on day 23, reported when the week ends.
+  ev("S.ops.cap.transit=10000;S.ops.spent.transit=10000;S.ops.p.transit={x:3};S.day=23");shift(ev);
+  // A minute later in real time, so this one does not fold into last week's (both are plain notices now).
+  ev("S.log[0].at-=60000;for(const k in S.ops.on)S.ops.on[k]=false;S.day=28");shift(ev);
   assert.equal(ev('S.log.length'), n0 + 2);
-  assert.match(ev('S.log[0].t'), /declined a tiny offer\.$/, 'nothing spent: no money line');
+  assert.match(ev('S.log[0].t'), /stopped at the budget for .*Keep transit headroom\)?\.$/, 'nothing spent: no money line');
   assert.equal(ev('S.log[0].k'), '');
   ev("S.day=35");shift(ev);
   assert.equal(ev('S.log.length'), n0 + 2, 'an idle week: no notice');
@@ -287,16 +277,15 @@ test('the mood follows the week, with no dice', t => {
   const quiet = ev('opsMood()');
   assert.equal(ev('opsMood()'), quiet, 'the same day reads the same');
   assert.ok([ev("tr('ops.mood_quiet',{name:'Kevin'})"), ev("tr('ops.mood_kevin')")].includes(quiet));
-  ev("S.ops.wk=opsWkNew(Math.floor(S.day/7));S.ops.wk.n.sales=1");
-  assert.equal(ev('opsMood()'), ev("tr('ops.mood_sales',{name:'Kevin'})"));
-  ev("S.ops.wk.n.broke=1;delete S.ops.wk.n.sales");
+  ev("S.ops.wk=opsWkNew(Math.floor(S.day/7));S.ops.wk.n.broke=1");
   assert.equal(ev('opsMood()'), ev("tr('ops.mood_broke',{name:'Kevin'})"));
   assert.deepEqual(errors, []);
 });
 
 test('fat fingers: never under Change Freeze, rare and harmless in On-call and BGP at 3 a.m.', t => {
   const { ev, errors } = game(t);
-  hire(ev);
+  // Kevin never fat-fingers anything: Annie does, now and then.
+  ev("ACT.opsHire({id:'annie'});S.ops.floor=0;closeModal()");
   ev('window.__r=Math.random;Math.random=()=>0');
   for (let i = 0; i < 50; i++) shift(ev);
   assert.equal(ev('S.ops.log.some(e=>e.f!==undefined)'), false, 'Change Freeze: never, even on the unluckiest roll');
@@ -345,8 +334,8 @@ test('saves: old saves load with no intern and everything off, settings survive 
   assert.equal(ev("JSON.stringify(S.ops.skip)"), '{"fra":["transit"]}');
   assert.equal(ev("JSON.stringify(S.ops.log)"), '[{"d":1,"i":"kevin","r":[["transit",2,["fra +1×100G"]]]}]');
   assert.equal(ev('S.ops.floor===50000&&S.ops.tpl.bb===true'), true);
-  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x'},wh:{transit:['fra +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
-  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"sales":2},"wh":{"transit":["fra +1×100G"]},"up":0,"mo":0,"rev":41000,"ff":7}');
+  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x',repair:2},wh:{transit:['fra +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
+  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"repair":2},"wh":{"transit":["fra +1×100G"]},"up":0,"mo":0,"ff":7}', 'the retired sales order\'s tally goes');
   assert.equal(ev('S.ops.rep'), null);
   assert.deepEqual(errors, []);
 });
@@ -368,7 +357,9 @@ test('the Ops sheet works at 360 px in every language, from the NOC tab and the 
     assert.ok(ev('opsHired()'), lang);
     doc.querySelector('#modalCard [data-act="opsToggle"]').click();
     assert.equal(doc.querySelector('#modalCard [data-act="opsToggle"]').getAttribute('aria-pressed'), 'true', lang);
-    doc.querySelector('#modalCard [data-act="opsParam"]').click();
+    const sel = doc.querySelector('#modalCard select[data-chg="opsParam"]');
+    sel.value = String((sel.selectedIndex + 1) % sel.options.length);
+    sel.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
     const txt = doc.getElementById('modalCard').textContent;
     assert.doesNotMatch(txt, /\bops\.[a-z_]+/, lang);
     assert.ok(doc.querySelector('#modalCard select[data-chg="opsCity"]'), lang);
@@ -378,22 +369,6 @@ test('the Ops sheet works at 360 px in every language, from the NOC tab and the 
     assert.deepEqual(errors, [], lang);
     dom.window.close();
   }
-});
-
-test('sales trial at most one offer a shift, and an offer that did not fit waits a week', t => {
-  const { ev, errors } = game(t);
-  hire(ev); on(ev, 'sales', { acc: true, min: 0 });
-  ev("S.offers=['a','b','c'].map(id=>({id,city:'fra',name:id,type:'dia',bw:1e5,rate:600,reqs:[],exp:60}));window.__t=0;window.__a=autoOffer;autoOffer=o=>{__t++;return __a(o)}");
-  shift(ev);
-  assert.equal(ev('__t'), 1, 'one routing trial per shift');
-  for (let i = 0; i < 2; i++) { ev('S.day++'); shift(ev); }
-  assert.equal(ev('__t'), 3, 'each offer once');
-  ev('S.day++'); shift(ev);
-  assert.equal(ev('__t'), 3, 'too big for the network: not tried again within the week');
-  ev('S.day+=7'); shift(ev);
-  assert.equal(ev('__t'), 4);
-  ev('autoOffer=__a');
-  assert.deepEqual(errors, []);
 });
 
 test('re-hiring in a later month starts on a fresh budget, not last month\'s spending', t => {
@@ -451,11 +426,11 @@ test('decommission keeps its spare in another trench than the big link', t => {
   assert.deepEqual(errors, []);
 });
 
-test('decommission sees the traffic of a customer signed earlier in the same shift', t => {
+test('decommission sees the traffic of a customer the sales desk signed the same day', t => {
   const { ev, errors } = game(t, "S.pops.fra.bb.d=30;ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T2'],['s2',1,'T3']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:1000,trench:tr});compute()");
-  hire(ev); on(ev, 'sales', { acc: true, min: 0 }); on(ev, 'decom', { keep: false });
-  ev("S.offers=[{id:'o1',city:'fra',city2:'ams',name:'Bulk Co',type:'l2vpn',bw:450,rate:20,reqs:[],exp:S.day+20}]");
-  shift(ev);
+  hire(ev); on(ev, 'decom', { keep: false });
+  ev("ACT.salesHire({id:'eng'});S.slAuto.on=true;closeModal();S.offers=[{id:'o1',city:'fra',city2:'ams',name:'Bulk Co',type:'l2vpn',bw:450,rate:20,reqs:[],exp:S.day+20}]");
+  ev('slAutoDay(S.day)'); shift(ev);
   assert.deepEqual(JSON.parse(ev('JSON.stringify(S.biz.map(b=>b.id))')).length, 1, 'signed');
   assert.equal(ev('S.links.length'), 3, 'its 450G needs every wave, so none goes');
   ev('compute()');
@@ -463,13 +438,13 @@ test('decommission sees the traffic of a customer signed earlier in the same shi
   assert.deepEqual(errors, []);
 });
 
-test('no recompute on a shift that only declined offers or stopped at a budget', t => {
+test('no recompute on a shift that only stopped at a budget', t => {
   const { ev, errors } = game(t);
-  hire(ev); on(ev, 'sales', { acc: false, min: 50000 }); on(ev, 'transit', { x: 3 }, 10000);
-  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30}]");
+  hire(ev); on(ev, 'transit', { x: 3 }, 10000);
+  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600]");
   const n = ev("window.__c=compute;window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n");
   assert.equal(n, 0, 'nothing in the network changed');
-  assert.match(ev('opsEntry(S.ops.log[0])'), /declined a tiny offer, stopped at the budget/);
+  assert.match(ev('opsEntry(S.ops.log[0])'), /stopped at the budget/);
   ev("S.ops.spent.transit=0");
   assert.equal(ev("window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n"), 1, 'a real job still recomputes once');
   assert.deepEqual(errors, []);
@@ -503,7 +478,8 @@ test('one order that throws is paused and noted; the rest of the shift and the d
 
 test('the fat-fingered LAG member respects a paused transit order and per-POP exceptions', t => {
   const { ev, errors } = game(t);
-  hire(ev);
+  // Kevin never fat-fingers anything: Annie does, now and then.
+  ev("ACT.opsHire({id:'annie'});S.ops.floor=0;closeModal()");
   // Each shift rolls: fat finger yes, the only POP, the LAG slip (index 3).
   ev("S.rules=makeRules('bgp');window.__r=Math.random;window.__k=0;Math.random=()=>[0,0,0.7][__k++%3]");
   const n0 = ev('S.transit[0].n||1'), c0 = cash(ev);
@@ -523,7 +499,7 @@ test('the fat-fingered LAG member respects a paused transit order and per-POP ex
 });
 
 test('caches: the cash floor and a running-cost budget hold; the panel and the log show what a month costs', t => {
-  const { ev, errors } = game(t);
+  const { ev, dom, errors } = game(t);
   hire(ev); on(ev, 'caches', { g: 1 });
   ev('S.pops.fra.rgen=0;compute()'); // 100G ports: 100G boxes at $400/mo
   const add = () => ev("utilityCaches('fra').add.filter(x=>(R.cityDem.fra||0)*NSH[x.net]>=1).length");
@@ -543,7 +519,8 @@ test('caches: the cash floor and a running-cost budget hold; the panel and the l
   ev('opsModal()');
   const txt = ev("document.getElementById('modalCard').textContent");
   assert.match(txt, /each box costs \$400\/mo/);
-  assert.match(txt, /Adds at most: \+\$1\.0k\/mo/);
+  const capSel = [...dom.window.document.querySelectorAll('#modalCard select[data-chg="opsCap"]')].find(x => x.dataset.args === '{"k":"caches"}');
+  assert.equal(capSel.closest('label').firstChild.textContent + ': ' + capSel.options[capSel.selectedIndex].textContent, 'Adds at most: +$1.0k/mo');
   assert.match(txt, /This month: \$0 up front, \+\$800\/mo on the bill/);
   ev('S.day+=monLen(S.day);S.ops.cap.caches=0'); shift(ev);
   assert.equal(ev('S.ops.addMo.caches'), (ev('S.caches.length') - 2) * 400, 'a new month counts from zero');
@@ -566,13 +543,13 @@ test('transit: the log line and budget line show the monthly cost a top-up adds'
 
 test('#226 the shift report\'s Open button in the NOC opens the Ops sheet, and survives a reload', t => {
   const { ev, errors, dom } = game(t);
-  ev('S.day=14'); hire(ev); on(ev, 'sales', { acc: false, min: 5000 });
-  ev("S.offers=[{id:'t',city:'fra',name:'T',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=15"); shift(ev);
+  ev('S.day=14'); hire(ev); on(ev, 'transit', { x: 3 }, 10000);
+  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.day=15"); shift(ev);
   ev('S.day=21'); shift(ev);
   assert.match(ev('S.log[0].t'), /^Kevin's week/);
   ev("S=migrate(JSON.parse(JSON.stringify(S)));closeModal();ACT.leftTab({t:'noc'})");
   const doc = dom.window.document;
-  const b = doc.querySelector(`#leftBody [data-act=logOpen][data-args='${JSON.stringify({ id: ev('S.log[0].id') })}']`);
+  const b = doc.querySelector(`#leftBody [data-act=logOpen][data-args='${lit({ id: ev('S.log[0].id') })}']`);
   assert.ok(b, 'the report has an Open button');
   b.click();
   assert.equal(doc.getElementById('modal').hidden, false, 'a sheet opened');

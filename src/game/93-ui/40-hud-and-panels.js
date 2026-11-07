@@ -31,14 +31,14 @@ function renderLeft(){checkLayer();
   const tab=isTablet(),L=$('left');L.classList.toggle('closed',tab?(!!UI.sel&&!UI.leftOpen):!UI.leftOpen);const tg=$('leftToggle');if(tg&&innerWidth>760)tg.hidden=!(tab&&L.classList.contains('closed'));
   renderTabbar();
   if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
-  const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
-  const tabs=[['goals',`<span class="tl">${tr('common.goals')}</span><span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`<span class="tl">${tr('common.deals')}</span>${S.offers.length+clHags()?`<span class="cnt">${S.offers.length+clHags()}</span>`:''}`],['noc',`<span class="tl">NOC</span>${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',`<span class="tl">${tr('common.networks')}</span>`]];
+  const G=goals(),ndone=G.filter(g=>S.done[g.id]!==undefined).length;
+  const tabs=[['goals',`<span class="tl">${tr('common.goals')}</span><span class="cnt">${ndone}/${G.length}</span>`],['deals',`<span class="tl">${tr('common.deals')}</span>${S.offers.length+clHags()?`<span class="cnt">${S.offers.length+clHags()}</span>`:''}`],['noc',`<span class="tl">NOC</span>${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',`<span class="tl">${tr('common.networks')}</span>`]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
   let h='';
   if(UI.left==='goals'){
     h+=charterCard()+scnCard()+lvlCard()+t1Card();
-    const cur=GOALS.find(g=>S.done[g.id]===undefined);
-    h+=GOALS.map(g=>{const d=S.done[g.id]!==undefined,c=g===cur;return `<div class="goal ${d?'done':''} ${c?'cur':''}"><div class="ck">${d?'✓':''}</div><div><div class="gt">${esc(g.t)}</div>${c||!d?`<div class="gd">${esc(g.d)}</div>`:''}${!d&&g.r?`<div class="gr">${tr('hud_and_panels.reward_cash',{cash:fmt$(g.r)})}</div>`:''}</div></div>`;}).join('');
+    const cur=G.find(g=>S.done[g.id]===undefined);
+    h+=G.map(g=>{const d=S.done[g.id]!==undefined,c=g===cur;return `<div class="goal ${d?'done':''} ${c?'cur':''}"><div class="ck">${d?'✓':''}</div><div><div class="gt">${esc(g.t)}</div>${c||!d?`<div class="gd">${esc(g.d)}</div>`:''}${!d&&g.r?`<div class="gr">${tr('hud_and_panels.reward_cash',{cash:fmt$(g.r)})}</div>`:''}</div></div>`;}).join('');
     h+=badgeGrid();
   }else if(UI.left==='deals'){
     {const st=custStats();if(st.n)h+=`<div class="row" style="margin-bottom:8px"><div class="grow"><div class="nm">${tr('common.your_customers')} <span class="meta">${st.n} · ${tr('hud_and_panels.happiness_p',{p:Math.round(st.avg)})}</span></div><div class="bar ${moodCls(st.avg)}"><i style="width:${st.avg}%"></i></div>${st.unhappy?`<div class="why">${trn('hud_and_panels.n_unhappy_customer_price_mo_at',st.unhappy,{price:fmt$(st.risk)})}</div>`:''}</div>${btn(st.unhappy?tr('common.see_who'):tr('common.all_customers'),'custOpen',{sad:st.unhappy?1:0},st.unhappy?'pink sm':'ghost sm')}</div>`;}
@@ -49,9 +49,9 @@ function renderLeft(){checkLayer();
       h+=`<div class="row"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)} · ${CITY[o.city].name}${o.city2?' ⇄ '+CITY[o.city2].name:''} · <b>${bTerms(o)}</b> · ${tr('ui.n_d_left',{n:o.exp-S.day})}${(o.reqs||[]).length?` · ${trn('hud_and_panels.n_special_requirement',o.reqs.length)}`:''}</div>${o.refN?`<div class="meta">${tr('lifecycle.referred_by',{name:esc(o.refN)})}</div>`:''}${spotWhy(o)}${bRisk(o)}${reqList(o)}
       <div class="btns">${has?btn(tr('common.accept'),'accept',{id:o.id},'green sm'):btn(tr('common.go_there'),'focusCity',{city:bCities(o).find(c=>!S.pops[c])},'ghost sm')}${btn(tr('common.decline'),'decline',{id:o.id},'ghost sm')}</div>${has?'':`<div class="why">${tr('hud_and_panels.needs_a_pop_in_cities',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}</div></div>`;}
   }else if(UI.left==='noc'){
-    h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.open_noc_dashboard'),'dash',{},'pink')}${btn(tr('common.connections'),'connOpen',{},'')}${btn(tr('common.traceroute'),'trace',{},'')}${btn(`⚙️ ${tr('routing.routing_and_ddos')}${S.te&&!coreTE()?'<span class="cnt red dot" aria-hidden="true"></span>':''}`,'routingOpen',{},'')}</div>`;
+    h+=`<div class="btns" style="margin-bottom:8px">${btn(tr('hud_and_panels.open_noc_dashboard'),'dash',{},'pink')}${pieNocBtn()}${btn(`⚙️ ${tr('routing.routing_and_ddos')}${S.te&&!coreTE()?'<span class="cnt red dot" aria-hidden="true"></span>':''}`,'routingOpen',{},'')}</div>`;
     h+=`<p class="lead">${tr('hud_and_panels.your_network_operations_center_every')}</p>`;
-    h+=opsCard()+mkCard()+ddosPanel();
+    h+=opsCard()+pieSpatCard()+mkCard()+ddosPanel();
     // Incidents come first, the ones you can fix with one click at the top (#63): no scrolling past hot ports to replace an optic.
     for(const i of S.inc.filter(i=>i.type!=='ddos').sort((a,b)=>(b.cost?1:0)-(a.cost?1:0)||(b.impact||0)-(a.impact||0))){h+=`<div class="inc"><div class="nm">${incTitle(i.type)}</div><div class="meta">${esc(i.msg)}</div><div class="meta">${shipSea(i)?'🚢 '+esc(shipStatus(i)):trn('hud_and_panels.auto_fix_in_n_day',i.until-S.day)}${i.impact?` · ${tr('hud_and_panels.g_lost',{g:fmtG(i.impact)})}`:''}</div>${i.cost?`<div class="btns">${btn(`${esc(i.fix||tr('common.rush_repair'))} ${fmt$(i.cost)}`,'fixInc',{id:i.id},'red sm',S.cash<i.cost)}</div>`:''}</div>`;}
     h+=logSection();UI.logSeen=Date.now();

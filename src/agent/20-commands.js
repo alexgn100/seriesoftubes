@@ -9,6 +9,20 @@
    (may end in a question); reads 'modal' (the window's text is the report); watch (extra fingerprint paths, #name
    filled from args); quote (the dry run, priced with the game's own helpers); doc. */
 const API_CMD={
+/* ---------- Pie in the Sky: the rocket company (Tier 1 in a new game, or a sandbox) ---------- */
+ pieFound:{args:[],watch:['pie'],quote:a=>({setup:piePrice(PIE_CO),monthly:PIE_CO_MO}),doc:'Found the rocket company. Needs Tier 1 (or a sandbox).'},
+ pieFactory:{args:[],watch:['pie'],quote:a=>({setup:piePrice(PIE_FAC)}),doc:'Build the pie factory: it bakes the satellites ("pies") that rockets carry.'},
+ piePad:{args:[['city','cityId']],watch:['pie'],doc:'Build a launch pad in a city. Pads near the equator lift more.'},
+ pieRd:{args:[['k','pieRdId']],watch:['pie'],quote:a=>({setup:piePrice(PIE_RD[a.k].cost)}),doc:'Fund rocket R&D: reuse (reusable boosters, cheaper launches) or heavy (a bigger rocket, after test flights).'},
+ pieLaunch:{args:[['rk','rocketId'],['cr','crustId']],watch:['pie'],doc:'Queue a launch of a rocket into a crust (an orbital shell). Insurance and lasers follow the Launch tab toggles (pieIns, pieLas).'},
+ pieDish:{args:[['city','cityId']],watch:['pie'],doc:'Build a pie dish (ground station) at one of your POPs. Needs landing rights in its country.'},
+ pieAnt:{args:[['id','entityId']],watch:['pie'],quote:a=>({setup:piePrice(PIE_ANT)}),doc:'Add an antenna to a pie dish (20 Gbps each, 16 at most).'},
+ pieLic:{args:[['cc','countryCode']],watch:['pie'],doc:'Buy or renew landing rights in a country, for its dishes and orbit customers.'},
+ pieSafe:{args:[],watch:['pie'],doc:'Toggle safe mode: pies ride out solar storms, carrying nothing meanwhile.'},
+ pieName:{args:[],watch:['pie'],doc:'Rename the rocket company to the next name on the list.'},
+ pieBid:{args:[['id','entityId'],['f','pieBidShare']],watch:['pie'],doc:'Bid in a Rural Digital Pie Fund auction, asking this share of the reserve. The lower ask wins.'},
+ pieExim:{args:[],watch:['pie','loans'],doc:'Take the Export-Import Pie Bank loan, with its space covenants.'},
+ pieSpatPick:{args:[['id','pieSpatId'],['c','pieSpatChoice']],watch:['pie'],doc:'Answer a geopolitical spat over orbit: choice 0 or 1, as its sheet offers.'},
  downIx:{args:[['city','ixId']],watch:['ixp'],doc:'Step an exchange port down one size.'},
  downT:{args:[['id','entityId']],watch:['transit.#id'],doc:'Step a transit port down one size (a LAG steps down together).'},
  downP:{args:[['id','entityId']],watch:['pni.#id'],doc:'Step a PNI down one size. Not while an augment is on order.'},
@@ -134,8 +148,11 @@ const API_CMD={
   doc:'Hold a link in reserve: its capacity fills last.'},
 /* ---------- fabrics and VXCs ---------- */
  buyNni:{args:[['city','cityId'],['prov','fabId'],['tier','nniTier']],
-  quote:a=>({setup:NNI[a.tier]?NNI[a.tier].mo:undefined,monthly:NNI[a.tier]?NNI[a.tier].mo:undefined}),
-  doc:'Take a port on an interconnection fabric. Monthly. A higher tier upgrades unless the circuits on it already exceed the smaller port.'},
+  quote:a=>{const ex=nniPort(a.city,a.prov),n=ex?(ex.n||1):1,m=NNI[a.tier]?NNI[a.tier].mo*n:undefined;return {setup:m,monthly:m};},
+  doc:'Take a port on an interconnection fabric, at any port speed the router takes. Monthly, the first month up front. A higher tier upgrades every member of the port.'},
+ lagNni:{args:[['city','cityId'],['prov','fabId'],['d','step']],watch:['nni'],
+  quote:a=>{const pt=nniPort(a.city,a.prov),m=pt&&a.d>0&&NNI[pt.tier]?NNI[pt.tier].mo:0;return {setup:m,monthly:m};},
+  doc:'Add (d:1) or remove (d:-1) a member of the fabric port\'s LAG: same speed, one more router port, up to 8. Removing is rejected while the circuits would not fit.'},
  rmNni:{args:[['city','cityId'],['prov','fabId']],
   doc:'Give the fabric port back. Rejected while circuits still use it.'},
  buyVxc:{args:[['a','cityId'],['b','cityId'],['prov','fabId'],['t','vxcTier']],
@@ -154,14 +171,14 @@ const API_CMD={
  orderDf:{args:[['a','cityId'],['b','cityId'],['source','dfSource'],['system','systemId']],
   bindsUI:['pending','dfSrc','dfSys'],bind:a=>{UI.pending={a:a.a,b:a.b};UI.dfSrc=a.source;UI.dfSys=a.system;},
   quote:a=>{const A=a.a,B=a.b,sc=isSub(A,B)?subDfCable(A,B):null,km=sc?sc.km:kmBetween(A,B);
-   const building=a.source==='build'&&lvl()>=3&&!sc,sys=DF_SYS[a.system]&&DF_SYS[a.system].lvl<=lvl()?a.system:'lite';
+   const building=a.source==='build'&&glassLvl()>=3&&!sc,sys=DF_SYS[a.system]&&DF_SYS[a.system].lvl<=glassLvl()?a.system:'lite';
    const amps=ampCount(km),blocked=[];
    if(!S.pops[A])blocked.push(linkFromWhy(A));
    if(isSub(A,B)&&!sc)blocked.push(tr('fiber_modals.nobody_sells_dark_fiber_on_a'));
    else if(uaePair(A,B))blocked.push(tr('fiber_modals.no_dark_fiber_inside_the_uae'));
    else if(landX(A,B)&&cnCity(A)===cnCity(B))blocked.push(tr('fiber_modals.nobody_sells_one_fiber_pair_across'));
    else if(!dfAllowed(A,B))blocked.push(tr('fiber_modals.dark_fiber_across_the_chinese_border'));
-   if(lvl()<2)blocked.push(tr('fiber_modals.dark_fiber_unlocks_at_customer_level'));
+   if(glassLvl()<2)blocked.push(tr('fiber_modals.dark_fiber_unlocks_at_customer_level'));
    return {setup:(building?dfBuildCost(km):0)+DF_SYS[sys].cost+amps*AMP_COST+(S.pops[B]?0:popCost(B)),
      monthly:(building?Math.round(km*0.15):dfLeaseMo(km))+amps*AMP_MO,days:building?dfBuildDays(km):30,blocked};},
   doc:'Get dark fiber from one of your POPs (a): lease an IRU, dig your own (level 3+), or take a pair on a subsea cable; opens a POP in b if there is none. Then light it with a line system.'},
@@ -201,7 +218,7 @@ const API_CMD={
  hwLock:{args:[],quote:a=>({setup:hwLockCost()}),
   doc:'Lock router, optic and build prices for a year, shortages included. Costs twice as much while a shortage runs.'},
  buySpare:{args:[['o','opticId']],
-  quote:a=>({setup:optCost(a.o),blocked:[OPT[a.o]&&OPT[a.o].lvl>lvl()?tr('action_helpers.unlocks_at_customer_level_n',{n:OPT[a.o].lvl}):''].filter(Boolean)}),
+  quote:a=>({setup:optCost(a.o),blocked:[OPT[a.o]&&OPT[a.o].lvl>glassLvl()?tr('action_helpers.unlocks_at_customer_level_n',{n:OPT[a.o].lvl}):''].filter(Boolean)}),
   doc:'Buy a spare optic for the shelf, up to 64 of a kind. The next channel of that type is then free of optic cost.'},
  sellSpare:{args:[['o','opticId']],quote:a=>({setup:-spareValue(a.o)}),
   doc:'Sell a spare on eBuy for 40% of list.'},
@@ -224,6 +241,12 @@ const API_CMD={
   doc:'Let the salesperson go (not the CEO: ask the board for a VP of Sales instead).'},
  salesVp:{args:[],
   doc:'With the CEO running sales: pay for a board meeting that brings a VP of Sales, who frees the desk a month later.'},
+ salesAuto:{args:[],watch:['slAuto'],
+  doc:'With someone at the sales desk: switch automatic signing on or off. Once a game day they sign the offers that fit, in their own style: eng and ceo after a routing trial (one a day; an offer that did not fit waits a week), shark every offer whose POPs are up, promises and all, while the cash covers the commission. Orbit offers sign where the landing dish has room (the shark ignores that). Nobody at the desk: nothing is signed for you.'},
+ salesRen:{args:[],watch:['slAuto'],
+  doc:'Switch whether the sales desk answers renewal haggles for you, 3 days after each opens (only while someone runs sales). The engineer gives business customers their discount and keeps nerdy ones at the market price; the shark holds the old price (sometimes with a new promise, billing a month of the saving) but some walk; the CEO gives 10% more off for a double term, says yes, or picks a fight and loses them.'},
+ salesMin:{args:[],watch:['slAuto'],
+  doc:'Step the minimum monthly value under which the sales desk declines offers: never, 2k, 5k, 10k, 25k, 50k. With the CEO, about one decline in three is signed anyway.'},
  renewMatch:{args:[['id','entityId']],watch:['biz.#id'],
   doc:'Answer a renewal haggle (a customer with hag): renew at the price they asked. Unanswered, this happens on its own when the term ends.'},
  renewMeet:{args:[['id','entityId']],watch:['biz.#id'],
@@ -303,12 +326,12 @@ const API_CMD={
    doc:'Let the intern go. The standing orders stop; the rest of the month\'s salary is lost.'},
  opsToggle:{args:[['k','opsKey']],watch:['ops'],
    doc:'Pause or resume one standing order. Keys come from catalog(\'OPSK\'); the sheet in the game shows what each one does.'},
- opsParam:{args:[['k','opsKey'],['p','string']],watch:['ops'],
-   doc:'Step one of a standing order\'s settings to its next value (the provider to prefer, the port size to order, the load ceiling…). The sheet steps the same way.'},
- opsCap:{args:[['k','opsKey']],watch:['ops'],
-   doc:'Step the monthly budget of an order that has one: 10k, 25k, 50k, 100k, 250k, no limit.'},
- opsFloor:{args:[],watch:['ops'],
-   doc:'Step the floor under your cash that the intern keeps clear when signing customers: 0, 50k, 250k, 1M, 5M.'},
+ opsParam:{args:[['k','opsKey'],['p','string'],['v','string',false]],watch:['ops'],
+   doc:'Step one of a standing order\'s settings to its next value (the provider to prefer, the port size to order, the load ceiling…). With v (a position in the list the sheet shows, 0 first) it picks that value instead, such as the model to standardize routers on.'},
+ opsCap:{args:[['k','opsKey'],['v','string',false]],watch:['ops'],
+   doc:'Step the monthly budget of an order that has one: 10k, 25k, 50k, 100k, 250k, no limit. With v (a position in that list, 0 first) it picks that one.'},
+ opsFloor:{args:[['v','string',false]],watch:['ops'],
+   doc:'Step the floor under your cash that the intern keeps clear when paying for jobs: 0, 50k, 250k, 1M, 5M. With v (a position in that list, 0 first) it picks that one.'},
  opsPop:{args:[['k','opsPopKind'],['city','cityId']],watch:['ops'],
    doc:'Add or remove one POP as an exception to an order: the intern never touches the POPs you except.'},
  opsTpl:{args:[['k','opsTplKey']],watch:['ops'],
@@ -339,7 +362,7 @@ const API_CMD={
  seatNo:{args:[],watch:['seatOff'],
    doc:'Decline the consortium cable offer.'},
  charter:{args:[['k','charterKey']],watch:['charter'],
-   doc:'Sign your first-month charter: global backbone (the classic game) or low-latency boutique (trading firms pay 40% more, and it has its own win). One choice per network, normal games only.'},
+   doc:'Sign the charter a new normal game asks for before anything else (the player sees a popup until it is signed): global backbone (the classic game), low-latency boutique (trading firms pay 40% more, and it has its own win) or broker (dark fiber, line systems, optics and own subsea cables from day one at the usual prices, its own goals and its own win, Glass Baron). One choice per network, normal games only.'},
  mkBanana:{args:[],watch:['monkey'],
    quote:a=>({setup:mkBananaCost()}),
    doc:'Throw the chaos monkey a banana and it leaves early. Only while it is in your network; the price scales with your revenue.'},
@@ -426,6 +449,15 @@ const API_CMD={
 };
 
 const API_VIEW={
+ pieOpen:{args:[],doc:'Open Pie Control, the rocket company\'s panel.'},
+ pieGovOpen:{args:[],doc:'Open the bank at its Government money section: the rocket company\'s fund auctions, the Pitcairn grant and the Ex-Im Pie Bank (it used to be Pie Control\'s Gov tab).'},
+ pieTab:{args:[['t','pieTab']],doc:'Switch the Pie Control tab: traffic, co (the company, its books and the Founder\'s posts), fly (launches) or dish.'},
+ pieCity:{args:[['v','cityId']],doc:'Pick the POP the Dishes tab works on.'},
+ pieHi:{args:[['id','string']],doc:'Highlight one orbit flow on the Pie Control globe.'},
+ pieIns:{args:[],doc:'Toggle launch insurance for the next launches.'},
+ pieLas:{args:[],doc:'Toggle lasers (inter-satellite links) for the next launches.'},
+ pieGlobeNight:{args:[],doc:'Flip the Pie Control globe between day and night.'},
+ pieSpatOpen:{args:[['id','pieSpatId']],doc:'Open the sheet of a geopolitical spat over orbit.'},
  traceMode:{args:[['m','string']],doc:'Redo the open traceroute in a routing mode: normal, fast or scenic.'},
  chartToggle:{args:[['c','string'],['k','string']],doc:'Hide or show one series of a dashboard chart (a legend click); hiding every series shows them all again.'},
  help:{args:[],doc:'Open the how-to-play modal.'},
@@ -462,7 +494,7 @@ const API_VIEW={
  popsSort:{args:[['k','popsSortKey']],doc:'Flip the sort of the list of cities with no POP.'},
  goConn:{args:[['city','cityId'],['k','connKind']],doc:'Open a city\'s connections tab.'},
  goEgress:{args:[['city','cityId'],['k','egressKind']],doc:'Open a city\'s connections tab (l2 for the customer list).'},
- connOpen:{args:[],doc:'Open the connections dashboard tab.'},
+ connOpen:{args:[],doc:'Open the connections tab of the NOC dashboard (also the Peering tab\'s "All connections" button).'},
  connF:{args:[['f','connFilter'],['v','string',false]],doc:'Filter the connections list.'},
  connCity:{args:[['v','string']],doc:'Filter the connections list by city.'},
  connNet:{args:[['v','string']],doc:'Filter the connections list by network.'},
@@ -475,7 +507,7 @@ const API_VIEW={
  offerStep:{args:[],doc:'Select the next open offer (soonest to expire first), centre its city and mark it under Offers here: the $ key.'},
  zoomStep:{args:[['d','integer']],doc:'Zoom the map out (d<0) or in (d>0) around its middle: the - and = keys.'},
  keys:{args:[],doc:'Open the list of keyboard shortcuts (the ? key).'},
- routingOpen:{args:[],doc:'Open the Routing & DDoS window: backbone, Auto-TE and DDoS settings (the button at the top of the NOC tab).'},
+ routingOpen:{args:[],doc:'Open the Routing & DDoS window: the traceroute, backbone, Auto-TE and DDoS settings (the button at the top of the NOC tab).'},
  opsOpen:{args:[],doc:'Open the Ops sheet: the NOC intern\'s mood, weekly shift report and standing orders.'},
  salesOpen:{args:[],doc:'Open the sales desk sheet: the three kinds of salesperson, who is at the desk and what they cost.'},
  opsCity:{args:[['v','cityId',false]],doc:'Show one POP\'s standing-order exceptions in the Ops sheet.'},
@@ -504,6 +536,7 @@ const API_VIEW={
 };
 
 const API_BOUND={
+ pieRename:{command:'pieName',note:'the typed company name'},
  leaseSwap:{command:'orderDf',note:'presets the dark-fiber modal on a leased pair'},
  teOpt:{command:'teDeploy',arg:'script',note:'the optimiser drafts a script'},
  teSlop:{command:'teDeploy',arg:'script',note:'the AI drafts a script'},

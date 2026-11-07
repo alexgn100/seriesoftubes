@@ -77,6 +77,52 @@ claude mcp add --transport http seriesoftubes http://127.0.0.1:7777/mcp
 - **Either session.** `--http` works headless and with `--browser` alike: then a client elsewhere drives the game
   in the player's tab, while the relay stays where `npm run dev` put it.
 
+### In a container
+
+Every release publishes a multi-arch (amd64/arm64) image at `ghcr.io/fjaeckel/seriesoftubes:<version>`
+(`docker.yml`, dispatched by the release; pre-releases too). There is no `latest` and no image per commit: pick a
+version from the [releases](https://github.com/fjaeckel/seriesoftubes/releases). It holds the MCP server and the
+development server, nothing else from the repository, and runs as `node`, not root. It is published to GHCR only; the
+game itself is served from GitHub Pages and nowhere else.
+
+- **`MCP_MODE=browser`** (the default) serves the development page on 8080, with the relay, and runs the MCP server on
+  7777 driving that tab. **`MCP_MODE=headless`** runs only the MCP server, with a game of its own.
+- **Options** go after the image name, to `scripts/mcp.js` (`node scripts/mcp.js --help`). The MCP server listens on
+  `0.0.0.0:7777` inside the container, since loopback there is unreachable; pass your own `--http` to change it.
+- **A token, always.** The Host check stops browsers, not other clients, so a published port without a token is open to
+  anyone who reaches it. Give one with `-e SOT_MCP_TOKEN=…` (or `--token-file`); without one the container makes a
+  token for this run and prints it, with the `claude mcp add` line to use it. `MCP_NO_TOKEN=1` turns that off.
+- **Publish the ports to loopback** (`-p 127.0.0.1:7777:7777`), as below. A bare `-p 7777:7777` listens on every
+  interface of the host, and Docker's rules go around ufw and firewalld. To reach it from elsewhere, keep the token,
+  add `--allow-host NAME` for the name or address clients use (requests naming the host's address are refused
+  otherwise, since that is not an address inside the container), and put TLS in front.
+- **The relay has no token** (as with `npm run dev -- --host`): in browser mode, anyone who reaches port 8080 can drive
+  a game whose player turned agent mode on. Publish it to loopback too.
+
+```sh
+V=2.10.1   # a release
+
+# Headless, with your own token
+docker run -d --name sot -p 127.0.0.1:7777:7777 -e MCP_MODE=headless -e SOT_MCP_TOKEN=secret \
+  ghcr.io/fjaeckel/seriesoftubes:$V --clock realtime --pace 60000
+claude mcp add --transport http seriesoftubes http://127.0.0.1:7777/mcp --header "Authorization: Bearer secret"
+
+# The browser session: open http://localhost:8080, then Settings → Agent API. The token is in `docker logs sot`.
+docker run -d --name sot -p 127.0.0.1:8080:8080 -p 127.0.0.1:7777:7777 ghcr.io/fjaeckel/seriesoftubes:$V
+```
+
+`load_save` and `export_save` take JSON only unless the server runs with `--save-dir`; the image has `/saves` for it,
+owned by the server's user, so mount a volume there:
+
+```sh
+docker run -d -p 127.0.0.1:7777:7777 -e MCP_MODE=headless -e SOT_MCP_TOKEN=secret -v sot-saves:/saves \
+  ghcr.io/fjaeckel/seriesoftubes:$V --save-dir /saves
+```
+
+The image's Node base is pinned by digest, its dependencies by the lockfile, and every workflow action by commit;
+Dependabot (`.github/dependabot.yml`) keeps them current. Pull requests that touch the image build it and try both modes
+without publishing.
+
 ## The clock
 
 Every session has one of two clocks, and `schema` (section `mode`) says which:

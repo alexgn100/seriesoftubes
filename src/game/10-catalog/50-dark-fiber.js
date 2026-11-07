@@ -8,7 +8,7 @@ const AMP_EVERY=100, AMP_COST=8000, AMP_MO=300;
 /* Your own trench holds more than one fiber pair (#35). Once a ROADMaster is full you can light the next pair:
    another ROADMaster and another chain of amplifiers, 64 more channels. Regen huts are shared. */
 const isRdm=y=>y==='roadm'||y==='cl';
-const PAIRS_MAX=4,PAIRS_BIG=8,PAIRS_LV=12,SUB_PAIRS_MAX=8,SUB_PAIR_UP=1500000,pairsMax=l=>l.seat?Math.max(1,l.pairs|0):l.sub?SUB_PAIRS_MAX:lvl()>=PAIRS_LV?PAIRS_BIG:PAIRS_MAX,chMax=l=>DF_SYS[l.sys].max*(isRdm(l.sys)&&l.own?Math.max(1,l.pairs|0):1),
+const PAIRS_MAX=4,PAIRS_BIG=8,PAIRS_LV=12,SUB_PAIRS_MAX=8,SUB_PAIR_UP=1500000,pairsMax=l=>l.seat?Math.max(1,l.pairs|0):l.sub?SUB_PAIRS_MAX:glassLvl()>=PAIRS_LV?PAIRS_BIG:PAIRS_MAX,chMax=l=>DF_SYS[l.sys].max*(isRdm(l.sys)&&l.own?Math.max(1,l.pairs|0):1),
   pairCost=l=>DF_SYS[isRdm(l.sys)?l.sys:'roadm'].cost+(l.sub?SUB_PAIR_UP:ampCount(l.km)*AMP_COST);
 const OPT={
  zr4:{n:'Ackackia 400ZR+',g:400,cost:12000,reach:1500,modes:[[400,1500],[200,3000]],rg:1,lvl:2,sys:'lite',blurb:tr('dark_fiber.coherent_pluggable_in_the_router_no')},
@@ -33,7 +33,11 @@ const FABS=[
  {id:'ccn',name:'Consolation Connect',col:'#8E44AD',cities:['icn','lon','fra','ams','mrs','bom','sin','hkg','tok','syd','lag','jnb'],blurb:tr('dark_fiber.strong_in_asia_and_africa_every')},
 ];
 const FAB=Object.fromEntries(FABS.map(f=>[f.id,f]));
-const NNI=[{n:'10G',g:10,mo:500},{n:'100G',g:100,mo:1200}];
+/* A fabric port (NNI) comes in 10G, 100G or 400G, as fast as the router takes (portOk), and bundles into a LAG like
+   any other port (#140): more than 400G is more members. Fabrics sell nothing faster. Monthly, the first month up
+   front; cheaper per Gbps the faster it is. 10G and 100G keep the prices they always had. */
+const NNI_MO=[500,1200,3000];
+const NNI=NNI_MO.map((mo,i)=>({n:PORT[i].n,g:PORT[i].g,mo}));
 const VXC=[{n:'10G',g:10,m:1},{n:'50G',g:50,m:2.4},{n:'100G',g:100,m:3.6}];
 const vxcMo=(km,sub,t)=>Math.round((150+km*0.12)*VXC[t].m*(sub?2:1));
 const MET={prefer:{l:tr('common.prefer'),f:0.5},normal:{l:tr('common.normal'),f:1},avoid:{l:tr('common.avoid'),f:4},backup:{l:tr('common.backup_only'),f:60}};

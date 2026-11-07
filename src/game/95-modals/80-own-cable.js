@@ -155,7 +155,9 @@ function seaReady(a,b){seaSync();const key=seaKey(a,b);
   }catch(e){SEA_SURVEY.failed=true;if(SEA_SURVEY.worker)SEA_SURVEY.worker.terminate();SEA_SURVEY.worker=null;SEA_SURVEY.pending.clear();return true;}
 }
 const seaSurveyAttr=(a,b)=>{seaSync();const k=seaKey(a,b);return SEA_SURVEY.pending.has(k)?`data-sea-survey="${k}"`:'';};
-function seaMapPoints(pts){const out=[];for(const p of pts){const q=proj(...p);if(out.length)q[0]+=W*Math.round((out[out.length-1][0]-q[0])/W);out.push(q);}return out;}
+// The ends sit on the cities' dots, which the map may nudge off their exact lon/lat (#305).
+function seaMapPoints(pts,a,b){const out=[];for(const p of pts){const q=proj(...p);if(out.length)q[0]+=W*Math.round((out[out.length-1][0]-q[0])/W);out.push(q);}
+  const n=out.length,end=(i,c)=>{if(c)out[i]=[c.x+W*Math.round((out[i][0]-c.x)/W),c.y];};if(n>1){end(0,CITY[a]);end(n-1,CITY[b]);}return out;}
 
 // Designs pay for progressively tighter surveys; all use a feasible marine path.
 const SEA_DESIGNS={standard:{n:N_('common.standard'),cost:1,time:1},optimized:{n:N_('common.optimized'),cost:3,time:1.3},express:{n:N_('common.low_latency'),cost:7,time:1.7}};
@@ -194,16 +196,18 @@ const seaCab=(a,b)=>isSub(a,b)||(landing(a)&&landing(b)&&cablesFor(a,b).length>0
 const cabBack=l=>{if(!l||l.kind!=='df'||!l.own||!l.sub)return 0;const c=l.paid>0?l.paid:ownCabCost(l.km);if(!subNeed(l.km))return c;
   if(l.ready>S.day){const tot=Math.max(1,l.ready-(l.day||0));return Math.round(c*0.75*Math.min(1,(l.ready-S.day)/tot));}return 0;};
 // Your own subsea cable is a Tier 1 privilege, or a sandbox toy (open gates).
-const cabOpen=()=>!!S.won||gatesOpen();
+// Your own subsea cable: after the Tier 1 win, from customer level CAB_LV (a big Tier 2 lays cables too, #300), or from
+// day one as a Cable broker.
+const CAB_LV=9,cabOpen=()=>!!S.won||gatesOpen()||broker()||lvl()>=CAB_LV;
 function ownCabWhy(a,b){if(!seaCab(a,b))return tr('own_cable.this_route_is_on_land_build');
-  if(!cabOpen())return tr('own_cable.laying_your_own_subsea_cable_is');
+  if(!cabOpen())return tr('own_cable.your_own_subsea_cable_needs_level',{n:CAB_LV});
   for(const c of [a,b])if(!landing(c))return tr('own_cable.city_has_no_cable_landing_station',{city:CITY[c].name});
   if(cnCity(a)||cnCity(b))return tr('own_cable.nobody_gives_a_foreign_network_a');
   if(!seaReady(a,b))return tr('own_cable.surveying_a_sea_route');
   const routes=seaRoutes(a,b);if(!routes.length)return tr('own_cable.no_navigable_sea_route_connects');
   const km=Math.min(...routes.map(r=>r.km));if(!subNeed(km))return tr('own_cable.km_km_is_more_than_any',{km:km.toLocaleString(),max:Math.round(SUB_MAXKM()).toLocaleString()});
   return '';}
-function ownCabTeaser(a,b){const why=ownCabWhy(a,b);return `<div class="btns" style="margin-top:8px">${btn(cabOpen()?tr('modals.lay_your_own_subsea_cable'):tr('modals.your_own_subsea_cable_tier_1'),'ownCab',{},cabOpen()&&!why?'pink':'ghost',!!why)}</div>${why&&cabOpen()?`<p class="note" ${seaSurveyAttr(a,b)}>${esc(why)}</p>`:''}`;}
+function ownCabTeaser(a,b){const why=ownCabWhy(a,b);return `<div class="btns" style="margin-top:8px">${btn(cabOpen()?tr('modals.lay_your_own_subsea_cable'):tr('modals.your_own_subsea_cable_level_n',{n:CAB_LV}),'ownCab',{},cabOpen()&&!why?'pink':'ghost',!!why)}</div>${why&&cabOpen()?`<p class="note" ${seaSurveyAttr(a,b)}>${esc(why)}</p>`:''}`;}
 function ownCabBody(a,b,pop){const why=ownCabWhy(a,b);if(why)return `<p class="lead" style="margin-top:10px" ${seaSurveyAttr(a,b)}>${esc(why)}</p>${btn(tr('common.back'),'dfSrc',{v:'lease'},'ghost sm')}`;
   const design=own(SEA_DESIGNS,UI.seaDesign)?UI.seaDesign:'standard',upgrades=seaUps(seaQuote(a,b,design).km),q=seaQuote(a,b,design,upgrades),{km,cost,days}=q,lack=seaLack(km,upgrades),mo=ownCabMo(km),wt=subMaxTier(km),w=Math.round(waveMo(km,true,wt)*waveMarket(a,b,true).m),save=10*w*LT[4].g/LT[wt].g-mo,pay=save>0?Math.ceil(cost/save):0;
   return `<p class="lead" style="margin-top:8px">${tr('own_cable.your_very_own_subsea_cable_a')}</p>

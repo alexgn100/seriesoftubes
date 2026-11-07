@@ -22,7 +22,7 @@ function flDefine(R2,c){const {NF,FREM,FCI,FNJ,FCA,FBZ,FGT,FGI,FGP,FGH,FTI,FII,E
 /* Every exit has the same fields in the same order, whatever its kind, so the routing loop reads them from one object shape
    (exits of six shapes made each property read there a slow lookup). */
 function mkEx(k,id,city,cap,rank,pref,lab,ok,nets,net){return {k,net,id,city,lab,cap,used:0,rank,pref,ok,nets,dir:null,clean:false,prem:false,carry:false,prep:false,sac:false,pnc:false,
-  ek:'',J:0,byC:null,desc:null,dup:false,told:false,hp:1,ci:0,cn:false,vis:0,ts:-1,xi:0,kx:EXK.indexOf(k),fac:undefined};}
+  ek:'',J:0,byC:null,desc:null,dup:false,told:false,hp:1,dt:0,ci:0,cn:false,vis:0,ts:-1,xi:0,kx:EXK.indexOf(k),fac:undefined};}
 // The exit kinds by number (mkEx's kx), for what routing adds up per kind in typed arrays.
 const EXK=['t','ix','p','c'];
 function compute(){RW.gen++;
@@ -38,7 +38,10 @@ function compute(){RW.gen++;
   // Shortest paths from every POP: SPD[pop] the distance to each city index (Infinity: no path), SPP[pop] the edge it arrives by;
   // ALONE and the islands (COMP). Kept between calls while the graph is the same (29-route-cache.js).
   const wW=e=>e.w,wLat=e=>e.lat+0.05,RCON=RC.on,GK=RCON?rcGraphKey(pops,remote,EA):null,
-    {SPD,SPP,SDi,SPi,ALONE,COMP,NCOMP}=rcGraph(GK,pops,adj,EA,NC,wW);
+    G0=rcGraph(GK,pops,adj,EA,NC,wW),{SPD,SPP,SDi,SPi,ALONE,NCOMP}=G0;let COMP=G0.COMP;
+  // Orbit (35-pie-paths.js): sky nodes and edges, after the IGP paths, which never use them; a POP cut off from the backbone
+  // that backhauls through a dish gets its paths again with that edge (pieRelink, on copies: the cached graph stays as it was).
+  const PX=S.pie?pieGraph(adj,edges,COMP,pops,NE):null;if(PX){NE=PX.ne;if(PX.bh.length)COMP=pieRelink(PX,SPD,SPP,SDi,SPi,COMP);}
   const ev=S.ev;
   const depeer=ev.depeer>day||scnRule('spat'), leak=ev.leak&&ev.leak.until>day?ev.leak.net:null;
   // Sender pays (Gangnam Style Peering): no carrier hands traffic to the Korean incumbents for you, only a paid PNI does.
@@ -56,7 +59,7 @@ function compute(){RW.gen++;
     let all=set;for(const id of set)if(DOWN[id].length){if(all===set)all=new Set(set);for(const x of DOWN[id])all.add(x);}
     const x=mkEx('ix',c,ct,ixCap(c),2,(S.ixPref&&S.ixPref[c])||'normal',labOf(N_('common.ix_peering'),'ix',ixName(c)),n=>all.has(n),all);x.dir=all===set?null:set;E.push(x);}
   for(const p of S.pni){if(!pniOn(p)||!popUp(p.city)||!liveN(p.city,p.site,p.n))continue;R2.sessions++;
-    const x=mkEx('p',p.id,p.city,liveCap(pniG(p),p.city,p.site,p.n)*lagF(p)*(p.sacrif?0.5:1),1,p.pref||'normal',labOf(N_('common.pni_with_net'),'net',NET[p.net].name),n=>CONE_S[p.net].has(n),CONE[p.net],p.net);x.sac=!!p.sacrif;x.pnc=!!NET[p.net].cn;E.push(x);}
+    const x=mkEx('p',p.id,p.city,liveCap(pniG(p),p.city,p.site,p.n)*lagF(p)*(p.sacrif?0.5:1),2,p.pref||'normal',labOf(N_('common.pni_with_net'),'net',NET[p.net].name),n=>CONE_S[p.net].has(n),CONE[p.net],p.net);x.sac=!!p.sacrif;x.pnc=!!NET[p.net].cn;E.push(x);}
   for(const c of S.caches){if(!popUp(c.city)||siteDown(c.city,c.site==='b'?'b':'a'))continue;E.push(mkEx('c',c.id,c.city,cacheG(c),0,'normal',labOf(N_('common.name_cache'),'name',NET[c.net].cache.name),n=>n===c.net,[c.net]));}
   // After an update adds networks, a free courtesy route reaches the new ones you have no other way to (#46).
   R2.graceNets=0;if(S.grace&&S.grace.until>day){const gs=new Set(S.grace.nets.filter(n=>NET[n]&&!E.some(e=>e.k!=='c'&&e.ok(n)))),hc=popUp(S.home)?S.home:pops.find(popUp);
@@ -64,7 +67,7 @@ function compute(){RW.gen++;
   return E;})();
   const rp=ev.rpki&&ev.rpki.until>day?new Set(ev.rpki.nets):null;if(rp)for(const e of E){if(e.k==='c')continue;const o=e.ok;e.ok=n=>!rp.has(n)&&o(n);}
   // Who reaches whom and each network's exit lists, kept while the exits are the same (XC, 29-route-cache.js).
-  const XK=RCON?rcExitKey(GK,E,(depeer?1:0)+'|'+leak+'|'+(snd?1:0)+'|'+(rp?ev.rpki.nets.join(','):'')+'|'+(TRX?S.te.script:'')):null,XC=XK!==null&&RC.xk===XK?RC.x:null;
+  const XK=RCON?rcExitKey(GK,E,(depeer?1:0)+'|'+leak+'|'+(snd?1:0)+'|'+(rp?ev.rpki.nets.join(','):'')+'|'+(TRX?S.te.script:'')+'|'+(PX&&PX.bh.length?PX.bh.map(e=>e.bh.city+'>'+e.bh.land).join(','):'')):null,XC=XK!==null&&RC.xk===XK?RC.x:null;
   // coneOf: does exit e reach network n only through a peer's customer cone (#85)?
   const coneOf=(e,n)=>e.k==='p'?e.net!==n:!!e.dir&&!e.dir.has(n);
   // ok() cannot change during one compute, so ask each exit once per network, not once per flow and rank.
@@ -74,7 +77,7 @@ function compute(){RW.gen++;
   // TSL: a slot per transit port id, for what it carries to each network (R.tNet, added up in TNA).
   const ekN={},TSL=new Map();(()=>{for(const e of E){e.ek=e.k+':'+e.id;ekN[e.ek]=(ekN[e.ek]||0)+1;}
   // dup: shares its key with another exit (a hand-edited save), so R.egDesc shows whichever pushed last.
-  for(let i=0;i<E.length;i++){const e=E[i];e.xi=i;e.J=0;e.byC=null;e.desc=null;e.dup=ekN[e.ek]>1;e.told=false;e.hp=e.pref==='high'?0:1;e.ci=CIDX[e.city];e.cn=cnCity(e.city);e.vis=0;e.ts=-1;if(e.k==='t'){let t=TSL.get(e.id);if(t===undefined)TSL.set(e.id,t=TSL.size);e.ts=t;}
+  for(let i=0;i<E.length;i++){const e=E[i];e.xi=i;e.J=0;e.byC=null;e.desc=null;e.dup=ekN[e.ek]>1;e.told=false;e.hp=e.pref==='high'?0:1;e.dt=e.k==='ix'?PNI_TIE:0;e.ci=CIDX[e.city];e.cn=cnCity(e.city);e.vis=0;e.ts=-1;if(e.k==='t'){let t=TSL.get(e.id);if(t===undefined)TSL.set(e.id,t=TSL.size);e.ts=t;}
     if(XC)continue;
     // Index loops or forEach (same order): for…of here made an iterator result per exit and network.
     const ns=e.nets||NET_IDS;if(Array.isArray(ns)){for(let q=0;q<ns.length;q++)okAdd(e,ns[q]);}else ns.forEach(n=>okAdd(e,n));}
@@ -89,7 +92,7 @@ function compute(){RW.gen++;
      index FNJ[F] and has FREM[F] left to place. Gathered in FLB here, then copied into this call's own columns below. */
   FLB.n=0;const NN=NETS.length,CNB=[],NCN=NETS.map(n=>!!n.cn),flow=(ci,j,rem,cache,bz)=>{const k=FLB.n;if(k===FLB.cap)flbGrow();FLB.rem[k]=rem;FLB.ci[k]=ci;FLB.nj[k]=j;FLB.ca[k]=cache?1:0;FLB.bz[k]=bz?1:0;FLB.n=k+1;};
   // Customer demand per city, added up in S.biz order (what filtering S.biz for each city would give).
-  const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&(!T.event||eventLive(b))){const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
+  const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&(!T.event||eventLive(b))){if(T.orbit){const g=PX&&PX.gs[b.id];if(g)bizBw[g]=(bizBw[g]||0)+PX.term[b.id];continue;}const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
   // Traffic shares by network index, and their sums, for each share table (and with Russia's throttle).
   const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local');
   (()=>{for(const c of Object.keys(S.pops)){
@@ -144,6 +147,7 @@ function compute(){RW.gen++;
   const disjointI=(A,B)=>{const a=CIDX[A],b=CIDX[B],p1=bfsI(a,b,null);return !!p1&&!!bfsI(a,b,new Set(p1.map(srlg)));};
   for(const k in edges){const e=edges[k];let ld=0;for(const l of e.links)ld+=(R.load&&R.load[l.id])||0;e.pl=ld;}
   const l2Routes=(A,B,b)=>{const m=b.route||'normal',Ai=CIDX[A],Bi=CIDX[B];
+    if(PX&&m==='fast')return pieFast(PX,fastSP,A,B,b,wLat);
     if(m!=='scenic')return [{...walkI(m==='fast'?(fastSP[A]||(fastSP[A]=dijkstra(adj,Ai,wLat))).P:SPP[A],Ai,Bi),share:1}];
     const ek='l2:'+b.id,own=e=>(R.efg&&R.efg[e.id]&&R.efg[e.id].get(ek))||0;
     const wf=e=>e.w*(1+10*(e.cap?Math.max(0,e.pl-own(e))/e.cap:0));
@@ -159,7 +163,9 @@ function compute(){RW.gen++;
   (()=>{for(const b of S.biz){if(!BIZ_T[b.type].l2)continue;
     // An SD-WAN is hub-and-spoke: one circuit from the first site to each of the others.
     const pairs=b.sites?b.sites.slice(1).map(x=>[b.sites[0],x]):[[b.city,b.city2]];let minF=1,maxLat=0,tot=0,noPath=false;
-    for(const [A,B] of pairs){let amt=0;
+    for(let [A,B] of pairs){let amt=0;
+    // A circuit to a POP that reaches the backbone only by its own backhaul starts there (only its paths cross that edge).
+    if(PX&&PX.bh.length&&SPD[B]&&!(SPD[A]&&SPD[A][CIDX[B]]<Infinity))[A,B]=[B,A];
     if(popUp(A)&&popUp(B)&&SPD[A]&&SPD[A][CIDX[B]]<Infinity){
       const ek='l2:'+b.id;R2.egDesc[ek]={lab:labOf(b.sites?N_('compute.sd_wan_for_name'):N_('compute.l2vpn_for_name'),'name',b.name),city:A,k:'l2'};
       const routes=l2Routes(A,B,b);if(routes.length>1)R2.l2split[b.id]=routes.length;
@@ -218,7 +224,8 @@ function compute(){RW.gen++;
      R.egT and R.netEg list them in; both are written back after routing. */
   const EGT=new Float64Array(4),EGO=[],NEA=new Float64Array(NN*4),NEO=[];
   // An exit the flow can still try: not visited yet, not full when the flow started, reachable, and not on a saturated path.
-  const usable=e=>e.vis!==vis&&e.used<e.cap&&Dv[e.ci]<Infinity&&!gone(e),byDist=(a,b)=>a.hp-b.hp||Dv[a.ci]-Dv[b.ci];
+  // byDist: (Da-Db)+(dta-dtb), so exits of one kind at one distance compare as exactly equal and keep their order.
+  const usable=e=>e.vis!==vis&&e.used<e.cap&&Dv[e.ci]<Infinity&&!gone(e),byDist=(a,b)=>a.hp-b.hp||Dv[a.ci]-Dv[b.ci]+(a.dt-b.dt);
   // Push up to `want` along one path to exit e; returns what fitted. Index loops: for…of allocates an iterator until optimised. Capacity only shrinks while routing, so a
   // path with one full link or node fits nothing for the rest of this pass: mark it, and later tries cost nothing
   // (most tries are into paths that filled up earlier).
@@ -278,7 +285,7 @@ function compute(){RW.gen++;
       if(LOC){const here=lst.at.get(fci);if(!here)continue;for(let h=0;h<here.length;h++)if(usable(here[h]))REST.push(here[h]);}
       else for(let li=0;li<lst.length;li++)if(usable(lst[li]))REST.push(lst[li]);
       sortD(REST);
-      for(let i=0;i<REST.length&&FREM[F]>1e-6;){let j=i+1;while(j<REST.length&&REST[j].hp===REST[i].hp&&Math.abs(Dv[REST[j].ci]-Dv[REST[i].ci])<1e-6)j++;sendGroup(REST,i,j);i=j;}}};
+      for(let i=0;i<REST.length&&FREM[F]>1e-6;){let j=i+1;while(j<REST.length&&REST[j].hp===REST[i].hp&&Math.abs(Dv[REST[j].ci]-Dv[REST[i].ci]+(REST[j].dt-REST[i].dt))<1e-6)j++;sendGroup(REST,i,j);i=j;}}};
   /* One rank of one pass over every flow. Each hot loop of compute() sits in a function of its own: V8 optimises a small
      function quickly and keeps it, while compute() as a whole is too big to optimise cheaply (it would run unoptimised,
      boxing every number, and be compiled again and again in the background). The tables of a flow's city (distances,
@@ -295,7 +302,7 @@ function compute(){RW.gen++;
          and no other city at distance 0, the usable ones here are exactly the first group, already in order.
          The group is G[0..GN): emptying an array (length=0) gives back its storage, and the next push allocates it again. */
       GN=0;
-      if(!lst.hi&&ALONE[fci]){const here=lst.at.get(fci);if(here)for(let h=0;h<here.length;h++){const e=here[h];if(e.used<e.cap&&!gone(e))G[GN++]=e;}}
+      if(!lst.hi&&!lst.mx&&ALONE[fci]){const here=lst.at.get(fci);if(here)for(let h=0;h<here.length;h++){const e=here[h];if(e.used<e.cap&&!gone(e))G[GN++]=e;}}
       if(!GN){
         // One scan: the best (preference, distance) so far and, in list order, the exits within 1e-6 of it. The best
         // distance only goes down, so dropping the ones it leaves behind gives exactly the exits a second scan would.
@@ -306,9 +313,9 @@ function compute(){RW.gen++;
         const gc=lst.gc||(lst.gc=[]),c=gc[fci];
         if(c!==undefined&&allRoom(c)){if(!c.length)continue;for(let k=0;k<c.length;k++)G[GN++]=c[k];}else{
         let bh=2,bd=Infinity,full=0;
-        for(let li=0,LN=lst.length;li<LN;li++){const e=lst[li];if(e.used>=e.cap||gone(e)){full++;continue;}const d=Dv[e.ci];if(d===Infinity)continue;const h=e.hp;
+        for(let li=0,LN=lst.length;li<LN;li++){const e=lst[li];if(e.used>=e.cap||gone(e)){full++;continue;}const d=Dv[e.ci]+e.dt;if(d===Infinity)continue;const h=e.hp;
           if(h<bh){bh=h;bd=d;GN=0;G[GN++]=e;}
-          else if(h===bh){if(d<bd){bd=d;let k=0;for(let gi=0;gi<GN;gi++){const x=G[gi];if(Dv[x.ci]-d<1e-6)G[k++]=x;}GN=k;G[GN++]=e;}else if(d-bd<1e-6)G[GN++]=e;}}
+          else if(h===bh){if(d<bd){bd=d;let k=0;for(let gi=0;gi<GN;gi++){const x=G[gi];if(Dv[x.ci]+x.dt-d<1e-6)G[k++]=x;}GN=k;G[GN++]=e;}else if(d-bd<1e-6)G[GN++]=e;}}
         if(full*4>=lst.length&&full){let k=0;for(let li=0;li<lst.length;li++){const e=lst[li];if(e.used<e.cap)lst[k++]=e;}lst.length=k;}
         if(bh>1){gc[fci]=NOG;continue;}
         if(GN>1)sortD(G,GN);gc[fci]=G.slice(0,GN);}}
@@ -316,7 +323,7 @@ function compute(){RW.gen++;
       if(FREM[F]<=1e-6)continue;
       REST.length=0;for(let li=0;li<lst.length;li++)if(usable(lst[li]))REST.push(lst[li]);sortD(REST);
       for(let i=0;i<REST.length&&FREM[F]>1e-6;){
-        let j=i+1;while(j<REST.length&&REST[j].hp===REST[i].hp&&Math.abs(Dv[REST[j].ci]-Dv[REST[i].ci])<1e-6)j++;
+        let j=i+1;while(j<REST.length&&REST[j].hp===REST[i].hp&&Math.abs(Dv[REST[j].ci]-Dv[REST[i].ci]+(REST[j].dt-REST[i].dt))<1e-6)j++;
         sendGroup(REST,i,j);i=j;
       }
     }};
@@ -344,29 +351,33 @@ function compute(){RW.gen++;
   for(const e of TORD){const m=R2.tNet[e.id]={},b=e.ts*NN;for(const j of TNK[e.ts])m[NET_IDS[j]]=TNA[b+j];}
   R2.peerShare=R2.served>0?R2.peered/R2.served:0;
   for(const e of E){if(e.k==='t')R2.useT[e.id]=(R2.useT[e.id]||0)+e.used;else if(e.k==='ix')R2.useIx[e.id]=e.used;else if(e.k==='p')R2.usePni[e.id]=e.used;else R2.useCache[e.id]=e.used;}})();
-  computeMoney(R2);
+  computeMoney(R2,PX);
   // R.fl: from this call's own columns, made into objects only when something asks.
   flDefine(R2,{NF,FREM,FCI,FNJ,FCA,FBZ,FGT,FGI,FGP,FGH,FTI,FII,E,CNB,NCN});
   R=R2;UI.hotMap=hotByCity();
 }
 // What the network costs and earns per month, from what compute() routed.
-function computeMoney(R2){
+function computeMoney(R2,PX=null){
   const C=R2.cost,V=R2.rev,pm=S.priceMul;
   C.pops=Object.entries(S.pops).reduce((a,[c,p])=>a+popMo(c)+((p.routers||1)-1)*ROUTER_MO+cageMo(p.routers)+(p.routers||1)*RG[p.rgen||0].mo+(p.gen?GEN_MO:0),0);
   C.optical=S.links.filter(l=>l.kind==='df').reduce((a,l)=>a+(l.ready>S.day?0:ampCount(l.km)*AMP_MO*(l.own&&isRdm(l.sys)&&!l.sub?Math.max(1,l.pairs|0):1)+(l.regen|0)*REGEN_MO)+(l.spares?Math.round(150+(l.ch||[]).length*80):0),0);
   C.links=S.links.reduce((a,l)=>a+(l.mo||0),0);
-  C.nni=(S.nni||[]).reduce((a,x)=>a+NNI[x.tier].mo,0);
+  C.nni=(S.nni||[]).reduce((a,x)=>a+nniMo(x),0);
   const htd=histToday();C.transit=S.transit.reduce((a,t)=>{const q=p95(t,R2.useT[t.id]||0,htd);R2.p95[t.id]=q;return a+transitMo(t,q);},0);
   C.ix=Object.keys(S.ixp).reduce((a,c)=>a+ixMo(c),0);
   C.pni=S.pni.reduce((a,p)=>a+pniMo(p,R2.usePni[p.id]||0),0);
   C.caches=cachesMo();
   C.loans=(S.loans||[]).reduce((a,l)=>a+(BANKS[l.bank].equity?0:l.model==='transit'?Math.round((C.transit||0)*(l.cut||0.3)):l.pay)+loanFees(l),0);
   C.extras=(S.cnLic&&S.cnLic.state==='ok'?CN_JV_MO:0)+scrubMo()+Object.keys(S.pops).filter(ruCity).length*RU_BOX_MO+Object.values(S.pops).filter(p=>p.site2).length*SITE2_MO+(S.te?TE_MO:0)+(S.ops&&S.ops.intern?INTERN_MO:0)+salesMo();
-  V.eyeballs=0;V.business=0;V.ix=0;V.grant=grantOn(R2)?GRANT_MO:0;
+  if(S.pie&&S.mode!=='sandbox')C.pie=pieMo();
+  V.eyeballs=0;V.business=0;V.ix=0;
   C.wholesale=0;C.levy=0;const lev=scnRule('levy');for(const c in S.pops){const sf=sfOf(R2,c)*(R2.bbF[c]??1),v=R2.cityEye[c]*sf*EYE_RATE*arpuOf(c);V.eyeballs+=v;if(CITY[c].au){if(lev)C.levy+=v*AU_LEVY;else C.wholesale+=v*AU_WHOLESALE;}}
-  const ids=linkIds();for(const b of S.biz){if(capPend(b))continue;const sf=BIZ_T[b.type].fiber?(fiberOk(b,ids)?1:0):BIZ_T[b.type].l2?clamp((R2.l2[b.id]||0)/b.bw,0,1):sfOf(R2,b.city)*(R2.tgtF[b.id]??1);V.business+=b.bw*b.rate*Math.min(1,sf/0.95);}
+  const ids=linkIds();for(const b of S.biz){if(capPend(b)||BIZ_T[b.type].orbit)continue;const sf=BIZ_T[b.type].fiber?(fiberOk(b,ids)?1:0):BIZ_T[b.type].l2?clamp((R2.l2[b.id]||0)/b.bw,0,1):sfOf(R2,b.city)*(R2.tgtF[b.id]??1);V.business+=b.bw*b.rate*Math.min(1,sf/0.95);}
   for(const c in S.myIx)V.ix+=S.myIx[c].members.length*MYIX_FEE;
-  C.revshare=(S.loans||[]).reduce((a,l)=>a+(BANKS[l.bank].equity||l.bal>0?l.share||0:0),0)*(V.eyeballs+V.business+V.ix);
+  if(PX)pieMoney(PX,R2,V);
+  // The UK grant for Pitcairn, its satellite tier once orbit is known; the Rural Digital Pie Fund (99-pie-subsidies.js).
+  {const on=grantOn(R2),sky=!on&&!!PX&&grantSky(R2);V.grant=on?GRANT_MO:sky?GRANT_SKY_MO:0;if(PX)V.gov=pieGovMo();if(PX)R2.pie.gov={rdf:V.gov||0,sky:sky?GRANT_SKY_MO:0};}
+  C.revshare=(S.loans||[]).reduce((a,l)=>a+(BANKS[l.bank].equity||l.bal>0?l.share||0:0),0)*(V.eyeballs+V.business+V.ix+(V.orbit||0));
   R2.costMo=Object.values(C).reduce((a,b)=>a+b,0);
-  R2.revMo=V.eyeballs+V.business+V.ix+V.grant;
+  R2.revMo=V.eyeballs+V.business+V.ix+V.grant+(V.gov||0)+(V.orbit||0);
 }
