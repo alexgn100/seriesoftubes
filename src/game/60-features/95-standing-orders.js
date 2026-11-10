@@ -25,7 +25,10 @@ const OPS=[
  {k:'ix',i:'🔀',t:N_('ops.o_ix'),d:N_('ops.o_ix_d'),p:{}},
  {k:'pni',i:'🤝',pop:1,cap:50000,t:N_('ops.o_pni'),d:N_('ops.o_pni_d'),p:{g:{d:25,v:[5,10,25,50,100],l:N_('ops.p_g'),f:v=>fmtG(v)},tier:{d:0,v:[0,1,2],l:N_('ops.p_tier'),f:v=>tr('ops.at_least_port',{port:PORT[v].n})},paid:{d:false,v:[false,true],l:N_('ops.p_paid'),f:v=>v?tr('common.on'):tr('common.off')}}},
  {k:'repair',i:'🔧',cap:50000,t:N_('ops.o_repair'),d:N_('ops.o_repair_d'),p:{}},
- {k:'optics',i:'🌈',cap:250000,t:N_('ops.o_optics'),d:N_('ops.o_optics_d'),p:{at:{d:70,v:[50,60,70,80,90],l:N_('ops.p_at'),f:v=>v+'%'},pick:{d:'cheap',v:['cheap','big'],l:N_('ops.p_pick'),f:v=>tr({cheap:N_('ops.pick_cheap'),big:N_('ops.pick_big')}[v])}}},
+ {k:'optics',i:'🌈',cap:250000,t:N_('ops.o_optics'),d:N_('ops.o_optics_d'),p:{at:{d:70,v:[50,60,70,80,90],l:N_('ops.p_at'),f:v=>v+'%'},pick:{d:'cheap',v:['cheap','big'],l:N_('ops.p_pick'),f:v=>tr({cheap:N_('ops.pick_cheap'),big:N_('ops.pick_big')}[v])},
+   // New fiber pulls traffic onto itself the day it is lit (#316): the player may want to light it by hand, when the
+   // ports behind it are ready. Off: fiber without a channel stays dark; lit fiber still gets more optics when hot.
+   fresh:{d:true,v:[true,false],l:N_('ops.p_fresh'),f:v=>v?tr('common.on'):tr('common.off')}}},
  // Line systems up to a bigger one, and optics swapped for bigger ones, on fiber that is full and runs hot, or every fiber up to
  // a chosen line system. A line system swap is a day without that fiber: only where the traffic gets around it.
  {k:'optup',i:'🔭',cap:250000,t:N_('ops.o_optup'),d:N_('ops.o_optup_d'),p:{at:{d:80,v:[60,70,80,90],l:N_('ops.p_at'),f:v=>v+'%'},
@@ -143,16 +146,18 @@ const opsProv=c=>{const pv=opsP('transit','prov'),n=isNet(pv)?NET[pv]:null;retur
 // after a job is only a place where a long shift may let a frame through (opsRun()), nothing changes there.
 const OPS_RUN={
  *repair(X){purgeInc();for(const i of S.inc.slice())if(i.type!=='ddos'&&i.until>S.day&&i.cost>0&&!(i.slow&&i.rushed)&&X.can('repair',i.cost)&&X.pay('repair',()=>ACT.fixInc({id:i.id}))){X.did('repair');yield;}},
- *routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how'),m=opsP('routers','model'),fix=m!=='next',
-     load=c=>Math.max((R.nodeLoad[c]||0)*opsAhead()/(R.nodeCap[c]||nodeCap(c)||1),portsUsed(c)/Math.max(1,portsMax(c)));
+ // Ports in use are counted for every POP at once, after the model swaps: a router added or swapped here changes no other POP's count.
+ *routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how'),m=opsP('routers','model'),fix=m!=='next',cs=opsPops('routers'),
+     load=(c,u)=>Math.max((R.nodeLoad[c]||0)*opsAhead()/(R.nodeCap[c]||nodeCap(c)||1),u/Math.max(1,portsMax(c)));
    // A chosen model: swap every POP still on a smaller one to it, the busiest first, while the budget lasts. Never a
    // step down, never a model that is not unlocked or does not fit, and only with a second router or no traffic there.
-   if(fix&&rgOpen(m))for(const c of opsPops('routers').sort((a,b)=>load(b)-load(a))){const p=S.pops[c],g=p.rgen||0;
+   if(fix&&rgOpen(m)){const pu=portsAt(cs);for(const c of cs.slice().sort((a,b)=>load(b,pu.get(b))-load(a,pu.get(a)))){const p=S.pops[c],g=p.rgen||0;
      if(p.rupDay===S.day||g===m||RG[m].cap<=RG[g].cap||modelFits(c,m)||!((p.routers||1)>1||popIdle(c)))continue;
      const cost=swapCost(c,m);if(!X.can('routers',cost))continue;
-     if(X.pay('routers',()=>ACT.upRouter({city:c,g:m}))){X.did('routers',c+' ⇧'+RG[m].pn);yield;}}
-   for(const c of opsPops('routers')){const p=S.pops[c];if(p.rupDay===S.day)continue;
-     const ld=load(c);if(ld<at)continue;
+     if(X.pay('routers',()=>ACT.upRouter({city:c,g:m}))){X.did('routers',c+' ⇧'+RG[m].pn);yield;}}}
+   const pu=portsAt(cs);
+   for(const c of cs){const p=S.pops[c];if(p.rupDay===S.day)continue;
+     const ld=load(c,pu.get(c));if(ld<at)continue;
      const rt=p.routers||1,g=p.rgen||0,nx=mainRG(RG[g].cls+1);
      // A swap with one router is a maintenance window: the intern only swaps where a second router carries the traffic.
      // With a chosen model the swaps are the ones above; a busy POP only gets more routers.
@@ -184,11 +189,15 @@ const OPS_RUN={
  // augment lands weeks later, so that port waits for it. A flood fills ports for a day or two: not worth buying for.
  *ports(X){if(ddosAll().length||!X.can('ports',1,0,true))return;const N=opsP('ports','x'),L=[],
    // Router ports that pending PNI augments will take when they land are spoken for.
-   resv=c=>S.pni.reduce((a,p)=>p.up&&p.city===c?a+Math.max(0,PORT_SLOT(p.up.tier)*(p.up.n||1)-PORT_SLOT(p.tier)*(p.n||1)):a,0),room=c=>portsMax(c)-portsUsed(c)+1e-9-resv(c);
+   // Both, by city, are worked out once between two jobs (a job may change them; KV is dropped after each), in the order
+   // the PNIs come, as the sum over them was: the same numbers.
+   KV={rv:null,pu:new Map()},
+   resv=c=>{if(!KV.rv){KV.rv=new Map();for(const p of S.pni)if(p.up)KV.rv.set(p.city,(KV.rv.get(p.city)||0)+Math.max(0,PORT_SLOT(p.up.tier)*(p.up.n||1)-PORT_SLOT(p.tier)*(p.n||1)));}return KV.rv.get(c)||0;},
+   used=c=>{let u=KV.pu.get(c);if(u===undefined)KV.pu.set(c,u=portsUsed(c));return u;},room=c=>portsMax(c)-used(c)+1e-9-resv(c);
    // Each port: cap() now, use today, lag() and ups() the jobs it could have as {cost, cap after, w for the log, go}, sig() to see a job took.
    for(const p of S.pni){const c=p.city,use=(R.usePni[p.id]||0)*opsAhead(),cap=()=>lagCap(pniG(p),p.n),n=()=>p.n||1;if(!pniOn(p)||p.up||!(use>0)||cap()>=N*use||!opsHere('ports',c))continue;
      L.push({city:c,at:c,use,u:use/cap(),cap,n,rt:(S.pops[c]||{}).routers||1,busy:()=>!!p.up,sig:()=>[p.tier,n(),!!p.g1,!!p.up].join(),
-       lag:()=>n()<LAG_MAX&&!msfNope(p.net,c)&&PORT_SLOT(p.tier)<=room(c)?{cost:1500+PORT[p.tier].setup/2,cap:lagCap(pniG(p),n()+1),w:'+1×'+pniPN(p),go:()=>ACT.lagP({id:p.id,d:1})}:null,
+       lag:()=>n()<pniLagMax(c)&&!msfNope(p.net,c)&&PORT_SLOT(p.tier)<=room(c)?{cost:1500+PORT[p.tier].setup/2,cap:lagCap(pniG(p),n()+1),w:'+1×'+pniPN(p),go:()=>ACT.lagP({id:p.id,d:1})}:null,
        ups:()=>{const out=[];for(let t=p.g1?0:p.tier+1;t<PORT.length&&portShown(t);t++){const q=pniQuote(c,p.net,t,resv(c));if(q&&!q.why)out.push({cost:q.cost,cap:lagCap(PORT[t].g,n()),w:pniPN(p)+'→'+PORT[t].n,go:()=>ACT.pni({city:c,net:p.net,tier:t})});}return out;}});}
    // Nominal capacity, not ixCap(): a LACP fault or one building down halves a LAG for a day or two, not worth a bigger port.
    for(const x in S.ixp){const c=ixCity(x),use=(R.useIx[x]||0)*opsAhead(),n=()=>(S.ixn||{})[x]||1,cap=()=>lagCap(PORT[S.ixp[x]].g,n())*(isRemote(x)?REMOTE_CAP:1),pop=S.pops[c];if(S.myIx[x]||!(use>0)||!(cap()>0)||cap()>=N*use||!opsHere('ports',c))continue;
@@ -200,10 +209,10 @@ const OPS_RUN={
          out.push({cost:ixPortMo(x,t)*n(),cap:cap()*lagCap(PORT[t].g,n())/lagCap(g(),n()),w:PORT[t0].n+'→'+PORT[t].n,go:()=>ACT.buyIx({city:x,tier:t})});}return out;}});}
    for(const o of L.sort((a,b)=>b.u-a.u))for(let step=0;step<3&&!o.busy()&&o.cap()<N*o.use;step++){
      const lag=o.lag(),wantLag=o.n()<2&&o.rt>1,ups=wantLag&&lag?null:o.ups(),fit=ups&&(ups.find(u=>u.cap>=N*o.use)||ups.at(-1)),job=wantLag?lag||fit:fit||lag,was=o.sig();
-     if(!job||!X.can('ports',job.cost)||!X.pay('ports',()=>{job.go();return o.sig()!==was;}))break;
-     X.did('ports',o.at+' '+job.w);yield;}},
- *optics(X){const at=opsP('optics','at')/100,big=opsP('optics','pick')==='big',gpd=(o,l)=>optG(o,l)/optCost(o);
-   for(const l of S.links){if(l.kind!=='df'||l.ready>S.day||l.eqDown>S.day||l.standby||l.cut>S.day)continue;
+     if(!job||!X.can('ports',job.cost)||!X.pay('ports',()=>{job.go();return o.sig()!==was;})){KV.rv=null;KV.pu.clear();break;}
+     KV.rv=null;KV.pu.clear();X.did('ports',o.at+' '+job.w);yield;}},
+ *optics(X){const at=opsP('optics','at')/100,big=opsP('optics','pick')==='big',fresh=opsP('optics','fresh'),gpd=(o,l)=>optG(o,l)/optCost(o);
+   for(const l of S.links){if(l.kind!=='df'||l.ready>S.day||l.eqDown>S.day||l.standby||l.cut>S.day||(!fresh&&!(l.ch||[]).length))continue;
      let cap=dfCap(l);const load=((R.load&&R.load[l.id])||0)*opsAhead();
      // New fiber gets its first channel; lit fiber gets more while it runs hot.
      for(let step=0;step<8&&(cap<=0?!(l.ch||[]).length:load>=cap*at);step++){if(chMax(l)-(l.ch||[]).length-soldSlots(l)<=0)break;
@@ -242,20 +251,25 @@ const OPS_RUN={
        X.pay('optup',()=>{ACT.setChCount({id:l.id,o:o1,n:cnt[o1]-1});ACT.setChCount({id:l.id,o:o2,n:n2});
          if((l.ch||[]).filter(k=>k===o2).length===n2)return true;ACT.setChCount({id:l.id,o:o1,n:cnt[o1]});return false;});
        if(!(dfCap(l)>was))break;X.did('optswap',l.a+'|'+l.b+' '+fmtCap(optG(o1,l))+'→'+fmtCap(optG(o2,l)));yield;}}},
- *caches(X){const g=opsP('caches','g');
-   for(const c of opsPops('caches')){const q=utilityCaches(c);if(!q||!q.add.length)continue;
-     const want=q.add.filter(x=>cacheDem(c,x.net)>=g),free=()=>portsMax(c)-portsUsed(c)+1e-9;
+ // The boxes sorted by POP once: the boxes racked at one POP change no other POP's plan.
+ *caches(X){const g=opsP('caches','g'),by=new Map();for(const x of S.caches){const a=by.get(x.city);if(a)a.push(x);else by.set(x.city,[x]);}
+   for(const c of opsPops('caches')){const add=cachePlan(c,by.get(c)||[]);if(!add||!add.length)continue;
+     const want=add.filter(x=>cacheDem(c,x.net)>=g),free=()=>portsMax(c)-portsUsed(c)+1e-9;
      for(const x of want){if(cachePortsAdd(c,[x])>free())continue;if(!X.can('caches',0,cacheMo(x)))return;S.caches.push({id:uid(),city:c,net:x.net,site:x.site,...(x.g?{g:x.g}:{})});X.book('caches',0,cacheMo(x));X.did('caches',c);}
      yield;}},
  // Weekly, like a person going through PeeringDB on a Monday: route servers, then every willing member (#192).
  ix(X){if(S.day%7&&!opsIs('annie'))return;for(const ix of utilityRouteServers()){S.rs[ix]=true;X.did('rs');}
    for(const row of utilityPeers())for(const id of row.requests){S.peers[id+'@'+row.ix]=true;X.did('peer',row.ix);}},
  // Weekly too: every willing network above the threshold, at its own minimum size and lead time (#181).
- *pni(X){if(S.day%7!==3&&!(opsIs('annie')&&S.day%7===6))return;const b=pniBatch(null,opsP('pni','tier'));if(!b)return;const g=opsP('pni','g'),paid=opsP('pni','paid');
+ *pni(X){if(S.day%7!==3&&!(opsIs('annie')&&S.day%7===6))return;
+   // The batch a few networks at a time; if the player acted in between (an action routes), it is made again in one go.
+   const g0=RW.gen,it=pniBatchRun(null,opsP('pni','tier'));let b;for(;;){const s=it.next();if(s.done){b=s.value;break;}yield;}
+   if(RW.gen!==g0)b=pniBatch(null,opsP('pni','tier'));if(!b)return;yield;const g=opsP('pni','g'),paid=opsP('pni','paid');
    // The traffic a PNI there would take over: what your users at that POP send to the network today over transit, an
    // exchange or a PNI elsewhere, the same figure the PNI list shows. Not the city's whole demand: a network's own
    // cache boxes in that POP already serve most of it (#244).
-   const loc=q=>pniVal(q.net,q.city).want;
+   // pniVal()'s want, without the rest pniVal() prices (the transit it saves, the port): all the order asks (pniWant()).
+   const lv=new Map(),loc=q=>{let v=lv.get(q);if(v===undefined)lv.set(q,v=pniWant(q.city,q.net));return v;};
    // Each order quoted again just before it is placed: the player may have ordered the same PNI by hand while the shift
    // let a frame through or waited for a routing, and the batch's quote would order it a second time.
    for(const q0 of b.orders.filter(q=>opsHere('pni',q.city)&&loc(q)>=g&&(paid||NET[q.net].pol!=='paid'||paidFree(NET[q.net]))).sort((a,b)=>loc(b)-loc(a))){
@@ -293,8 +307,15 @@ function opsDarkAgain(y){const l=S.links.find(x=>x.id===y.dark);if(!l||S.biz.som
   return opsDarkTrial({dark:l.id,s0:R.served,L0:R.l2||{}});}
 // A wave can carry a promise: diverse paths, no subsea, a latency budget. Try the network without it first.
 function opsDecomSafe(l){const bz=S.biz.filter(b=>(b.reqs||[]).some(k=>k==='diverse'||k==='sharks'||k==='lat')&&b.city2);if(!bz.length)return true;
-  const chk=b=>(b.reqs||[]).every(k=>k==='diverse'?diversePaths(b.city,b.city2):k==='sharks'?terrestrialPath(b.city,b.city2):k==='lat'?bestLat(b.city,b.city2)<=b.latMax:true);
-  const was=bz.filter(chk),all=S.links;S.links=all.filter(x=>x!==l);try{return was.every(chk);}finally{S.links=all;}}
+  const was=bz.filter(promiseCheck()),all=S.links;S.links=all.filter(x=>x!==l);try{return was.every(promiseCheck());}finally{S.links=all;}}
+/* Those promises, asked for many customers on one network: each search is made once and shared (a diversity graph, the
+   land islands, one latency search per city a customer starts from). Same answers as diversePaths(), terrestrialPath()
+   and bestLat() asked one by one. */
+function promiseCheck(){let dg=null,ti=null,lg=null;const dv=new Map(),ld=new Map();
+  const div=(a,b)=>{const k=a+'>'+b;let r=dv.get(k);if(r===undefined)dv.set(k,r=divOn(dg||(dg=divGraph()),a,b));return r;};
+  const land=(a,b)=>{if(a===b)return true;ti=ti||terrIslands();const A=ti.get(a);return A!==undefined&&A===ti.get(b);};
+  const lat=(a,b)=>{lg=lg||latGraph();if(!ld.has(a))ld.set(a,latRun(lg,a));return latAt(lg,ld.get(a),a,b);};
+  return b=>(b.reqs||[]).every(k=>k==='diverse'?div(b.city,b.city2):k==='sharks'?land(b.city,b.city2):k==='lat'?lat(b.city,b.city2)<=b.latMax:true);}
 // The links between each pair of cities, VXCs left out.
 function opsPairs(){const by=new Map();for(const l of S.links)if(l.kind!=='vxc'){const k=edgeKey(l);(by.get(k)||by.set(k,[]).get(k)).push(l);}return by;}
 const opsDecomWaits=()=>[...opsPairs().values()].some(ls=>ls.length>1&&ls.some(l=>l.kind==='wave'));

@@ -222,6 +222,16 @@ test('N7: presence is real: PoPs are cities, exchange ports only where the netwo
   fail('N7', bad, 'an exchange port needs an exchange in that city and a PoP there');
 });
 
+test('N8: a POP\'s traffic to the networks that sell to homes goes mostly to those whose users live near it (#48)', () => {
+  // Every city keeps its total and content keeps its share: only the split between home networks follows geography.
+  const bad = J(`CITIES.filter(c=>{const a=locSh(NSH,c.id);let t=0;for(let j=0;j<NETS.length;j++){t+=a[j];if(!NETS[j].cc&&Math.abs(a[j]-(NSH[NETS[j].id]||0))>1e-12)return true;}return Math.abs(t-1)>1e-9;}).map(c=>c.id)`);
+  fail('N8', bad, 'locSh() must keep a city\'s total and every share of a network without home markets');
+  // At home a network's share is above its world share, far away below it.
+  const far = J(`NETS.filter(n=>n.cc&&NSH[n.id]>0).flatMap(n=>{const cc=[].concat(n.cc),home=CITIES.find(c=>cc.includes(c.cc)),away=CITIES.find(c=>!locNets()[LOC_NIX.get(n.id)].reg.has(c.reg));
+    const j=LOC_NIX.get(n.id),out=[];if(home&&!(locSh(NSH,home.id)[j]>NSH[n.id]))out.push(n.id+'@home');if(away&&!(locSh(NSH,away.id)[j]<NSH[n.id]))out.push(n.id+'@away');return out;})`);
+  fail('N8', far, 'LOC_HOME > LOC_REG > LOC_FAR, and home markets (cc) are where the users are');
+});
+
 // ---------- Modes and rules ----------
 
 test('M1: On-call is the classic game: the default rules, and what old saves load as', () => {
@@ -485,9 +495,45 @@ test('F8: a managed wave costs your own capacity, rides one optic, and is priced
   assert.deepEqual(g.errors, []);
 });
 
+test('F9: a latency contract is late, capped, achievable, paid for its latency and credited when over it (#137)', () => {
+  const T = J('BIZ_T.lowlat');
+  assert.ok(T.lv >= 7, `F9: from customer level 7, not ${T.lv}`);
+  assert.ok(T.l2 && T.lat && T.sla, 'F9: a circuit with a latency limit and an SLA');
+  assert.ok(Math.min(...T.opts) >= 1600 && Math.max(...T.opts) <= T.max && T.max <= 3200, 'F9: 1.6T and up, never past 3.2T');
+  assert.equal(ev("(()=>{const x={type:'lowlat',bw:BIZ_T.lowlat.max};return clGrow(x)||x.bw!==BIZ_T.lowlat.max;})()"), false, 'F9: never grows past its most');
+  // Per Gbps on the same route, the bare contract beats any other big circuit with every extra it can ask for.
+  const best = ev("Math.max(...['hyper','ai','aiwan'].map(t=>BIZ_T[t].km))*(1+REQS.diverse.bonus+REQS.metro.bonus+REQS.sharks.bonus+REQS.gen.bonus)");
+  assert.ok(T.km > best, `F9: ${T.km} per km-unit against the best other big circuit's ${best}`);
+  const g = load();
+  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=BIZ_T.lowlat.lv-1;S.biz=[];S.offers=[];for(const c of ['nyc','chi','lon','fra','tok','sin'])if(!S.pops[c])ACT.buildPop({city:c});compute()");
+  const spawn = (n) => g.ev(`(()=>{const out=[];for(let i=0;i<${n};i++){S.offers=[];spawnOffer();out.push(...S.offers.filter(o=>o.type==='lowlat'));}S.offers=[];return JSON.stringify(out);})()`);
+  assert.deepEqual(JSON.parse(spawn(400)), [], 'F9: none below its level');
+  g.ev('S.lvl=BIZ_T.lowlat.lv');
+  const os = JSON.parse(spawn(400));
+  assert.ok(os.length > 0, 'F9: offered at its level');
+  for (const o of os) assert.ok(g.ev(`Math.min(latFloor('${o.city}','${o.city2}'),bestLat('${o.city}','${o.city2}'))<=${o.latMax}`), `F9: ${o.city}–${o.city2} in ${o.latMax} ms can be built`);
+  g.ev("S.biz.push({id:'x',type:'lowlat',name:'X',city:'nyc',city2:'chi',bw:1600,rate:100,reqs:['lat'],latMax:0.1,mood:100,since:S.day-30});compute()");
+  const cash = g.ev('S.cash');
+  assert.equal(g.ev("lcBreach(S.biz.find(b=>b.id==='x'),S.day)"), g.ev('LC_MOOD'), 'F9: over its limit, it loses patience');
+  assert.equal(Math.round(cash - g.ev('S.cash')), g.ev('Math.round(1600*100/monLen(S.day))'), "F9: and a day's fee comes back as a credit");
+  assert.deepEqual(g.errors, []);
+});
+
 // D1–D4: DDoS as networks see it (#242). tests/ddos-model.test.js plays each one in detail.
 const ddFra = (ev) => ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=40;ACT.buyTransit({city:'fra',net:'cog',tier:1});S.pops.fra.rgen=RG.findIndex(r=>r.fsN===8);S.biz.push({id:'g',type:'game',name:'G',city:'fra',bw:10,rate:1,mood:80,since:0,reqs:[]},{id:'d',type:'dia',name:'D',city:'fra',bw:5,rate:1,mood:80,since:0,reqs:[]});compute()");
 const ddHit = (ev, g) => ev(`S.ev.ddos={id:'x',city:'fra',tgt:'g',vec:'dns',gbps:${g},start:S.day,until:S.day+2,bh:false};compute()`);
+test('F10: growth goes sideways, plus one paid way up (#61, #323)', () => {
+  // A PNI bundles eight members per router at its POP, up to 32; every other LAG stays at eight.
+  assert.equal(ev('LAG_MAX'), 8, 'F10: transit, exchange and fabric LAGs hold eight members');
+  const lim = J("[1,2,3,4,5,16].map(r=>{const o=S.pops.fra;S.pops.fra={routers:r};const m=pniLagMax('fra');if(o)S.pops.fra=o;else delete S.pops.fra;return m;})");
+  assert.deepEqual(lim, [8, 16, 24, 32, 32, 32], 'F10: a PNI grows by eight members per router, up to 32');
+  // Giant AI circuits land at campuses spread over many metros, no city more than two.
+  const per = J("MEGA.reduce((m,x)=>(m[x.c]=(m[x.c]||0)+1,m),{})");
+  assert.ok(Object.keys(per).length >= 30, `F10: campuses in at least 30 metros (${Object.keys(per).length})`);
+  fail('F10', Object.entries(per).filter(([, n]) => n > 2).map(([c]) => c), 'no metro holds more than two campuses');
+  fail('F10', J("MEGA.filter(m=>!CITY[m.c]).map(m=>m.c)"), 'campuses sit in real cities');
+});
+
 test('D1: attack sizes come from the world, never from your network', () => {
   const g = load();
   ddFra(g.ev);
@@ -654,7 +700,7 @@ test('O7: a fresh Tier 1 cannot afford a full Shortcrust in its first year', () 
   // most the Ex-Im Pie Bank lends a rocket company on top.
   const g = load();
   const save = fs.readFileSync(path.join(__dirname, 'fixtures', 'big-network.json'), 'utf8');
-  g.ev(`S=migrate(JSON.parse(${JSON.stringify(save)}));compute()`);
+  g.ev(`S=migrate(JSON.parse(${lit(save)}));compute()`);
   const rev = g.ev('R.revMo'), loan = g.ev('Math.max(...Object.values(BANKS).map(b=>b.amt[1]))') * rev + g.ev('pieEximCap()'), cash = Math.max(0, g.ev('S.cash'));
   const year = 12 * rev + loan + Math.min(cash, 12 * rev);
   const full = g.ev("pieFullCost('short')");

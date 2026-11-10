@@ -40,7 +40,7 @@
 .setline>span,.setline>label{font-weight:800}
 /* Title screen: the big start button across the top, the three others below it, all the same size. */
 .btns.tcta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.btns.tcta.tcta4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.btns.tcta .b.tcl{grid-column:span 2}/* cloud sync: with it the title's buttons fill two rows of three */
 .btns.tcta .b{margin:0;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.15;white-space:normal;hyphens:auto;-webkit-hyphens:auto;min-height:40px;padding:4px 6px;font-size:14px}
 .btns.tcta .b.big{grid-column:1/-1;font-size:18px;padding:7px 18px 5px}
 /* Dropdowns that look like the game's buttons. 16px text: iOS zooms into anything smaller when it is tapped. */
@@ -230,3 +230,5 @@ h2 .rn{font-size:18px;vertical-align:middle;padding:2px 4px}
 .cmroute{align-items:flex-start}
 .tag.cmhot{background:#FFE1D6;color:#B43A12}
 .tag.cmcool{background:#DDF1FB;color:#1E6A8C}
+/* Moving a network to another device (#263): a pasted link is long, so it wraps anywhere. */
+textarea.xfer-in{width:100%;box-sizing:border-box;border:3px solid var(--ink);border-radius:12px;padding:8px 10px;font:13px/1.35 ui-monospace,monospace;background:var(--soft);color:var(--ink);resize:vertical;word-break:break-all}

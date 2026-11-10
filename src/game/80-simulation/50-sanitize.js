@@ -20,7 +20,7 @@ function sanitize(s){
   for(const c of Object.keys(s.pops)){const p=s.pops[c];if(!isCity(c)||!p||typeof p!=='object'){delete s.pops[c];continue;}p.routers=int(p.routers,1,RMAX,1);if(p.rupDay!==undefined)p.rupDay=num(p.rupDay,-1);if(p.rgen!==undefined)p.rgen=int(p.rgen,0,RG.length-1,0);p.down=num(p.down,0);if(p.bb&&typeof p.bb==='object')p.bb.d=num(p.bb.d,0);else p.bb=null;}
   if(!isCity(s.home))s.home=Object.keys(s.pops)[0]||'fra';
   opsSanitize(s);
-  const tier=v=>int(v,0,PORT.length-1,0),lag=v=>int(v,1,LAG_MAX,1),sid=v=>String(v==null?uid():v).slice(0,40);
+  const tier=v=>int(v,0,PORT.length-1,0),lag=v=>int(v,1,LAG_MAX,1),plag=v=>int(v,1,PNI_LAG_MAX,1),sid=v=>String(v==null?uid():v).slice(0,40);
   s.links=s.links.filter(l=>l&&isCity(l.a)&&isCity(l.b)&&l.a!==l.b).map(l=>{l.id=sid(l.id);if(l.list!==undefined){const L=l.kind==='df'?cmClean(l.list):null;if(L)l.list=L;else delete l.list;}l.km=num(l.km,kmBetween(l.a,l.b));l.mo=num(l.mo,0);l.cut=num(l.cut,0);if(l.cname!=null)l.cname=String(l.cname).slice(0,60);if(l.pairs!==undefined)l.pairs=Math.min(l.sub?SUB_PAIRS_MAX:s.lvl>=PAIRS_LV?PAIRS_BIG:PAIRS_MAX,Math.max(1,Math.floor(+l.pairs)||1));if(l.kind!=='df'&&l.kind!=='vxc')l.kind='wave';if(l.kind==='wave')l.tier=int(l.tier,0,LT.length-1,0);if(l.cable&&(!own(CAB,l.cable)||!cablePair(l.cable,l.a,l.b)))l.cable=null;if(l.kind==='vxc'&&!own(VXC,l.vt))l.vt=0;if(l.kind==='df'){if(!own(DF_SYS,l.sys))l.sys='lite';l.ch=Array.isArray(l.ch)?l.ch.filter(o=>own(OPT,o)):[];l.ready=num(l.ready,0);if(l.day!==undefined)l.day=Math.min(s.day,Math.max(0,num(l.day,s.day)));for(const k of Object.keys(SUB_UPGRADES)){const f='sub'+k;if(l[f]!==undefined){if(l.own&&l.sub&&Number.isFinite(l[f])&&l[f]>=0)l[f]=Math.round(l[f]);else delete l[f];}}if(l.seaPath!==undefined){if(l.own&&l.sub&&Array.isArray(l.seaPath)&&l.seaPath.length>=2&&l.seaPath.length<=2048&&l.seaPath.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90))l.seaPath=l.seaPath.map(p=>p.slice());else delete l.seaPath;}if(l.paid!==undefined){if(l.own&&l.sub&&Number.isFinite(l.paid)&&l.paid>=0)l.paid=Math.round(l.paid);else delete l.paid;}if(l.own&&l.sub&&!own(SEA_DESIGNS,l.seaDesign))l.seaDesign='standard';l.regen=int(l.regen,0,REGEN_MAX,0);}const deg=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;if(l.loss)l.loss=deg(l.loss);return l;});
   for(const l of s.links)repairSubUpgradeDates(l,s.day);
   /* Metrics moved from each link to its city pair (#122). Older saves routed a pair at the lowest metric of its
@@ -32,9 +32,9 @@ function sanitize(s){
      if(!ks.has(k)||typeof v!=='string'||!own(MET,v)||v==='normal')delete pm[k];}}
   const degO=v=>v&&typeof v==='object'?{until:num(v.until,0),f:Math.min(1,Math.max(0,num(v.f,1)))}:null;
   s.transit=s.transit.filter(t=>t&&isCity(t.city)&&isNet(t.net)).map(t=>(t.lacp=degO(t.lacp),t.site=['a','b','ab'].includes(t.site)?t.site:'a',t.id=sid(t.id),t.tier=tier(t.tier),t.n=lag(t.n),t.down=num(t.down,0),t.clean=!!t.clean,t.carry===true||delete t.carry,t.premium=premOnlyAt(NET[t.net],t.city)||!!t.premium&&premCity(NET[t.net],t.city),t));
-  s.pni=s.pni.filter(x=>x&&isCity(x.city)&&isNet(x.net)).map(x=>(x.lacp=degO(x.lacp),x.site=['a','b','ab'].includes(x.site)?x.site:'a',x.id=sid(x.id),x.tier=tier(x.tier),x.n=lag(x.n),x.sacrif=!!x.sacrif,x));
+  s.pni=s.pni.filter(x=>x&&isCity(x.city)&&isNet(x.net)).map(x=>(x.lacp=degO(x.lacp),x.site=['a','b','ab'].includes(x.site)?x.site:'a',x.id=sid(x.id),x.tier=tier(x.tier),x.n=plag(x.n),x.sacrif=!!x.sacrif,x));
   // PNIs on order (#…): delivery day, a pending augment, and 1G for the one network that sells it
-  for(const x of s.pni){if(x.ready!==undefined)x.ready=num(x.ready,0);if(x.g1)x.g1=x.tier===0&&x.net==='dtk'?true:undefined;else delete x.g1;if(x.up){const u=x.up;x.up=u&&typeof u==='object'?{tier:tier(u.tier),n:lag(u.n),ready:num(u.ready,0),g1:!!u.g1&&x.net==='dtk'&&tier(u.tier)===0,...(u.site==='ab'?{site:'ab'}:{})}:undefined;if(!x.up)delete x.up;}}
+  for(const x of s.pni){if(x.ready!==undefined)x.ready=num(x.ready,0);if(x.g1)x.g1=x.tier===0&&x.net==='dtk'?true:undefined;else delete x.g1;if(x.up){const u=x.up;x.up=u&&typeof u==='object'?{tier:tier(u.tier),n:plag(u.n),ready:num(u.ready,0),g1:!!u.g1&&x.net==='dtk'&&tier(u.tier)===0,...(u.site==='ab'?{site:'ab'}:{})}:undefined;if(!x.up)delete x.up;}}
   // Supply chain: a shortage and a price lock, both optional.
   {const H=s.hw&&typeof s.hw==='object'&&!Array.isArray(s.hw)?s.hw:{},o={};const sh=H.shock,lk=H.lock;
    if(sh&&typeof sh==='object'&&own(HW_SHOCK,sh.k))o.shock={k:sh.k,until:num(sh.until,0),mul:clamp(num(sh.mul,1),1,2)};
@@ -54,7 +54,7 @@ function sanitize(s){
   for(const k of Object.keys(s.peers)){const [n,c]=k.split('@');if(!isNet(n)||!isIx(c))delete s.peers[k];}
   for(const c of Object.keys(s.myIx)){const m=s.myIx[c];if(!isCity(c)||!m||typeof m!=='object'){delete s.myIx[c];continue;}m.members=Array.isArray(m.members)?m.members.filter(isNet):[];m.name=String(m.name||tr('common.your_ix')).slice(0,40);m.next=num(m.next,s.day);m.fab=int(m.fab,0,MYIX_FAB.length-1,0);}
   const okBiz=b=>b&&own(BIZ_T,b.type)&&(!BIZ_T[b.type].nni||own(FAB,b.prov))&&isCity(b.city)&&(!b.city2||isCity(b.city2))&&(!b.sites||Array.isArray(b.sites)&&b.sites.every(isCity));
-  const fixBiz=b=>{b.id=sid(b.id);b.name=String(b.name||tr('common.customer')).slice(0,80);b.bw=num(b.bw,1);b.rate=num(b.rate,0);if(b.fee!==undefined)b.fee=num(b.fee,0);if(b.start!==undefined)b.start=num(b.start,0);if(b.dur!==undefined)b.dur=num(b.dur,1);if(b.slots!==undefined)b.slots=num(b.slots,0);if(b.what!==undefined)b.what=String(b.what).slice(0,200);if(b.broker!==undefined)b.broker=!!b.broker;if(!Array.isArray(b.reqs))b.reqs=[];b.reqs=b.reqs.filter(r=>own(REQS,r));if(b.mood!==undefined)b.mood=num(b.mood,100);if(b.pm!==undefined)b.pm=num(b.pm,b.mood||100);if(b.exp!==undefined)b.exp=num(b.exp,0);if(b.latMax!=null)b.latMax=num(b.latMax,10);if(b.route&&!own(RT,b.route))b.route='normal';if(b.due!==undefined)b.due=num(b.due,0);if(b.win!==undefined)b.win=num(b.win,180);if(b.live!==undefined)b.live=!!b.live;if(b.link!==undefined&&typeof b.link!=='string')delete b.link;return b;};
+  const fixBiz=b=>{b.id=sid(b.id);b.name=String(b.name||tr('common.customer')).slice(0,80);b.bw=num(b.bw,1);b.rate=num(b.rate,0);if(b.fee!==undefined)b.fee=num(b.fee,0);if(b.start!==undefined)b.start=num(b.start,0);if(b.dur!==undefined)b.dur=num(b.dur,1);if(b.slots!==undefined)b.slots=num(b.slots,0);if(b.what!==undefined)b.what=String(b.what).slice(0,200);if(b.broker!==undefined)b.broker=!!b.broker;if(!Array.isArray(b.reqs))b.reqs=[];b.reqs=b.reqs.filter(r=>own(REQS,r));if(b.mood!==undefined)b.mood=num(b.mood,100);if(b.pm!==undefined)b.pm=num(b.pm,b.mood||100);if(b.exp!==undefined)b.exp=num(b.exp,0);if(b.latMax!=null)b.latMax=num(b.latMax,10);if(b.route&&!own(RT,b.route))b.route='normal';if(b.due!==undefined)b.due=num(b.due,0);if(b.win!==undefined)b.win=num(b.win,180);if(b.live!==undefined)b.live=!!b.live;if(b.link!==undefined&&typeof b.link!=='string')delete b.link;if(b.pin!==undefined){const p=b.pin;if(!Array.isArray(p)||p.length<2||p.length>64||!p.every(isCity)||new Set(p).size!==p.length||!BIZ_T[b.type].l2||b.sites||p[0]!==b.city||p[p.length-1]!==b.city2)delete b.pin;}return b;};
   {const ids=new Map(s.links.map(l=>[l.id,l]));s.biz=s.biz.filter(okBiz).map(b=>clFix(s,unpackBiz(fixBiz(b),ids)));}s.offers=s.offers.filter(okBiz).map(fixBiz);
   // Contracts (#178): the bandwidth market an offer was priced in, who referred it, and the month-by-month tally.
   for(const o of s.offers){if(!(typeof o.mk==='number'&&o.mk>0&&o.mk<=5))delete o.mk;if(typeof o.ref!=='string')delete o.ref;if(o.refN!==undefined)o.refN=String(o.refN).slice(0,80);}clFixState(s);salesFix(s);
@@ -64,6 +64,8 @@ function sanitize(s){
   // The backbone's technology: a save from before it with Auto-TE bought keeps the old rules on RSVP-TE (legacy).
   // The standard POP build (#240): a router model and how many.
   {const d=s.popStd;s.popStd=d&&typeof d==='object'&&Number.isInteger(d.g)&&RG[d.g]?{g:d.g,rt:int(d.rt,1,RMAX,1)}:null;}
+  // POP standards by kind (#315): micro, medium, regional hub, and which POP is which.
+  ptSanitize(s);
   {const c=s.core&&typeof s.core==='object'?s.core:null,lv=c?int(c.lv,0,4,0):(s.te?2:0);s.core={lv,run:c?int(c.run,0,lv,lv):lv};if(c?c.legacy===true:!!s.te)s.core.legacy=true;if(c&&c.lab===true)s.core.lab=true;if(c&&c.since!==undefined)s.core.since=num(c.since,0);}
   s.capDeal=s.capDeal&&typeof s.capDeal==='object'&&own(CAP_ROUTES,s.capDeal.c)?{at:num(s.capDeal.at,0),c:s.capDeal.c}:null;
   s.inc=s.inc.filter(i=>i&&typeof i.type==='string').map(i=>(i.type==='maxpfx'&&(i.type='ixloop'),i.id=sid(i.id),i.until=num(i.until,s.day),i.cost=num(i.cost,0),i.msg=String(i.msg||'').slice(0,400),i.fix=i.fix==null?undefined:String(i.fix).slice(0,60),i));
@@ -76,7 +78,10 @@ function sanitize(s){
    for(const i of s.inc){if(i.type!=='cut'||i.st==null){for(const k of ['ship','seaq','st','sw','sp','sl'])delete i[k];continue;}
      i.st=clamp(num(i.st,0.5),0.03,0.97);i.sw=int(i.sw,1,30,4);i.sp=int(i.sp,0,60,0);i.sl=typeof i.sl==='string'?i.sl.slice(0,40):'';i.rushed=!!i.rushed||undefined;
      if(i.ship!=null&&!(own(SHIP,i.ship)&&o[i.ship]&&o[i.ship].inc===i.id))i.ship=null;if(i.ship==null){i.ship=null;i.seaq=1;}else delete i.seaq;}
-   for(const l of s.links)if(l.ship2&&l.kind==='df'&&l.own&&l.sub)l.ship2=1;else delete l.ship2;}
+   for(const l of s.links)if(l.ship2&&l.kind==='df'&&l.own&&l.sub)l.ship2=1;else delete l.ship2;
+   // A lay ship held by a delay (#322): only on your own subsea cable still being laid.
+   for(const l of s.links){const v=l.lay;if(v===undefined)continue;if(!(v&&typeof v==='object'&&!Array.isArray(v)&&l.kind==='df'&&l.own&&l.sub&&l.ready>s.day)){delete l.lay;continue;}
+     const t=Math.round(clamp(num(v.t,s.day),0,l.ready));l.lay={s:Math.round(clamp(num(v.s,s.day),0,Math.min(s.day,t))),q:clamp(num(v.q,0),0,1),t};}}
   s.loans=s.loans.filter(l=>l&&own(BANKS,l.bank));for(const l of s.loans){if(l.model!==undefined&&!['balloon','storm','transit','astro'].includes(l.model))delete l.model;for(const k of ['apr0','cut','share'])if(l[k]!==undefined&&!isFinite(+l[k]))delete l[k];if(!Array.isArray(l.covs))l.covs=[];l.covs=l.covs.filter(c=>own(COVS,c));}s.loanOffers=s.loanOffers.filter(l=>l&&own(BANKS,l.bank));
   s.usedNames=[...new Set(s.usedNames.filter(x=>typeof x==='string'))];s.log=s.log.filter(e=>e&&typeof e.t==='string').slice(0,LOG_KEEP).map(e=>{const o=e.o&&typeof e.o==='object'&&e.o.a==='inbox'?{a:'tab',v:'nets'}:e&&e.o&&typeof e.o==='object'&&LOG_OPEN.includes(e.o.a)?(e.o.a==='bank'||e.o.a==='ops'?{a:e.o.a}:typeof e.o.v==='string'&&e.o.v.length<=64&&(e.o.a!=='city'||isCity(e.o.v))&&(e.o.a!=='tab'||LOG_TABS.includes(e.o.v))?{a:e.o.a,v:e.o.v}:null):null;
     return {id:typeof e.id==='string'&&e.id.length<=40?e.id:uid(),d:num(e.d,0),t:e.t.slice(0,600),h:typeof e.h==='string'?e.h.slice(0,200):'',k:LOG_KINDS.includes(e.k)?e.k:'',at:Number.isFinite(+e.at)?+e.at:0,o,n:int(e.n,1,9999,1)};});
@@ -110,7 +115,7 @@ function sanitize(s){
      three Normal presets, unchanged (its validated mods kept). So an edited or imported save cannot stop the clock or print money. */
   {const r=s.rules&&typeof s.rules==='object'&&!Array.isArray(s.rules)?s.rules:{};
    const m={mods:r.mods};s.rules=s.scn&&typeof s.scn==='object'?makeRules('oncall',m):s.mode==='sandbox'?makeRules('sandbox',{...m,chaos:r.chaos}):makeRules(NORMAL_PRESETS.includes(r.preset)?r.preset:'oncall',m);}
-  specSanitize(s);
+  specSanitize(s);lcSanitize(s);
   cmFix(s);
   pieSanitize(s);pieIncFix(s);volFix(s);
   if(s.te){if(typeof s.te!=='object')s.te=null;else{s.te.on=!!s.te.on;s.te.script=typeof s.te.script==='string'?s.te.script.slice(0,4000):'';}}
