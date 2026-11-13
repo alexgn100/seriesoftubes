@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The project follows
 
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 
+## [3.5.0] — 2026-11-11
+
+- Alien waves you list on a fiber yourself now stay listed. With the capacity market selling for you, the broker used to cut your listing down to what its settings allowed the next day, or take it off altogether when the route's demand was below your minimum. Your own listing now stays put, and the broker adds what its settings allow on top (#340).
+- The Connections list in the NOC dashboard no longer stays blank when you sort it by load or show only NNI ports while a fabric port runs at 400G. A 400G fabric port is the fastest there is, so the list now offers it one more LAG member instead of a faster port that does not exist. (#342)
+- You can now start a link by typing where it goes: open one of your POPs, go to Infra and tap Link to a city, then type a city, country or exchange and pick it. You get the same link window as dragging between the two on the map, which is much easier on a crowded phone screen (#343).
+- The Connections tab of the NOC dashboard can now shrink connections as well as grow them. Next to the upgrades, transit ports, PNIs and exchange ports get a downgrade to the next smaller port and a button to drop one LAG member, and a PNI that is still on order can be chased from the list, just like from the POP panel (#336).
+
 ## [3.4.0] — 2026-11-10
 
 - A PNI can now grow past eight ports: each router at the POP takes eight members of a PNI, up to 32, so a busier interconnect costs another router and its ports. Saves keep every LAG they have, and a router a PNI still needs stays until the PNI shrinks (#323).
