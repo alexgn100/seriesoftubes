@@ -13,7 +13,11 @@ const clKeep=()=>{try{if(CL)localStorage.setItem('sot-cloud',JSON.stringify(CL))
 const clOpen=()=>!!(S&&UI.started&&!S.lost&&!pzOn()&&UI.slot);
 // The linked network, while it still exists on this device.
 const clSlot=()=>CL&&CL.slot&&slotIdx().some(e=>e.id===CL.slot)?CL.slot:null;
-const clLocal=()=>!!CL&&clOpen()&&UI.slot===CL.slot;
+/* A network with a Multimode identity (its private key, 4.0) lives on one device at a time and moves only with Multimode's
+   "Move to another device": cloud sync leaves it alone, so two devices never post as the same network. */
+const clMulti=()=>!!(S&&S.fed&&S.fed.key&&S.fed.key.priv);
+const clHere=()=>!!CL&&clOpen()&&UI.slot===CL.slot;
+const clLocal=()=>clHere()&&!clMulti();
 const clLink=()=>{CL.slot=UI.slot;CL.h='';clKeep();};
 const clName=()=>{const e=CL&&CL.slot&&slotIdx().find(x=>x.id===CL.slot);return e?e.name||tr('common.unnamed_network'):'';};
 // Fingerprint of a network without the camera, speed, save stamp and event log, which change all the time (the log with
@@ -45,19 +49,20 @@ async function cloudAuth(kind,u,p){u=String(u||'').trim();p=String(p||'');UI.clU
    network, or bring the cloud copy in as a new one), 'take' to load the cloud copy over the linked network whatever happens.
    Linked and open: same revision → push if we played; newer in the cloud → load it, or ask if we played too. */
 async function cloudPull(how){if(!CL||NOC.win||UI.clBusy||UI.clConf)return;// a NOC window shows a copy of the game: only the game window syncs
+  if(how&&clHere()&&clMulti()){refreshCloud();return;}// paused: the dialog says why
   const here=clLocal(),mine=clSlot();
   if(!how&&!here&&mine)return;// the linked network syncs when it is opened again
   UI.clBusy=true;let r;
   try{r=await clApi('GET','/save?have='+(how==='take'||how&&!here?-1:CL.rev));}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
   if(r.st===401)return clLost();if(r.st!==200){UI.clErr=clMsg(r.st,r.j);return;}UI.clErr='';
   const j=r.j,rev=Math.max(0,j.rev|0);
-  if(!j.save){if(rev===0&&!mine&&clOpen())clLink();// an empty cloud takes the network being played
+  if(!j.save){if(rev===0&&!mine&&clOpen()&&!clMulti())clLink();// an empty cloud takes the network being played
     if(clLocal()){CL.rev=rev;clKeep();if(clDirty())await cloudPush();}return;}
   const p=parseSave(JSON.stringify(j.save));if(p.err){UI.clErr=p.err;return;}
   if(here){if(how==='take'||!clDirty()||clSame(p.s))return cloudAdopt(p.s,rev,j.at,false);return cloudConflict(j);}
   if(mine){if(how)slotOpen(mine,false);return;}// Sync now from another network: go to the linked one, which pulls as it opens
   // Nothing linked here yet: the open network if it is the same one (logged in again), else the cloud copy as a new network.
-  if(clOpen()&&clSame(p.s)){clLink();CL.rev=rev;CL.at=typeof j.at==='string'?j.at:'';CL.h=clHash(S);clKeep();return;}
+  if(clOpen()&&!clMulti()&&clSame(p.s)){clLink();CL.rev=rev;CL.at=typeof j.at==='string'?j.at:'';CL.h=clHash(S);clKeep();return;}
   if(how)cloudAdopt(p.s,rev,j.at,true);else{CL.rev=rev;clKeep();}}// seen: the background asks again only when it changes
 /* Swap in the cloud copy: over the linked network (fresh: as a new network next to the others, the one playing here kept and
    saved, like an import). On failure the current game is untouched. */
@@ -68,13 +73,14 @@ function adoptSave(s0,fresh){let nx;try{nx=migrate(JSON.parse(JSON.stringify(s0)
   UI.confirm=null;$('bankBox').hidden=true;$('dash').hidden=true;UI.started=true;UI.sel=null;setSpeed([0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1);
   if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;}}
   closeModal();$('modal').hidden=true;compute();renderAll();save(true);return true;}
-function cloudAdopt(s,rev,at,fresh){const local=clLocal();if(!adoptSave(s,fresh)){UI.clErr=tr('save.the_cloud_save_is_damaged_and');return;}
+// A due push is dropped first: what it would send is being replaced (and save(true) may finish the day mid-adopt).
+function cloudAdopt(s,rev,at,fresh){const local=clLocal();UI.clDue=null;if(!adoptSave(s,fresh)){UI.clErr=tr('save.the_cloud_save_is_damaged_and');return;}
   if(fresh)CL.slot=UI.slot;
   toast(local?tr('save.loaded_from_the_cloud_name_carries',{name:esc(S.name),date:dateStr(S.day)}):tr('save.welcome_back_name_loaded_from_the',{name:esc(S.name)}),'good');
   CL.rev=rev;CL.at=typeof at==='string'?at:'';CL.h=clHash(S);clKeep();} // after the toast, which lands in the network's log
 // base: the revision this push replaces; a newer one in the cloud is refused unless the player chose to overwrite it.
 async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;if(RW.job){UI.clDue={base};return;}UI.clBusy=true;const h=clHash(S);let r;
-  try{r=await clApi('PUT','/save',{base:base===undefined?CL.rev:base,save:packSave(S)});}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
+  try{r=await clApi('PUT','/save',{base:base===undefined?CL.rev:base,save:fedPublic(packSave(S))});}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
   if(r.st===200){CL.rev=r.j.rev|0;CL.at=String(r.j.at||'');CL.h=h;UI.clErr='';clKeep();return;}
   if(r.st===401)return clLost();if(r.st===409)return cloudConflict(r.j);UI.clErr=clMsg(r.st,r.j);}
 const cloudTick=()=>{if(CL&&!NOC.win&&!UI.clConf&&clDirty())cloudPush();};
@@ -89,7 +95,7 @@ async function cloudProbe(){if(UI.clOk!==undefined)return;UI.clOk=null;let ok=fa
 function cloudHtml(){let h='';const err=UI.clErr?`<p class="note" style="color:var(--bad);margin:6px 0">${esc(UI.clErr)}</p>`:'';
   if(CL){const mine=clSlot();
     h+=`<p class="meta" style="margin:0 0 6px">${tr('save.signed_in_as_user',{user:esc(CL.u)})} ${CL.at&&isFinite(Date.parse(CL.at))?tr('save.last_synced_time',{time:esc(new Date(CL.at).toLocaleString(LANG))}):tr('save.not_synced_yet')}</p>
-    <p class="meta" style="margin:0 0 6px">${!mine?tr('save.no_network_on_this_device_is'):clLocal()?tr('save.cloud_sync_keeps_name_in_step',{name:esc(clName())}):tr('save.cloud_sync_keeps_name_open_it',{name:esc(clName())})}</p>${err}`;
+    <p class="meta" style="margin:0 0 6px">${!mine?tr('save.no_network_on_this_device_is'):clHere()&&clMulti()?tr('save.name_plays_in_multimode_so_cloud',{name:esc(clName())}):clLocal()?tr('save.cloud_sync_keeps_name_in_step',{name:esc(clName())}):tr('save.cloud_sync_keeps_name_open_it',{name:esc(clName())})}</p>${err}`;
     if(UI.clDel)return h+`<p class="meta" style="margin:0 0 6px">${tr('save.your_account_and_the_network_saved')}</p><input class="t" id="clDelPass" type="password" maxlength="200" autocomplete="current-password" aria-label="${tr('common.password')}"><div class="btns" style="margin-top:8px">${btn(tr('save.delete_cloud_account'),'cloudDel',{},'red sm',UI.clBusy)}${btn(tr('common.cancel'),'cloudDelAsk',{off:1},'ghost sm')}</div>`;
     return h+`<div class="btns">${btn(tr('common.sync_now'),'cloudSync',{},'ghost sm',UI.clBusy)}${btn(tr('common.log_out'),'cloudLogout',{},'ghost sm')}${btn(tr('save.delete_cloud_account'),'cloudDelAsk',{},'ghost sm')}</div>`;}
   if(UI.clOk===false)return h+`<p class="meta" style="margin:0 0 6px">${tr('save.cloud_sync_is_not_available_on')}</p>`;

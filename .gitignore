@@ -2,3 +2,12 @@ node_modules/
 _site/
 .DS_Store
 /data/
+# relay build output and local data folders
+/relay/relay
+/relay/relay-data/
+/relay/relay-lan/
+/relay/.env
+
+# Planning notes stay local
+/docs/plans/
+/.dev-certs/

@@ -10,19 +10,22 @@ const RW_IN=!!self.__TUBES_WORKER__;
 const RW_EL=!RW_IN&&typeof document!=='undefined'?document.currentScript:null;
 // RW_SLOW: a frame time (ms) above which the device does not keep up anyway, and a day may take longer slices (99-loop.js).
 const RW_SLOW=20;
-const RW={w:null,dead:false,seq:0,gz:0,gzq:new Map(),svq:new Map(),gen:0,job:null,desc:null,wR:null,wseq:0,last:null,budget:8,later:f=>rwLater(f),stat:{n:0,post:0,de:0,apply:0,wait:0,work:0}};
+const RW={w:null,dead:false,sync:false,seq:0,gz:0,gzq:new Map(),svq:new Map(),gen:0,job:null,desc:null,wR:null,wseq:0,last:null,budget:8,later:f=>rwLater(f),stat:{n:0,post:0,de:0,apply:0,wait:0,work:0}};
 function rwOn(){return !RW_IN&&!RW.dead&&!window.__TUBES_TEST__&&!window.__TUBES_SYNC__&&typeof Worker==='function'&&!!RW_EL;}
-function rwStart(){if(RW.w)return RW.w;
-  try{const L=LANG,dict=L!=='en'&&window.I18N[L]?JSON.stringify(window.I18N[L]):'null';
-    const pre=`'use strict';self.__TUBES_WORKER__=1;self.window=self;
+/* A worker running this page's own script (no request, no file served): DOM globals are inert stand-ins, and tail
+   wires its messages. The federation worker (88-fed-worker.js) is made the same way. */
+function rwWorker(tail){const L=LANG,dict=L!=='en'&&window.I18N[L]?JSON.stringify(window.I18N[L]):'null';
+  const pre=`'use strict';self.__TUBES_WORKER__=1;self.window=self;
 const _n=new Proxy(function(){},{get:(t,k)=>k===Symbol.toPrimitive?()=>0:k==='then'?undefined:_n,apply:()=>_n,construct:()=>_n,set:()=>true});
 const _st={getItem:()=>null,setItem(){},removeItem(){},key:()=>null,length:0};
 Object.assign(self,{document:_n,localStorage:_st,sessionStorage:_st,requestAnimationFrame:()=>0,cancelAnimationFrame(){},innerWidth:1280,innerHeight:800,devicePixelRatio:1,
   matchMedia:()=>({matches:false,addEventListener(){},addListener(){}}),Image:_n,Audio:_n,screen:_n,visualViewport:_n,history:_n,getComputedStyle:_n,ResizeObserver:_n,MutationObserver:_n,IntersectionObserver:_n,Path2D:_n,scrollTo(){},SOT_LANG:${JSON.stringify(L)},SOT_LANGS:{},I18N:{}});
 if(${dict})self.I18N[${JSON.stringify(L)}]=${dict};
 `;
-    const url=URL.createObjectURL(new Blob([pre,RW_EL.textContent,'\n;self.onmessage=e=>rwServe(e.data);'],{type:'text/javascript'}));
-    const w=RW.w=new Worker(url);URL.revokeObjectURL(url);
+  const url=URL.createObjectURL(new Blob([pre,RW_EL.textContent,tail],{type:'text/javascript'}));
+  const w=new Worker(url);URL.revokeObjectURL(url);return w;}
+function rwStart(){if(RW.w)return RW.w;
+  try{const w=RW.w=rwWorker('\n;self.onmessage=e=>rwServe(e.data);');
     w.onmessage=e=>{const t=performance.now(),m=e.data;RW.stat.de+=performance.now()-t;rwMsg(m,t);};w.onerror=w.onmessageerror=e=>{console.error('[tubes] route worker failed',e.message||e);rwKill();};
   }catch(e){console.error('[tubes] no route worker',e);rwKill();}
   return RW.w;}
@@ -38,11 +41,11 @@ function rwDay(){rwGo(dayRun());}
 // v: what the step it resumes asked for (a sales trial's or the intern's fiber test's answer, dayAnswer()).
 function rwGo(g,v){const t0=performance.now();for(;;){let s;try{s=dayStep(g,v);}catch(e){tickErr(e);s={done:true};}v=undefined;
   if(s.done){rwDayDone();return;}
-  if(s.value===DAY_REST){if(performance.now()-t0<RW.budget)continue;rwRest(g);return;}
+  if(s.value===DAY_REST){if(RW.sync||performance.now()-t0<RW.budget)continue;rwRest(g);return;}
   // A routing, or a test (a sales trial, the intern's fiber test): the worker routes the game it is sent with the offer
   // added or the fiber dark, and says yes or no.
   const tr=dayAsk(s.value)?s.value:null,here=()=>{if(tr)v=dayAnswer(tr);else compute();};
-  const w=rwOn()&&rwStart();if(!w){try{here();}catch(e){tickErr(e);rwDayDone();return;}continue;}
+  const w=!RW.sync&&rwOn()&&rwStart();if(!w){try{here();}catch(e){tickErr(e);rwDayDone();return;}continue;}
   const t=performance.now(),seq=++RW.seq;
   // The worker also needs what compute() reads from yesterday's R: link loads, and the scenic circuits' paths.
   // While R is the worker's own last answer (RW.wR), it keeps its R.efg rather than getting it back (efg 0, rwServe()).
@@ -58,7 +61,12 @@ if(RW_CH)RW_CH.port1.onmessage=()=>{const f=RW_TQ.shift();if(f)f();};
 function rwLater(f){if(RW_CH&&performance.now()-(RW.lf||-1e9)<(RW.fms||16)*0.75){RW_TQ.push(f);RW_CH.port2.postMessage(0);}
   else requestAnimationFrame(()=>setTimeout(f,0));}
 // The day rests: it goes on after the next frame, still in flight meanwhile (no next day, no save).
-function rwRest(g,v){const j=RW.job={rest:true,g,state:S};RW.later(()=>{if(RW.job!==j)return;RW.job=null;if(j.state!==S){rwDayDone();return;}rwGo(g,v);});}
+function rwRest(g,v){const j=RW.job={rest:true,g,v,state:S};RW.later(()=>{if(RW.job!==j)return;RW.job=null;if(j.state!==S){rwDayDone();return;}rwGo(g,v);});}
+/* The page is going away (hidden, closing) with a day in flight: finish that day here and now, without resting and
+   without the worker (a hidden tab draws no frames, so a resting day would never go on, and the OS may discard the tab
+   before the worker answers). The worker's late answer is ignored (no job any more); the next day uses it again. */
+function rwFinish(){const j=RW.job;if(!j)return;RW.job=null;if(j.state!==S){rwDayDone();return;}RW.sync=true;
+  try{let v=j.rest?j.v:undefined;if(!j.rest){try{if(j.tr)v=dayAgain(j.tr);else compute();}catch(e){tickErr(e);}}rwGo(j.g,v);}finally{RW.sync=false;}}
 // Every answer from the worker, in order.
 function rwMsg(m,t0){if(m.gz!==undefined){rwGzDone(m);return;}if(m.sv!==undefined){rwSaveDone(m);return;}if(m.R){const d=m.R.egDesc;if(d===0)m.R.egDesc=RW.desc;else RW.desc=m.R.egDesc=d&&d.dK!==undefined?rwDescIn(d,RW.desc):d;}rwDone(m,t0);}
 /* A changed R.egDesc comes as its keys, in order, and only the entries that changed (rwDescOut()): a few among thousands.

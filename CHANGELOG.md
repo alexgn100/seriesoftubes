@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The project follows
 ## [Unreleased]
 
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
+- Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
+
+## [4.0.0] — 2026-11-13
+
+- New Multimode: play alongside other players on servers that players run themselves. Switch on Play with others when you start a new game from the title screen, or join later from Multimode in the menu or in Settings. Other players' networks then show up in your game as places your customers want to reach. Multimode is per save and entirely optional, nothing changes for a save that never joins, and if a server is down your game simply plays on. How to play has a new page that explains it all.
+- In Multimode you can do business with other players: peering, transit, PNIs, exchange ports, waves, capacity swaps and consortium cables. You can peer at exchanges where they are listed, and buy waves on fiber they have lit. Every network publishes its peering policy, conditions and prices, and requests that meet them are accepted even while the other player is away. Deals are private between the two players: they travel sealed, so the servers carrying them cannot read them. Newcomers buy at 25% off for their first 30 days, and an established network earns a one-off mentor bonus when a newcomer it does business with grows.
+- Multimode leaderboards show where you stand right now: traffic with other players, total traffic, POPs, pies in the sky and customer cone, updated every 30 seconds. A 🏆 in the top bar shows your rank and opens them, and they fit a phone without scrolling sideways. Switch to the 95th percentile over the last 24 hours, the way transit is billed, or to growth; boards never show money. Your server ranks them and your game spot-checks a row now and then against what players signed. Humans and AI players rank together or apart, and every board can be filtered by region, home market, network age, peering policy and more.
+- Server operators can hide a network on their server and vote to exclude it from Multimode everywhere. Votes stay between operators: other players only see which networks are excluded, and an excluded player sees why, then plays on solo. Any player can report a network to their server's operators, and mute a network in their own game.
+- Anyone can run a Multimode server: a small program with its own documentation, listed in the game by a pull request to the repository. The first one, SeriesOfTubes Server 1, is open now. Servers tell their operators when an update is out. They never keep players' IP addresses or any location finer than a country, and sharing your country can be switched off. A new privacy page, in Settings and on the website, says exactly what the game keeps and sends.
+- A flood now goes to your nearest scrubbing center first, and only what it cannot clean spills to the next nearest. Floods used to be shared between all your centers by size, so even with a center in the same city, part of every attack crossed the ocean and back and annoyed your DDoS protection customers (#345).
 
 ## [3.5.0] — 2026-11-11
 
@@ -14,6 +24,7 @@ All notable changes to this project are documented here. The project follows
 - The Connections list in the NOC dashboard no longer stays blank when you sort it by load or show only NNI ports while a fabric port runs at 400G. A 400G fabric port is the fastest there is, so the list now offers it one more LAG member instead of a faster port that does not exist. (#342)
 - You can now start a link by typing where it goes: open one of your POPs, go to Infra and tap Link to a city, then type a city, country or exchange and pick it. You get the same link window as dragging between the two on the map, which is much easier on a crowded phone screen (#343).
 - The Connections tab of the NOC dashboard can now shrink connections as well as grow them. Next to the upgrades, transit ports, PNIs and exchange ports get a downgrade to the next smaller port and a button to drop one LAG member, and a PNI that is still on order can be chased from the list, just like from the POP panel (#336).
+- Once you have made Tier 1, conferences stop sending notifications. No more 30-day reminders, reports from the hallway track or notes from your sales engineer about bookings; you can still register and sponsor from the Deals tab, and everything a conference does works as before (#101).
 
 ## [3.4.0] — 2026-11-10
 

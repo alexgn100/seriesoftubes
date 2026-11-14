@@ -341,3 +341,33 @@ test('a NOC window never syncs: it shows a copy of the game, which only the game
     assert.deepEqual(W.errors, []);
   } finally { await s.close(); }
 });
+
+test('a Multimode network stays on its device, and nothing that can act as a network is ever uploaded', async () => {
+  const s = await server();
+  try {
+    const a = device(s.base);
+    a.ev("ACT.start({});S.name='Fednet';for(let i=0;i<5;i++)dayTick();save(true)");
+    await a.ev("cloudAuth('register','lena','password1')");
+    assert.equal(a.ev('CL.rev'), 1);
+    const get = async () => (await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j;
+    // Signed records still queued and an operator key: like every export, the upload leaves them out.
+    a.ev("S.fed={...fedNewState(),key:{pub:'PUBKEY'},out:[{k:'queued'}],op:{priv:'OPERATORKEY'}};for(let i=0;i<2;i++)dayTick()");
+    await a.ev('cloudPush()');
+    assert.equal(a.ev('CL.rev'), 2);
+    const up = JSON.stringify((await get()).save);
+    assert.ok(up.includes('PUBKEY'));
+    assert.ok(!up.includes('OPERATORKEY') && !up.includes('queued'), 'no operator key, no queued records');
+    // Joined: the network's private key is on this device. Cloud sync leaves it alone, both ways.
+    a.ev("S.fed={...S.fed,on:true,key:{pub:'PUBKEY',priv:'PRIVATEKEY'}};for(let i=0;i<3;i++)dayTick()");
+    assert.equal(a.ev('clLocal()'), false);
+    a.ev('cloudTick()');
+    await a.ev('cloudPush()');
+    await a.ev("cloudPull('go')");
+    await a.ev("cloudPull('take')");
+    assert.equal(a.ev('CL.rev'), 2, 'nothing went up');
+    assert.ok(!JSON.stringify((await get()).save).includes('PRIVATEKEY'));
+    assert.equal(a.ev('S.fed.key.priv'), 'PRIVATEKEY', 'and the cloud copy did not replace it');
+    assert.match(a.ev("ACT.cloud({});document.getElementById('modalCard').textContent"), /Fednet plays in Multimode, so cloud sync leaves it alone/);
+    assert.deepEqual(a.errors, []);
+  } finally { await s.close(); }
+});

@@ -9,6 +9,17 @@
    (may end in a question); reads 'modal' (the window's text is the report); watch (extra fingerprint paths, #name
    filled from args); quote (the dry run, priced with the game's own helpers); doc. */
 const API_CMD={
+/* ---------- multiplayer gameplay: deals with other players (a joined save; requests are signed and sent) ---------- */
+ fpReq:{args:[['key','string'],['deal','string'],['via','string',false],['at','string',false],['mbps','integer',false],['term','integer',false]],watch:['fed.deals'],doc:'Ask a player network (its key, from state fedn.nets[].k) for a deal on its published terms: deal peering (via ix or pni, at a city), transit (at a city where you both have POPs, mbps the commit), pni (at, mbps a port size it sells), port (on the exchange it runs, at its city), swap (at "cityA|cityB", a route of your links where it has POPs at both ends), wave (at "cityA|cityB", a route on its wave card, mbps the size: 100000, 400000, 800000 or 1600000; you need POPs and routers for that size at both ends). What its conditions still miss comes back as a notice; with automatic acceptance the deal runs at once.'},
+ fpAccept:{args:[['id','string']],watch:['fed.deals','fedp.rq'],doc:'Accept a request waiting for review (fedp.rq[].id): the deal starts now.'},
+ fpDecline:{args:[['id','string']],watch:['fedp.rq'],doc:'Decline a request waiting for review.'},
+ fpEnd:{args:[['id','string']],watch:['fed.deals'],doc:'End a deal with a player (depeer): traffic takes a detour through transit.'},
+ fpRenew:{args:[['id','string']],watch:['fed.deals'],doc:'Renew a deal you buy or peer on, on the other side\'s current terms (prices change only at renewal).'},
+ fpTermsSave:{args:[],watch:['fedp'],doc:'Save and announce the terms drafted in Your terms (fpEdit).'},
+ fpTermsSet:{args:[['terms','string']],watch:['fedp'],doc:'Publish your terms as JSON {pol: open|selective|restrictive, cond {minMbps, maxRatio (×100), minShared, rpki, tier1, ai}, rates {transit {perGbps, commit [{mbps, off}], term}, pni {setup, ports [{mbps, monthly}], term}, ix {ports, join}, wave {routes [{a, b}] (cities in byte order, routes you have lit), sizes [{gbps: 100|400|800|1600, monthly}], term}}, auto {peering, transit, pni, swap, consortium, port, wave: auto|review|decline}}. Transit and wave prices are capped at the computer-run price.'},
+ fpRpki:{args:[['on','boolean',false]],watch:['fedp.rpki'],doc:'Filter routes with RPKI (a monthly fee): a route leak in the federation stops at your border.'},
+ fpConsNew:{args:[['a','cityId'],['b','cityId'],['pairs','integer',false],['members','integer',false]],watch:['fedp.cons'],doc:'Start a consortium cable between two of your POPs: funded once enough players sign, then every member gets fibre pairs and pays its share.'},
+ fpConsJoin:{args:[['id','string']],watch:['fedp.cons'],doc:'Sign an open consortium project (fedp.cons[].id).'},
 /* ---------- Pie in the Sky: the rocket company (Tier 1 in a new game, or a sandbox) ---------- */
  pieFound:{args:[],watch:['pie'],quote:a=>({setup:piePrice(PIE_CO),monthly:PIE_CO_MO}),doc:'Found the rocket company. Needs Tier 1 (or a sandbox).'},
  pieFactory:{args:[],watch:['pie'],quote:a=>({setup:piePrice(PIE_FAC)}),doc:'Build the pie factory: it bakes the satellites ("pies") that rockets carry.'},
@@ -481,6 +492,10 @@ const API_CMD={
 };
 
 const API_VIEW={
+ fpNet:{args:[['key','string']],doc:'Open a player network\'s sheet: its published terms, your deals with it and what you can ask for, with what is missing.'},
+ fpTerms:{args:[],doc:'Open Your terms: peering policy, conditions, rate card and request handling.'},
+ fpQueue:{args:[],doc:'Open the NOC dashboard where requests from players wait for review.'},
+ fpCons:{args:[],doc:'Open the consortium cables sheet.'},
  pieOpen:{args:[],doc:'Open Pie Control, the rocket company\'s panel.'},
  pieGovOpen:{args:[],doc:'Open the bank at its Government money section: the rocket company\'s fund auctions, the Pitcairn grant and the Ex-Im Pie Bank (it used to be Pie Control\'s Gov tab).'},
  pieTab:{args:[['t','pieTab']],doc:'Switch the Pie Control tab: traffic, co (the company, its books and the Founder\'s posts), fly (launches) or dish.'},
@@ -572,9 +587,15 @@ const API_VIEW={
  scenarios:{args:[],doc:'Open the scenario picker. Start one with startScn.'},
  helpClose:{args:[],doc:'Close the help modal.'},
  whatsNewShow:{args:[],doc:'Open the release notes.'},
+ helpMp:{args:[['from','string',false]],doc:'Open How Multimode works (from: help, settings, fed or mp, where Back returns).'},
+ privacy:{args:[['from','string',false]],doc:'Open the privacy sheet: what the game keeps and sends (from: where Back returns).'},
+ infoBack:{args:[],doc:'Back from How Multimode works or the privacy sheet to where it was opened.'},
+ infoClose:{args:[],doc:'Close How Multimode works or the privacy sheet.'},
 };
 
 const API_BOUND={
+ fpEdit:{command:'fpTermsSave',note:'drafts one field of Your terms; fpTermsSet publishes terms in one go'},
+ fpPick:{command:'fpReq',note:'picks an option in a player\'s sheet; pass them to fpReq itself'},
  pieRename:{command:'pieName',note:'the typed company name'},
  leaseSwap:{command:'orderDf',note:'presets the dark-fiber modal on a leased pair'},
  teOpt:{command:'teDeploy',arg:'script',note:'the optimiser drafts a script'},
@@ -624,10 +645,12 @@ const API_SESSION={
  keepPlaying:{args:[],doc:'Dismiss the win screen and keep playing.'},
  pitchSkip:{args:[],doc:'Skip the opening pitch; a game waiting behind it starts.'},
  tutSkip:{args:[],doc:'Skip the tutorial coaching.'},
+ apiFedJoin:{args:[['url','string']],doc:'Multimode (the game\'s multiplayer): join a relay server (a wss:// node URL) from this game, once apiFedDeclare has declared the model. Other players then meet this network with a robot badge. Not in the player\'s tab.'},
+ apiFedDeclare:{args:[['model','string'],['harness','string',false]],doc:'Multimode (the game\'s multiplayer): declare the AI model (and harness, default tubes-mcp) playing this save. Joined saves send it, so the network ranks in the AI division with a robot badge.'},
 };
 // Session actions that would replace or leave the game in the player's tab: refused over the relay.
 const API_OWN_WHY='the game in this tab is the player\'s: only the player starts, loads or leaves one';
-const API_PLAYER_OWNS={startScn:1,startWeekly:1,pzStart:1,pzWeekly:1,pzArStart:1,pzRetry:1,pzLeave:1};
+const API_PLAYER_OWNS={apiFedJoin:1,startScn:1,startWeekly:1,pzStart:1,pzWeekly:1,pzArStart:1,pzRetry:1,pzLeave:1};
 
 /* Actions no tool runs, by reason: files, storage slots, settings and the title screen are not the game's, and time
    moves only through advance (or the page's own clock). */
@@ -636,6 +659,7 @@ const API_WHY={
   slots:'saved networks in browser storage are not part of this game',prefs:'device and player settings are not part of the game',
   browser:'it needs the browser itself (a share sheet, the clipboard, an install prompt or a reload)',
   cloud:'the cloud sync account and what it holds are the player\'s own',
+  fed:'joining relay servers and Multimode settings are the player\'s choice (an agent only declares itself, with apiFedDeclare)',
 };
 const API_DENY={
   speed:'time',phonePlay:'time',phoneSpeed:'time',
@@ -644,5 +668,9 @@ const API_DENY={
   slotBack:'slots',slotDel:'slots',slotDelGo:'slots',slotMenu:'slots',slotRetry:'slots',slotSpace:'slots',slotSwitch:'slots',slotTake:'slots',
   animSet:'prefs',langSet:'prefs',mapSet:'prefs',menu:'prefs',mute:'prefs',prefSet:'prefs',settings:'prefs',settingsClose:'prefs',soundSet:'prefs',vpSet:'prefs',
   cloud:'cloud',cloudClose:'cloud',cloudDel:'cloud',cloudDelAsk:'cloud',cloudLogin:'cloud',cloudLogout:'cloud',cloudSync:'cloud',clKeepLocal:'cloud',clTakeCloud:'cloud',
+  fedJoin:'fed',fedLeave:'fed',fedQuit:'fed',fedMute:'fed',fedShare:'fed',fedMoveExport:'files',
+  fuOpen:'fed',fuClose:'fed',fuJoin:'fed',fuJoinTyped:'fed',fuLeave:'fed',fuQuit:'fed',fuShare:'fed',fuMute:'fed',fuMoveGo:'files',fuOpKeyGo:'fed',fuOpKeyDel:'fed',fuQ:'fed',fuFilt:'fed',fuBoards:'fed',fuNote:'fed',fuOpSign:'fed',fuOpHide:'fed',fuOpShun:'fed',
+  fuReport:'fed',fuRepBack:'fed',fuRepPick:'fed',fuRepGo:'fed',fuRepWho:'fed',
+  fsSet:'fed',fsPick:'fed',
   install:'browser',share:'browser',shareDl:'browser',shareGo:'browser',traceCopy:'browser',updateLater:'browser',updateNow:'browser',wsShare:'browser',pzShare:'browser',xferLink:'browser',xferShare:'browser',
 };

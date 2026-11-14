@@ -1,7 +1,8 @@
 Object.assign(ACT,{
  randomName:()=>{const input=$('nmIn');if(input)input.value=UI.nm=randomNetworkName(input.value);},
  start:()=>{if(UI.asnTxt&&!asnOk(+UI.asnTxt)){toast(tr('title.asn_not_usable'),'bad');const i=$('asnIn');if(i){i.classList.add('bad');i.focus();}return;}const nm=(($('nmIn')&&$('nmIn').value)||randomNetworkName()).slice(0,24),sb=UI.mode==='sandbox';
-   beginGame(nm,homeOk(UI.startCity)?UI.startCity:'fra',sb?{mode:'sandbox',rules:{chaos:own(CHAOS,UI.sbChaos)?UI.sbChaos:'none'}}:{mode:'normal',preset:NORMAL_PRESETS.includes(UI.preset)?UI.preset:'oncall'});},
+   const fed=fsChoice();// "Play with others": a node URL, false or undefined; it never stops the start
+   beginGame(nm,homeOk(UI.startCity)?UI.startCity:'fra',sb?{mode:'sandbox',rules:{chaos:own(CHAOS,UI.sbChaos)?UI.sbChaos:'none'}}:{mode:'normal',preset:NORMAL_PRESETS.includes(UI.preset)?UI.preset:'oncall',fed});},
  // Title-screen doors and their options toggle in place, so the name being typed and the city stay as they are.
  modeSet:({m})=>{if(m!=='sandbox'&&m!=='normal')return;UI.mode=m;document.querySelectorAll('.door').forEach(b=>b.classList.toggle('on',b.dataset.door===m));const n=$('doorNormal'),x=$('doorSandbox');if(n)n.hidden=m!=='normal';if(x)x.hidden=m!=='sandbox';},
  presetSet:({p})=>{if(!NORMAL_PRESETS.includes(p))return;UI.preset=p;ACT.modeSet({m:'normal'});document.querySelectorAll('.preset').forEach(b=>{b.classList.toggle('on',b.dataset.preset===p);b.setAttribute('aria-pressed',b.dataset.preset===p);});const w=$('presetWhat');if(w)w.innerHTML=presetWhat(p);},
@@ -39,7 +40,7 @@ Object.assign(ACT,{
   <div class="menu-list">
    ${btn(tr('common.back_to_the_map'),'closeModal',{},'pink big')}${saveFailing()?btn(tr('common.export_save'),'exportSave',{},'pink'):''}${saveFailing()&&UI.saveFail.full&&slotOthers().length?btn(tr('slots.free_up_space'),'slotSpace',{},'pink'):''}
   </div>
-  <div class="menu-tiles">${[['🗂️',tr('slots.your_networks'),'toTitle'],['🧩',tr('puzzles.puzzles'),'puzzleMenu'],['🏆',tr('common.scenarios'),'scenarios'],['🧑‍💻',tr('ops.standing_orders'),'opsOpen'],['📸',tr('common.share'),'share'],['⚙️',tr('common.settings'),'settings']].map(([i,l,a])=>`<button class="mtile" data-act="${a}"><i aria-hidden="true">${i}</i><span>${l}</span></button>`).join('')}</div>
+  <div class="menu-tiles">${[['🗂️',tr('slots.your_networks'),'toTitle'],['🧩',tr('puzzles.puzzles'),'puzzleMenu'],['🏆',tr('common.scenarios'),'scenarios'],['🧑‍💻',tr('ops.standing_orders'),'opsOpen'],['📸',tr('common.share'),'share'],['⚙️',tr('common.settings'),'settings'],...fuMenuTile()].map(([i,l,a])=>`<button class="mtile" data-act="${a}"><i aria-hidden="true">${i}</i><span>${l}</span></button>`).join('')}</div>
   <p class="menu-links">${[saveFailing()?null:[tr('common.export_save'),'exportSave'],[tr('common.import_a_save'),'importPick'],[tr('transfer.send_to_another_device'),'xfer'],[tr('common.cloud_sync'),'cloud'],[tr('common.how_to_play'),'help'],RELEASE_NOTES.length?[tr('common.what_s_new_in_v',{v:esc(APP_VERSION)}),'whatsNewShow']:null,[tr('common.start_a_new_network'),'resetAsk']].filter(Boolean).map(([l,a])=>`<button class="lnk" data-act="${a}">${l}</button>`).join(' · ')}</p>
   </div><div class="menu-plugs"><a class="mplug" href="${SIGNAL}" target="_blank" rel="noopener">💬 ${tr('modal_and_names.join_the_noc_chat')} →</a><a class="mplug" href="${ISSUES}" target="_blank" rel="noopener">🐛 ${tr('modal_and_names.found_a_bug_or_have_an')} →</a></div>`);},
  settings:()=>{UI.setOpen=true;openModal(settingsHtml());},

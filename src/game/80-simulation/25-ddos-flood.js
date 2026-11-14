@@ -4,7 +4,7 @@
    acts where it does in a real network: RTBH and clean pipes upstream, before your port; the port carries what fits
    and everyone on it loses the same share; Flowspec drops matching junk on each ingress router, within that router's
    rule budget; what is left rides the backbone to the target. An engaged scrubbing center takes the flood on its own
-   ingress instead (magnet) and cleans up to its tier (sponge); what it cannot take hurts only the target. */
+   ingress instead (magnet) and cleans up to its tier (sponge), nearest center first; what none can take hurts only the target. */
 // Does this private peer honour blackhole communities? About half do, the same ones in every game.
 function pniHonours(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))|0;return (h&2)===0;}
 const ddRank=e=>e.k==='p'?1:e.k==='ix'?2:e.k==='t'?3:9;
@@ -28,7 +28,7 @@ function ddosTb(a,R2){if(a.tgt&&a.tgt.startsWith('bb:'))return Math.max(1,(R2.ci
 /* Before routing: spread each live attack, clip it at the ports, filter it on the routers and load what is left onto
    the backbone ahead of everyone's traffic. X.haul(A,B,g,ek) moves up to g from city A to city B and returns what fit. */
 function ddosLoad(X){const {E,okBy,R2}=X;R2.ddos=[];R2.haul=[];R2.tgtF={};R2.bbF={};R2.fsUse={};R2.ddosHot={};
-  const live=ddosAll().slice().sort((a,b)=>(a.start||0)-(b.start||0)||(a.id<b.id?-1:a.id>b.id?1:0));if(!live.length)return null;
+  const live=ddosAll().slice().sort((a,b)=>(a.start||0)-(b.start||0));// ties keep array order (sort is stable): ids come from the clockif(!live.length)return null;
   const recs=[],room={};
   for(const a of live){const c=a.city,m={attack:a,tgt:a.tgt,g:a.gbps,bh:!!(a.bh||X.autoBh),ports:new Map(),up:0,fs:0,fsAt:[],fsFull:[],fsNone:[],deliv:0,pulled:0,cleaned:0,over:0,parts:[],tf:1,col:0,slowed:0,eng:0};
     recs.push(m);R2.ddos.push(m);if(!popUp(c)||!S.pops[c]){m.offline=true;continue;}
@@ -36,9 +36,12 @@ function ddosLoad(X){const {E,okBy,R2}=X;R2.ddos=[];R2.haul=[];R2.tgtF={};R2.bbF
     for(const [e,g] of sp){let left=g;
       if(m.bh)left*=e.k==='p'?(pniHonours(e.net)?0:1):RTBH_LEFT[e.k]??1;else if(e.clean)left*=0.1;
       m.up+=g-left;if(left>1e-9){m.ports.set(e,{off:left,in:0});e.J+=left;}}
-    if(pull>0){const xs=S.scrubs.filter(x=>popUp(x.city));let tot=0;for(const x of xs)tot+=SCRUB_TIERS[x.tier||0].g;
-      for(const x of xs){const cap=SCRUB_TIERS[x.tier||0].g,share=pull*cap/tot,can=Math.max(0,room[x.city]??cap),cl=Math.min(share,can);room[x.city]=can-cl;
-        m.parts.push({city:x.city,tier:x.tier||0,a:share,cleaned:cl});m.cleaned+=cl;m.over+=share-cl;}
+    // The nearest center with room takes the flood, and what it cannot clean spills to the next nearest (#345).
+    if(pull>0){const xs=S.scrubs.filter(x=>popUp(x.city)).sort((p,q)=>kmBetween(c,p.city)-kmBetween(c,q.city)||(p.city<q.city?-1:p.city>q.city?1:0));let left=pull;
+      for(const x of xs){if(left<=1e-9)break;const cap=SCRUB_TIERS[x.tier||0].g,can=Math.max(0,room[x.city]??cap),cl=Math.min(left,can);room[x.city]=can-cl;left-=cl;
+        if(cl>0){m.parts.push({city:x.city,tier:x.tier||0,a:cl,cleaned:cl});m.cleaned+=cl;}}
+      // What no center has room for is still pulled in, by the nearest, but not cleaned.
+      if(left>1e-9&&xs.length){const n=xs[0],q=m.parts.find(q=>q.city===n.city);if(q)q.a+=left;else m.parts.unshift({city:n.city,tier:n.tier||0,a:left,cleaned:0});m.over=left;}
       m.pulled=pull;}}
   // The ports: each carries what fits, shared out by what each attack offers it.
   for(const m of recs)for(const [e,p] of m.ports)p.in=p.off*Math.min(1,e.cap/e.J);
