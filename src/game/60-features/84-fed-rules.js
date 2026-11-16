@@ -23,6 +23,10 @@ function fedEffAt(w,s){if(!w)return null;let lo=0,hi=w.length-1,i=-1;while(lo<=h
 // p95 of the busier direction (§10.4): with n values sorted, k = div(n * 5, 100) highest do not count.
 const fedP95=a=>{if(!a.length)return 0;a.sort((x,y)=>x-y);return a[a.length-1-fedDiv(a.length*5,100)];};
 const FED_FLOOR={pops:10,pies:100,traffic:1000,total:1000,cone:10},FED_NEWCOMER=30;
+// Growth in basis points (§10.5): div((cur - prev) * 10000, max(prev, floor)). Traffic goes up to 10^12 Mbps per partner,
+// so the product can pass 2^53: then it is worked out in BigInt (floor division; the divisor is positive).
+const fedGrowth=(cur,prev,floor)=>{const d=cur-prev,b=Math.max(prev,floor);if(Math.abs(d)<=9e11)return fedDiv(d*10000,b);
+  const D=BigInt(d),B=BigInt(b);let q=D*10000n/B;if(D<0n&&D*10000n%B!==0n)q-=1n;return Number(q);};
 /* One network's place on a board (§10.3 to §10.5, §10.12), worked out from records alone: how a game checks a row a
    server ranked (§9.5 rankwhy). q: {now, board, measure, division, exclude (keys the server leaves off), cities (a region,
    or null), filters (as in a rank request), founded (the cone board: key -> founded of its newest announce)}; recs: stats
@@ -56,14 +60,19 @@ function fedRankOne(q,key,recs,ann,states){const W=fedWindows(q.now),from=W.prev
     let i=0,o=0;for(const e of r.body.traffic){if(ex.has(e.key))continue;const y=run(e.key);
       if(cs&&!(fedHas(y)&&pops(y)>0))continue;if(!y){i+=e.in;o+=e.out;}else if(fedHas(y)){const z=y.body.traffic.find(x=>x.key===key);if(z){i+=Math.min(e.in,z.out);o+=Math.min(e.out,z.in);}}}
     return [i,o];})();
-  const total=(a,b,x)=>{const IN=[],OUT=[];let lo=null;
+  /* The cone at slot s changes only where some record starts or stops counting (its slot, 7 days on) or a day begins
+     (the 30-day rule): between two such points it is worked out once. */
+  const cps=q.board==='cone'?(()=>{const v=new Set();for(const l of by.values())for(const r of l){v.add(r.slot);v.add(r.slot+FED_CARRY);}
+    for(let d=fedDiv(from,FED_DAY)+1;d*FED_DAY<=last;d++)v.add(d*FED_DAY);return [...v].sort((x,y)=>x-y);})():null;
+  const total=(a,b,x)=>{const IN=[],OUT=[];let lo=null,j=0,cj=-1,cv=0;
     for(let k=a;k<b;k++){const s=from+k*FED_SLOT,r=fedEffAt(w,s);if(!fedHas(r))continue;
-      if(q.board==='traffic'){const [i,o]=traffic(r,s);IN.push(i);OUT.push(o);}else if(q.board==='total')IN.push(r.body.total||0);else if(q.board==='cone')IN.push(cone(s));
+      if(q.board==='traffic'){const [i,o]=traffic(r,s);IN.push(i);OUT.push(o);}else if(q.board==='total')IN.push(r.body.total||0);
+      else if(q.board==='cone'){while(j<cps.length&&cps[j]<=s)j++;if(j!==cj){cj=j;cv=cone(s);}IN.push(cv);}
       else lo=q.board==='pies'?r.body.pies||0:pops(r);}
     if(x){if(q.board==='traffic'){IN.push(x[0]);OUT.push(x[1]);}else if(q.board==='total'||q.board==='cone')IN.push(x[0]);else lo=x[0];}
     return q.board==='traffic'?Math.max(fedP95(IN),fedP95(OUT)):q.board==='total'||q.board==='cone'?fedP95(IN):lo||0;};
   let value=total(FED_WIN,2*FED_WIN,smp);
-  if(q.measure==='growth'){const prev=total(0,FED_WIN);value=fedDiv((value-prev)*10000,Math.max(prev,FED_FLOOR[q.board]));}
+  if(q.measure==='growth'){const prev=total(0,FED_WIN);value=fedGrowth(value,prev,FED_FLOOR[q.board]);}
   return {listed:true,kept:fedKept(q,key,l,ann,fedDiv(q.now,FED_DAY)),value};}
 // Whether a listed network passes a slice's division and filters (§10.12): l {body, cc}, a its newest announce body.
 function fedKept(q,key,l,a,day){const F=q.filters||{},ai=l.body.ai,keys=F.keys?new Set(F.keys):null;

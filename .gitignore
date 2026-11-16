@@ -7,7 +7,11 @@ _site/
 /relay/relay-data/
 /relay/relay-lan/
 /relay/.env
+# An operator key controls a server: never commit one, wherever it sits
+operator.key
+*operator.key*
 
 # Planning notes stay local
 /docs/plans/
 /.dev-certs/
+/.dev-agent/

@@ -207,7 +207,7 @@ test('a broken cloud login in storage is ignored', () => {
 test('cloud sync opens from its own button next to the ways to move a save, in the menu and on the title screen', () => {
   const { ev, errors } = load({ fetch: async () => new Response('{"ok":true}') });
   const acts = () => ev("[...document.querySelectorAll('#modalCard [data-act]')].map(b=>b.dataset.act).join(',')");
-  assert.match(acts(), /importPick,xferRecv,cloud,settings/, 'title screen: after From another device');
+  assert.match(acts(), /importPick,xferRecv,settings,cloud/, 'title screen: its own line under the buttons');
   ev("ACT.start({});ACT.menu({})");
   assert.match(acts(), /importPick,xfer,cloud,/, 'menu: after Import and Send to another device');
   ev("ACT.settings({})");

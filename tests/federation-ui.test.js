@@ -137,6 +137,9 @@ test('settings: share my country, mutes, the move file behind its warning, the o
   const { p } = await joined();
   p.ev("window.__files=[];saveDl=(txt,nm,fn)=>__files.push({name:fn,text:txt});ACT.fuOpen({v:'home'})");
   await run(p, 500);
+  // Joined, the settings fold behind one button (and stay unfolded while the sheet is open).
+  assert.doesNotMatch(txt(p), /Share my country/);
+  click(p, '#modalCard [data-act="fuFold"][data-args*="set"]');
   assert.match(txt(p), /Share my country/);
   assert.match(txt(p), /never anything finer/);
   click(p, '#modalCard [data-act="fuShare"][data-args*="false"]');
@@ -230,7 +233,7 @@ test('leaderboards: three boards, divisions with robot badges, own row in place,
   p.ev("ACT.fuOpen({v:'boards'});ACT.fuQ({k:'board',v:'pops'})");
   await run(p, 500);
   const rows = () => val(p, `[...document.querySelectorAll('#modalCard .fu-board .fu-row:not(.fu-me)')].map(r=>r.querySelector('.fu-nm').textContent.trim()+(r.querySelector('.fu-bot')?' 🤖':''))`);
-  assert.deepEqual(rows(), ['Bob <b>Net</b>', 'Carol Bot 🤖'], 'names as typed, as text; the AI with its robot');
+  assert.deepEqual(rows(), ['Bob ‹b›Net‹/b›', 'Carol Bot 🤖'], 'names as typed, markup turned into look-alikes (fedSafeName); the AI with its robot');
   assert.equal(p.ev(`document.querySelectorAll('#modalCard .fu-board b b').length`), 0, 'a typed name is never markup');
   assert.match(p.ev(`document.querySelector('#modalCard .fu-board .fu-me').textContent`), /^3.*you/s, 'own row in place with its rank');
   assert.match(txt(p), /All your servers, merged/);
@@ -310,7 +313,7 @@ test('looking glass: servers, policies, players; votes and the tally only for an
   await p.ev(`fedVotesAdd([{id:${JSON.stringify(rid(vote))},rec:${JSON.stringify(vote)}}])`);
   p.ev("ACT.fuOpen({v:'glass'})");
   await run(p, 500);
-  assert.match(txt(p), /Packet Lunch voted to shun Bob <b>Net<\/b> · Spam/);
+  assert.match(txt(p), /Packet Lunch voted to shun Bob ‹b›Net‹\/b› · Spam/);
   assert.match(txt(p), /Only server operators see votes/);
   p.ev(`ACT.fuOpen({v:'net',key:${JSON.stringify(target)}})`);
   await run(p, 500);
@@ -410,7 +413,7 @@ test('the operator panel lists a pending proposal and signs it with the operator
   assert.deepEqual(p.errors, []);
 });
 
-test('from the first screen: the invite shows at once, the menu has its tile, a new game opens the join sheet', { skip: 'timing-dependent on slow CI machines; to be made deterministic (4.0.0)' }, async () => {
+test('from the first screen: the invite shows at once, the menu has its tile, a new game opens the join sheet', async () => {
   const p = fedPage({ registry: SERVERS_JSON, url: 'https://tests.invalid/#join=' + encodeURIComponent(URL2) });
   // The title drawn at load already names the invite (it is drawn before the multiplayer code boots).
   assert.match(p.ev("document.body.textContent"), /You were invited to wss:\/\/second\.example\.org:8443\/fed/);

@@ -82,7 +82,7 @@ function routeCore(){
     for(let k=0;k<PN;k++){const l=path[k],o=l.res;l.res=o-amt;if(o>1e-3&&l.res<=1e-3)EP++;l.ld+=amt;carry(l,ek,nr,ci,amt);}
     USED[x]+=amt;FREM[F]-=amt;
     {let ok=amt;const cf=CNB[ci],ce=e.cn,cn=NCN[nr],bz=FBZ[F]===1;
-      if(cf!==ce||(cf&&!cn)||(!cf&&cn&&e.k==='t')){const prem=(e.k==='t'&&e.prem)||(e.k==='p'&&e.pnc)||path.some(x=>x.links&&x.links.some(y=>y.premium));const loss=prem?0.03:(ev.gfw>day?0.35:0.2);R2.gfwLost+=amt*loss;R2.gfwCross+=amt;ok=amt*(1-loss);}
+      if(cf!==ce||(cf&&!cn)||(!cf&&cn&&e.k==='t')){const prem=(e.k==='t'&&e.prem)||(e.k==='p'&&e.pnc)||path.some(x=>x.links&&x.links.some(y=>y.premium));const loss=gfwLoss(prem,ev.gfw>day);R2.gfwLost+=amt*loss;R2.gfwCross+=amt;ok=amt*(1-loss);}
       SRV[ci]+=ok;R2.served+=ok;if(bz)R2.bizSrv[CITIES[ci].id]+=ok;if(e.rank<=2)R2.peered+=ok;if(e.k==='t'){const k=e.ts*NN+nr;if(!TNS[k]){TNS[k]=1;if(!TNK[e.ts]){TNK[e.ts]=[];TORD.push(e);}TNK[e.ts].push(nr);}TNA[k]+=ok;}
         // Backhaul to transit: users notice the round trip to the exit. Up to 20 ms (about 1,500 km) is free, then
         // it gets worse, and past 50 ms broadband and internet services count as bad service (#…). Under sender pays,
@@ -106,14 +106,15 @@ function routeCore(){
      takes the fastest detour whose links are all still under that line, if it adds no more than the tier's milliseconds;
      the next tier lets links run hotter and detours longer. After the last tier the usual rules above take over. A detour
      is searched by latency over the links under the line (tierSearch), and kept per pair and tier while it still is:
-     links only fill up while routing, so a pair with no detour under a line never gets one. */
+     links only fill up while routing, so a pair with no detour under a line never gets one. Orbit edges (IGP weight Infinity)
+     carry no IP traffic, here as in altPath (#409): measured by latency, the sky would otherwise look like the best detour. */
   const pathMs=P=>{let ms=P.ms;if(ms<0){ms=0;const p=P.path;for(let k=0;k<p.length;k++)ms+=p[k].lat;P.ms=ms;}return ms;};
   let TC=null,TSD=null,TSP=null,TSS=null,TSG=0,TH=[],THU=[];
   const tierSearch=(src,dst,keep,lim)=>{const n=TEO.length-1,core=CORE;if(!TSD||TSD.length!==n){TSD=new Float64Array(n);TSP=new Array(n);TSS=new Int32Array(n);TSG=0;}
     const g=++TSG,D=TSD,P=TSP,ST=TSS;let m=0;D[src]=0;ST[src]=g;TH[0]=0;THU[0]=src;m=1;
     while(m){let best=0;for(let i=1;i<m;i++)if(TH[i]<TH[best])best=i;const d=TH[best],u=THU[best];m--;TH[best]=TH[m];THU[best]=THU[m];
       if(d>D[u])continue;if(u===dst)break;
-      for(let k=TEO[u],K=TEO[u+1];k<K;k++){const v=TEN[k],e=TEE[k];if(!(e.res>e.cap*keep+1e-3)||(HAS[v]&&NRES[v]<=1e-3)||(core&&OUT[v]&&v!==dst))continue;
+      for(let k=TEO[u],K=TEO[u+1];k<K;k++){const v=TEN[k],e=TEE[k];if(e.w===Infinity||!(e.res>e.cap*keep+1e-3)||(HAS[v]&&NRES[v]<=1e-3)||(core&&OUT[v]&&v!==dst))continue;
         const nd=d+e.lat;if(nd>lim||!(nd<(ST[v]===g?D[v]:Infinity)))continue;D[v]=nd;ST[v]=g;P[v]=e;TH[m]=nd;THU[m]=v;m++;}}
     return ST[dst]===g?walkP(P,src,dst):null;};
   const tierPath=(t,keep,src,dst,lim)=>{const key=(src*NC+dst)*TT.length+t,c=TC.get(key);if(c===false)return null;

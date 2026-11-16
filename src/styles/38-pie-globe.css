@@ -11,6 +11,8 @@
 .pft-list{display:flex;flex-direction:column;gap:6px}
 .pft-row{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:6px 10px;border:2px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;cursor:pointer;box-sizing:border-box}
 .pft-row.on{border-color:var(--me);box-shadow:0 0 0 2px var(--me) inset}
+.pft-acts{display:none;margin:-2px 0 4px;flex-wrap:wrap;gap:6px}
+.pft-row.on+.pft-acts{display:flex}
 .pft-ic{font-size:20px;flex:none}
 .pft-m{flex:1;min-width:0;display:flex;flex-direction:column}
 .pft-m b,.pft-m small,.pft-n small{overflow-wrap:anywhere}
@@ -21,3 +23,5 @@
 .pft-ck li span:last-child{display:flex;flex-direction:column;min-width:0}
 .pft-ck small{font-size:12px;color:var(--ink2);overflow-wrap:anywhere}
 .pft-st{color:var(--bad);font-weight:800}
+.pglobe .pgzoom{position:absolute;bottom:6px;right:6px;display:flex;flex-direction:column;gap:4px}
+.pglobe .pgzoom .b{min-width:36px;min-height:36px;font-size:18px;padding:0}

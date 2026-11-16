@@ -227,7 +227,7 @@ test('a dry run prices every command that has a price, and changes nothing', () 
     fixInc: { id: 'none' }, confGo: { key: T('catalog', { name: 'conferences' })[0].key }, confSponsor: { key: T('catalog', { name: 'conferences' })[0].key },
     opsHire: { id: ev('Object.keys(INTERNS)[0]') }, opsNewPop: { city: 'nyc' }, pniAll: { net: 'cog', tier: 1 }, seatBuy: { n: 2 }, layShip: { id: df }, seaRush: { id: df },
     utilityKit: { city: 'fra' }, utilityCaches: { city: 'fra' }, acceptFix: { id: 'none' }, ptApply: { city: 'fra', k: 'medium' }, ptAll: { k: 'medium' }, teDeploy: { script: 'spill at 85%' }, upLinkX: {},
-    pieRd: { k: 'reuse' }, pieAnt: { id: 'none' },
+    pieRd: { k: 'reuse' }, pieAnt: { id: 'none' }, pieTower: { city: 'sin' },
   };
   const missing = quoted.filter((n) => !sample[n] && T('schema', { section: 'commands' })[n].args.some((a) => a.required));
   assert.deepEqual(missing, [], 'every priced command with arguments has a sample here');
@@ -308,7 +308,12 @@ test('the dashboard, the bank, the left drawer and the puzzle box read as text; 
   assert.ok(pz.text.length > 50);
   // A big network's panel is longer than one page.
   T('load_save', { path: BIG });
-  const p1 = T('panel', { city: 'fra', tab: 'peer' });
+  // (The panel opens with a first page of each list; with the lists unfolded it is long.)
+  T('panel', { city: 'fra', tab: 'peer' });
+  for (const k of ['s:ix', 's:pni', 's:cache']) T('act', { action: 'panelFold', args: { k, o: 1 } });
+  for (const g of ['t1', 't2', 'eye', 'cdn', 'paid']) T('act', { action: 'pniGrp', args: { g, o: 1 } });
+  for (const k of ['pni:t1', 'pni:t2', 'pni:eye', 'pni:cdn', 'pni:paid']) T('act', { action: 'panelMore', args: { k, n: 500 } });
+  const p1 = T('screen', { where: 'panel' });
   assert.match(p1.textMore || '', /offset \d+/, 'the panel says where the next page starts');
   const off = +/offset (\d+)/.exec(p1.textMore)[1];
   const p2 = T('screen', { where: 'panel', offset: off });

@@ -16,13 +16,14 @@ function fedTermsText(deal,T){if(!T)return '';
   if(deal==='port')return tr('fedplay.t_port',{port:fpSpeed(T.mbps),at:fpCity(T.at),price:fmt$(T.monthly),n:T.term});
   if(deal==='swap')return tr('fedplay.t_swap',{a:fpCity(T.take.a),b:fpCity(T.take.b),g:fpSpeed(T.take.mbps),n:T.term});
   if(deal==='wave')return tr('fedplay.t_wave',{g:fmtCap(T.gbps),a:fpCity(T.a),b:fpCity(T.b),price:fmt$(T.monthly),n:T.term});
+  if(deal==='cofound')return tr('fedplay.t_cofound',{pct:Math.round(T.share/10),at:fpCity(T.at),setup:fmt$(T.setup),price:fmt$(T.monthly),n:T.term});
   return '';}
 function fedDealState(d){const now=fedNow();
   if(d.st==='wait')return tr('fedplay.s_wait');
   if(d.st==='over')return tr(fedOwn(FEDP_WHY,d.why)?FEDP_WHY[d.why]:FEDP_WHY.depeer);
   if(d.start>now)return trn('fedplay.s_from',Math.ceil((d.start-now)/FED_DAY));
   return d.end===null?tr('fedplay.s_open'):trn('fedplay.s_left',Math.max(0,Math.ceil((d.end-now)/FED_DAY)));}
-function fedDealRow(d){const now=fedNow(),soon=d.st==='run'&&d.end!==null&&d.end-now<7*FED_DAY,renew=d.role!=='sell'&&!fedRenewal(S.fed,d.id)&&(soon||d.st==='over'&&d.why!=='excluded'&&d.why!=='muted');
+function fedDealRow(d){const now=fedNow(),soon=d.st==='run'&&d.end!==null&&d.end-now<7*FED_DAY,renew=d.role!=='sell'&&d.deal!=='cofound'&&!fedRenewal(S.fed,d.id,d.key)&&(soon||d.st==='over'&&d.why!=='excluded'&&d.why!=='muted');
   return `<div class="row"><div class="grow"><div class="nm">${fedDealName(d.deal)}${d.role==='sell'?` <span class="meta">${tr('fedplay.you_sell')}</span>`:''}${d.terms&&fedOwn(d.terms,'founded')?` <span class="tag fp-new">${tr('fedplay.newcomer_price')}</span>`:''}</div><div class="meta">${esc(fedTermsText(d.deal,d.terms))}</div><div class="meta">${esc(fedDealState(d))}</div></div>
     ${renew?btn(tr('fedplay.renew'),'fpRenew',{id:d.id},'sm'):''}${d.st!=='over'?btn(d.deal==='peering'?tr('fedplay.depeer'):tr('fedplay.end'),'fpEnd',{id:d.id},'ghost sm'):''}</div>`;}
 
@@ -30,11 +31,15 @@ function fedDealRow(d){const now=fedNow(),soon=d.st==='run'&&d.end!==null&&d.end
 function fedPlayCard(){const f=S.fed,P=S.fedp,nets=S.fedn?S.fedn.nets:[];
   let h=`<section class="fp-card"><div class="fp-h"><h3>${tr('fedplay.players')}</h3><span class="grow"></span>${btn(tr('fedplay.your_terms'),'fpTerms',{},'ghost sm')}${btn(tr('fedplay.d_consortium'),'fpCons',{},'ghost sm')}</div>`;
   if(P&&P.rq.length)h+=`<div class="btns">${btn(trn('fedplay.n_to_review',P.rq.length),'fpQueue',{},'pink sm')}</div>`;
+  h+=fedSuggestHtml();
   if(!nets.length)h+=`<p class="empty">${f.on?tr('fedplay.no_players_yet'):tr('fedplay.join_to_meet')}</p>`;
-  for(const s of nets){const n=fedNetOf(s.k);if(!n)continue;const ds=f.deals.filter(d=>d.key===s.k&&d.st!=='over'),p=fedPair(n),a=FEDN.ann.get(s.k),nw=!!a&&a.rec&&fedIsNew(a.rec.body.founded,fedNow());
-    h+=`<div class="row fp-${s.st}">${logo(n)}<div class="grow"><div class="nm">${fedBot(n)}${esc(n.name)} <span class="meta">AS${n.asn}</span>${nw?` <span class="tag fp-new">${tr('fedplay.newcomer')}</span>`:''}</div>
+  // A short first page of players: the rest on a tap (a joined save can see up to 48).
+  const all=fpOpenK('all'),cut=nets.length>FP_FIRST+2&&!all;
+  for(const s of cut?nets.slice(0,FP_FIRST):nets){const n=fedNetOf(s.k);if(!n)continue;const ds=f.deals.filter(d=>d.key===s.k&&d.st!=='over'),p=fedPair(n),a=FEDN.ann.get(s.k),nw=!!a&&a.rec&&fedIsNew(a.rec.body.founded,fedNow());
+    h+=`<div class="row fp-${s.st}">${logo(n)}<div class="grow"><div class="nm">${fedBot(n)}${esc(n.name)} <span class="meta">AS${n.asn} ${fuFp(s.k)}</span>${fpLook(s.k)}${nw?` <span class="tag fp-new">${tr('fedplay.newcomer')}</span>`:''}</div>
       <div class="meta"><span class="tag ${s.pol}">${tr(FEDP_POL[s.pol])}</span>${FEDP_STL[s.st]?` <span class="tag fp-q">${tr(FEDP_STL[s.st])}</span>`:''} · ${trn('fedplay.n_pops',s.pops.length)} · ${fmtG(s.tr/1000)}${p.ix.length?' · '+tr('fedplay.meet_at',{at:p.ix.slice(0,3).map(fpCity).join(', ')}):''}</div>
       ${ds.length?`<div class="meta">${ds.map(d=>`<span class="tag fp-d">${fedDealName(d.deal)}</span>`).join(' ')}</div>`:''}</div>${btn(tr('fedplay.deals'),'fpNet',{key:s.k},'ghost sm')}</div>`;}
+  if(nets.length>FP_FIRST+2)h+=`<div class="btns">${btn(all?tr('common.show_fewer'):tr('notifications.show_all_n',{n:nets.length}),'fpFold',{k:'all'},'ghost sm')}</div>`;
   if(P&&P.str.length){h+=`<h3 class="fp-sub">${tr('fedplay.strangers')}</h3><p class="meta">${tr('fedplay.strangers_note')}</p>`;
     for(const x of P.str){const n=fedNetOf(x.k);if(!n)continue;h+=`<div class="row"><div class="grow"><div class="nm">${fedBot(n)}${esc(n.name)}</div><div class="meta">${fmtG(x.mbps/1000)}</div></div>${btn(tr('fedplay.d_peering'),'fpNet',{key:x.k},'sm')}</div>`;}}
   // Mentor bonuses: newcomers this network dealt with that grew (89-fedplay-mentor.js), the last five.
@@ -48,14 +53,22 @@ function fedConsRow(c){return `<div class="row"><div class="grow"><div class="nm
   ${c.me?`<span class="meta">${tr('fedplay.cons_in')}</span>`:btn(tr('fedplay.cons_join'),'fpConsJoin',{id:c.id},'sm',S.cash<c.sh||!S.fed.on)}</div>`;}
 
 /* ---------- one player's sheet: their terms, your deals with them, what you can ask for ---------- */
+// Player networks whose names read alike (fedLook), among those in play and this network itself: tagged in the deals sheets.
+const FP_LOOK={h:null,set:new Set()};
+function fpLook(k){const f=S&&S.fed,h=(S&&S.fedn?S.fedn.h:'')+'|'+(S?S.name:'');
+  if(FP_LOOK.h!==h){const l=(S&&S.fedn?S.fedn.nets:[]).map(n=>[n.k,n.name]);if(f&&f.key)l.push([f.key.pub,S.name]);FP_LOOK.set=fedLookDups(l);FP_LOOK.h=h;}
+  return FP_LOOK.set.has(k)?` <span class="tag fu-tag look">${tr('fedui.same_name_as_another_network')}</span>`:'';}
 function fedNetModal(key){const n=fedNetOf(key);if(!n){closeModal();return;}UI.fpOpen={k:'net',key};const a=FEDN.ann.get(key),B=a&&a.rec?a.rec.body:null,p=fedPair(n),sel=UI.fpSel||{},me=fedMeFor(n);
-  let h=`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('fedplay.player_network')} · AS${n.asn}${n.home?' · '+esc(n.home):''}</div><h2 style="font-size:24px">${fedBot(n)}${esc(n.name)}</h2></div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>`;
+  let h=`<div style="display:flex;align-items:center"><div><div class="eyebrow">${tr('fedplay.player_network')} · AS${n.asn} ${fuFp(key)}${n.home?' · '+esc(n.home):''}</div><h2 style="font-size:24px">${fedBot(n)}${esc(n.name)}</h2>${fpLook(key)}</div><button class="x" data-act="closeModal" aria-label="${tr('common.close')}">×</button></div>`;
   h+=`<div class="facts"><span class="fact">${tr(fedOwn(FEDP_POL,n.fpol)?FEDP_POL[n.fpol]:FEDP_POL.open)}</span><span class="fact">${trn('fedplay.n_pops',n.fpops.length)}</span><span class="fact">${trn('fedplay.n_exchanges',n.fix.length)}</span><span class="fact">${fmtG((n.ftr||0)/1000)}</span>${n.ai?`<span class="fact">🤖 ${tr('fedplay.ai_player')}</span>`:''}</div>`;
   // Excluded by a joined server, not confirmed by others: no new deals, running ones continue (§10.7).
   const X=FEDN.ex,xs=X&&X.any.has(key)&&!X.ok.has(key)?(X.by.get(key)||[]).map(esc).join(', '):'';
   if(xs)h+=`<p class="note">${tr(S.fed.deals.some(d=>d.key===key&&d.st==='run')?N_('fedplay.excluded_running'):N_('fedplay.excluded_new'),{servers:xs})}</p>`;
   else if(n.fst==='fading')h+=`<p class="note">${tr('fedplay.fading_note')}</p>`;else if(n.fst==='dark')h+=`<p class="note">${tr('fedplay.dark_note')}</p>`;
-  h+=`<p class="meta">${tr('fedplay.you_and_them',{in:fmtG(p.in/1000),out:fmtG(p.out/1000),ix:p.ix.length,pops:p.pops.length})}</p>`;
+  h+=`<p class="meta">${tr('fedplay.you_and_them',{in:fmtG(p.in/1000),out:fmtG(p.out/1000),ix:trn('fedplay.n_shared_ix',p.ix.length),pops:trn('fedplay.n_shared_pop_cities',p.pops.length)})}</p>`;
+  // On-net growth: how far it has come with a direct deal, or what one would bring.
+  {const od=fedOnNetDays(S,key,fedNow());if(od>=0)h+=`<p class="meta fp-onnet">📈 ${trn('fedplay.onnet_line',od,{pct:'+'+Math.round((n.fb||0)/10)+'%'})}</p>`;
+    else if(n.fst!=='dark')h+=`<p class="meta fp-onnet">📈 ${tr('fedplay.onnet_hint')}</p>`;}
   const ds=S.fed.deals.filter(d=>d.key===key&&(d.st!=='over'||fedNow()-(d.end||d.start||0)<30*FED_DAY));
   if(ds.length)h+=`<h3 class="fp-sub">${tr('fedplay.your_deals')}</h3>`+ds.map(fedDealRow).join('');
   const rp=btn('🚩 '+tr('fedui.report'),'fuReport',{key,from:'deals'},'ghost sm');
@@ -71,9 +84,10 @@ function fedNetModal(key){const n=fedNetOf(key);if(!n){closeModal();return;}UI.f
   if(!R0.transit&&!R0.pni&&!R0.ix&&!R0.wave)h+=`<p class="meta">${tr('fedplay.sells_nothing')}</p>`;
   // What you can ask for.
   h+=`<h3 class="fp-sub">${tr('fedplay.ask_for')}</h3>`;
-  const ask=(deal,o,fields,extra='')=>{const x=fedOffer(key,deal,o),mode=B.auto[deal];
-    return `<div class="fp-ask"><div class="nm">${fedDealName(deal)} <span class="meta">${tr(fedOwn(FEDP_AUTO,mode)?FEDP_AUTO[mode]:FEDP_AUTO.review)}</span></div>${fields?`<div class="trsel">${fields}</div>`:''}${x.terms&&!x.miss.length?`<p class="meta">${esc(fedTermsText(deal,x.terms))}</p>`:''}${extra}
-      ${x.miss.length?`<p class="why">${esc(fedMissText(x.miss))}</p>`:''}<div class="btns">${btn(tr('common.request'),'fpReq',{key,deal,...o},'sm',!!x.miss.length||!S.fed.on)}</div></div>`;};
+  // Each kind of request as a block; the one a button opened this sheet for (UI.fpFocus) comes first, so it is in view on a phone.
+  const asks=[],ask=(deal,o,fields,extra='',label=tr('common.request'))=>{const x=fedOffer(key,deal,o),mode=B.auto[deal];
+    asks.push({deal,h:`<div class="fp-ask${UI.fpFocus===deal?' fp-focus':''}" data-deal="${deal}"><div class="nm">${fedDealName(deal)} <span class="meta">${tr(fedOwn(FEDP_AUTO,mode)?FEDP_AUTO[mode]:mode===undefined&&deal==='cofound'?FEDP_AUTO.decline:FEDP_AUTO.review)}</span></div>${fields?`<div class="trsel">${fields}</div>`:''}${x.terms&&!x.miss.length?`<p class="meta">${esc(fedTermsText(deal,x.terms))}</p>`:''}${extra}
+      ${x.miss.length?`<p class="why">${esc(fedMissText(x.miss))}</p>`:''}<div class="btns">${btn(label,'fpReq',{key,deal,...o},'sm',!!x.miss.length||!S.fed.on)}</div></div>`});return '';};
   {const o=sel['peering.via']==='pni'?{via:'pni',at:sel['peering.at']}:{via:'ix',at:sel['peering.at']},cs=o.via==='pni'?p.pops:p.ix;
     h+=ask('peering',o,fpSel(tr('fedplay.via'),'peering.via',[['ix','IX'],['pni','PNI']],o.via)+(cs.length?fpSel(tr('fedplay.where'),'peering.at',(o.via==='ix'?[['',tr('fedplay.everywhere')]]:[]).concat(cs.map(c=>[c,fpCity(c)])),o.at||''):''));}
   if(R0.transit){const o={at:sel['transit.at']||p.pops[0],mbps:+sel['transit.mbps']||(R0.transit.commit[0]?R0.transit.commit[0].mbps:1000),term:+sel['transit.term']||R0.transit.term},ce=o.at?fedCeil(o.at):Infinity,x=fedOffer(key,'transit',o);
@@ -89,6 +103,11 @@ function fedNetModal(key){const n=fedNetOf(key);if(!n){closeModal();return;}UI.f
       x.terms?`<p class="meta">${tr('fedplay.wave_computer',{price:fmt$(fedWaveCeil(x.terms.a,x.terms.b,x.terms.gbps))})}</p>`:'');}
   {const prs=fedSwapPairs(n),o={at:sel['swap.at']||prs[0],mbps:+sel['swap.mbps']||10000};
     h+=ask('swap',o,(prs.length?fpSel(tr('fedplay.route'),'swap.at',prs.map(k=>[k,k.split('|').map(fpCity).join('–')]),o.at):'')+fpSel(tr('fedplay.capacity'),'swap.mbps',[[10000,'10G'],[100000,'100G'],[400000,'400G']],o.mbps),`<p class="meta">${tr('fedplay.swap_note')}</p>`);}
+  // Co-founding one of your exchanges (89-fedplay-ix.js): you invite them; they pay a share and earn a share.
+  {const mine=Object.keys(S.myIx);if(mine.length){const o={at:sel['cofound.at']||mine.find(c=>n.fpops.includes(c))||mine[0],share:+sel['cofound.share']||250,term:+sel['cofound.term']||180};
+    h+=ask('cofound',o,fpSel(tr('fedplay.where'),'cofound.at',mine.map(c=>[c,fpCity(c)]),o.at)+fpSel(tr('fedplay.cofound_share'),'cofound.share',FEDX_SHARES.map(v=>[v,Math.round(v/10)+'%']),o.share)+fpSel(tr('fedplay.term'),'cofound.term',FEDX_TERMS.map(t=>[t,trn('fedplay.n_days',t)]),o.term),
+      `<p class="meta">${tr('fedplay.cofound_ask_note',{fee:fmt$(MYIX_FEE)})}</p>`,tr('fedplay.cofound_invite'));}}
+  h+=asks.filter(x=>x.deal===UI.fpFocus).concat(asks.filter(x=>x.deal!==UI.fpFocus)).map(x=>x.h).join('');
   h+=`<div class="btns" style="margin-top:10px">${btn(tr('fedplay.mute'),'fedMute',{key,on:true},'ghost sm')}${rp}</div>`;
   openModal(h);}
 
@@ -144,7 +163,7 @@ function fedTermsModal(){UI.fpOpen={k:'terms'};const D=fpDraft(),c=D.cond,r=D.ra
   if(Object.keys(S.myIx).length){h+=`<h3 class="fp-sub">${tr('fedplay.your_exchange')}</h3><div class="trsel fp-grid"><label>${tr('fedplay.sell')} ${yn('ix.on',!!r.ix)}</label>`;
     if(r.ix)h+=`${r.ix.ports.slice(0,2).map((x,i)=>`<label>${fpSpeed(x.mbps)}/${tr('fedplay.month')} ${inp('ix.m'+i,x.monthly)}</label>`).join('')}<label>${tr('fedplay.who_joins')} ${sel('ix.join',[['anyone',tr('fedplay.join_anyone')],['selective',tr('fedplay.join_selective')],['approval',tr('fedplay.join_approval')]],r.ix.join)}</label>`;
     h+=`</div>`;}
-  h+=`<h3 class="fp-sub">${tr('fedplay.requests')}</h3><div class="trsel fp-grid">${FEDP_DEALS.map(k=>`<label>${fedDealName(k)} ${sel('a.'+k,Object.keys(FEDP_AUTO).map(m=>[m,tr(FEDP_AUTO[m])]),D.auto[k])}</label>`).join('')}</div>
+  h+=`<h3 class="fp-sub">${tr('fedplay.requests')}</h3><div class="trsel fp-grid">${FEDP_DEALS.filter(k=>k!=='cofound'||fedIx2()).map(k=>`<label>${fedDealName(k)} ${sel('a.'+k,Object.keys(FEDP_AUTO).map(m=>[m,tr(FEDP_AUTO[m])]),D.auto[k])}</label>`).join('')}</div>
   <h3 class="fp-sub">RPKI</h3><div class="row"><div class="grow"><div class="meta">${tr('fedplay.rpki_note',{price:fmt$(FEDP_RPKI_MO)})}</div></div>${btn(fedP().rpki?tr('common.on'):tr('common.off'),'fpRpki',{on:!fedP().rpki},fedP().rpki?'green sm':'ghost sm')}</div>
   <div class="btns cta">${btn(tr('fedplay.save'),'fpTermsSave',{},'pink')}${btn(tr('common.cancel'),'closeModal',{},'ghost')}</div>`;
   openModal(h);}
@@ -180,9 +199,20 @@ function fedConsModal(){UI.fpOpen={k:'cons'};const sel=UI.fpSel||{},pops=Object.
 function fedPlayDash(){const P=S.fedp,f=S.fed;if(!P&&!f.deals.length)return '';const run=f.deals.filter(d=>d.on);
   let h=`<div class="panel2 fp-dash" style="margin-top:12px"><h3>${tr('fedplay.players')}</h3><p class="meta">${tr('fedplay.dash_line',{n:run.length,cost:fmt$((R.cost&&R.cost.fed)||0),earn:fmt$((R.rev&&R.rev.fed)||0)})}${P&&P.help?' · '+trn('fedplay.n_helped',P.help):''}</p>`;
   const rq=P?P.rq:[];if(!rq.length)h+=`<p class="empty">${tr('fedplay.nothing_to_review')}</p>`;
-  for(const q of rq){const n=fedNetOf(q.rec.key),b=q.rec.body;
-    h+=`<div class="row"><div class="grow"><div class="nm">${n?fedBot(n)+esc(n.name):'AS?'} · ${fedDealName(b.deal)}</div><div class="meta">${esc(fedTermsText(b.deal,b.terms))}</div></div>${btn(tr('common.accept'),'fpAccept',{id:q.id},'sm')}${btn(tr('common.decline'),'fpDecline',{id:q.id},'ghost sm')}</div>`;}
+  h+=rq.map(fpRqRow).join('');
   return h+'</div>';}
+/* What waits for an answer, for the Multimode sheet: requests from players (Accept and Decline first, the terms on a
+   tap), then this network's own requests waiting for theirs. '' when nothing waits. */
+const FP_FIRST=5,fpOpenK=k=>!!(UI.fpo&&UI.fpo[k]);
+function fpRqRow(q){const n=fedNetOf(q.rec.key),b=q.rec.body,k='t:'+q.id,o=fpOpenK(k),t=fedTermsText(b.deal,b.terms);
+  return `<div class="fp-rq"><div class="fp-rqh"><div class="grow nm">${n?fedBot(n)+esc(n.name):'AS?'} <span class="meta">· ${fedDealName(b.deal)}</span></div>${btn(tr('common.accept'),'fpAccept',{id:q.id},'sm')}${btn(tr('common.decline'),'fpDecline',{id:q.id},'ghost sm')}</div>`+
+    (t?`<button class="fu-note fp-terms${o?' open':''}" data-act="fpFold" data-args="${esc(JSON.stringify({k}))}" aria-expanded="${o}"><span class="fu-i" aria-hidden="true">ⓘ</span><span class="fu-nt">${esc(t)}</span></button>`:'')+'</div>';}
+function fpWaiting(){const rq=S.fedp?S.fedp.rq:[],out=S.fed.deals.filter(d=>d.st==='wait'&&d.role!=='sell');let h='';
+  if(rq.length)h+=`<section class="fp-wait"><h3 class="fp-sub">${tr('pie.req_title')} <span class="fu-cnt2 num">${rq.length}</span></h3>${rq.map(fpRqRow).join('')}</section>`;
+  if(out.length){const all=fpOpenK('out'),cut=out.length>FP_FIRST+2&&!all;
+    h+=`<h3 class="fp-sub fp-cap">${tr('fedplay.s_wait')}</h3>`+(cut?out.slice(0,FP_FIRST):out).map(d=>`<div class="row fp-out"><div class="grow"><div class="nm">${esc(d.name)} <span class="meta">· ${fedDealName(d.deal)}</span></div></div>${btn(tr('fedplay.deals'),'fpNet',{key:d.key},'ghost sm')}</div>`).join('')
+      +(out.length>FP_FIRST+2?`<div class="btns">${btn(all?tr('common.show_fewer'):tr('notifications.show_all_n',{n:out.length}),'fpFold',{k:'out'},'ghost sm')}</div>`:'');}
+  return h;}
 
 /* ---------- players at an exchange (the city panel's exchange block) ----------
    Other players' networks whose announce lists this exchange's city, with where peering with them stands and a Peer

@@ -31,6 +31,12 @@ function fedUnb64(s){if(typeof s!=='string'||s.length%4===1||!/^[A-Za-z0-9_-]*$/
   return fedB64(out)===s?out:null;}
 // The bytes of a Key, Sig, Id or Nonce, or null when it is not exactly n bytes in canonical form.
 const fedBin=(s,n)=>{const u=typeof s==='string'&&s.length===Math.ceil(n*4/3)?fedUnb64(s):null;return u&&u.length===n?u:null;};
+/* A key that is a small-order point (any sign bit) or has y >= 2^255 - 19 (§3.1): with such a key, some verifiers take
+   one signature for any message. FED_WEAK: the y (hex, little-endian, sign bit clear) of the points of order 1 to 8. */
+const FED_WEAK=['00'.repeat(32),'01'+'00'.repeat(31),'26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05',
+  'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a'];
+const fedWeakKey=u=>{const y=Array.from(u,(b,i)=>(i===31?b&127:b).toString(16).padStart(2,'0')).join('');
+  return FED_WEAK.includes(y)||/^(e[c-f]|f[0-9a-f])(ff){30}7f$/.test(y);};
 
 /* ---------- UTF-8 ---------- */
 // Strings handed in here are already checked (§2.1), so every surrogate is paired.
@@ -50,6 +56,8 @@ function fedUtf8Text(u){let p='';for(let i=0;i<u.length;i++)p+=(u[i]<16?'%0':'%'
 function fedStrOk(s){for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<32)return false;
   if(c>=0xd800&&c<0xe000){if(c>=0xdc00)return false;const d=s.charCodeAt(i+1);if(!(d>=0xdc00&&d<0xe000))return false;i++;}}return true;}
 // The first value rule a decoded value breaks (§2.1), or null. d: the depth of v, the record itself being 1.
+// Names a reader could take for an object's prototype (§2.1): an own __proto__ from JSON.parse would become one on copy.
+const FED_PROTO_NAMES=['__proto__','constructor','prototype'],FED_LONE=/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
 function fedValues(v,d=1){if(v===null)return 'bad_value';const t=typeof v;
   if(t==='string')return fedStrOk(v)?null:'bad_string';
   if(t==='number')return Number.isSafeInteger(v)&&!Object.is(v,-0)?null:'bad_number';
@@ -57,7 +65,8 @@ function fedValues(v,d=1){if(v===null)return 'bad_value';const t=typeof v;
   if(t!=='object')return 'bad_value';
   if(d>8)return 'too_deep';
   if(Array.isArray(v)){for(const x of v){const e=fedValues(x,d+1);if(e)return e;}return null;}
-  for(const k of Object.keys(v)){if(!FED_NAME.test(k))return 'bad_name';const e=fedValues(v[k],d+1);if(e)return e;}
+  // A name with a lone surrogate is a bad string first, as the relay's reader has it (§2.2).
+  for(const k of Object.keys(v)){if(FED_LONE.test(k))return 'bad_string';if(!FED_NAME.test(k)||FED_PROTO_NAMES.includes(k))return 'bad_name';const e=fedValues(v[k],d+1);if(e)return e;}
   return null;}
 // JSON text (already a string, so valid UTF-8) to a checked value: {v} or {e: error code}.
 function fedParse(text){let v;try{v=JSON.parse(text);}catch(e){return {e:'bad_json'};}const e=fedValues(v);return e?{e}:{v};}
@@ -92,7 +101,7 @@ async function fedNewKey(){const s=fedSubtle(),p=await s.generateKey({name:'Ed25
   const der=new Uint8Array(await s.exportKey('pkcs8',p.privateKey)),pub=new Uint8Array(await s.exportKey('raw',p.publicKey));
   return {pub:fedB64(pub),priv:fedB64(der.slice(der.length-32))};}
 // Verifies with the platform verifier as it is; a key WebCrypto will not import simply fails (§3.2).
-async function fedVerify(pub,sig,bytes){const s=fedSubtle(),sb=fedBin(sig,64);if(!s||!sb)return false;
+async function fedVerify(pub,sig,bytes){const s=fedSubtle(),sb=fedBin(sig,64),pb=fedBin(pub,32);if(!s||!sb||!pb||fedWeakKey(pb))return false;
   try{let k=FED_KEYS.get(pub);if(!k){k=await s.importKey('raw',fedBin(pub,32),{name:'Ed25519'},false,['verify']);if(FED_KEYS.size>512)FED_KEYS.clear();FED_KEYS.set(pub,k);}
     return await s.verify({name:'Ed25519'},k,sb,bytes);}catch(e){return false;}}
 async function fedSignText(seed,text){const k=await fedSigner(seed);return fedB64(new Uint8Array(await fedSubtle().sign({name:'Ed25519'},k.key,fedUtf8(text))));}

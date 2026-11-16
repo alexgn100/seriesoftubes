@@ -1,9 +1,16 @@
 // Keyboard focus moves into the modal, so Enter or Space can't keep pressing a hidden button behind it.
 // The link check on phones sits above the tab bar and is not modal, so the tabs stay usable.
 function openModal(html,cls=''){HOOKS.modal?.(true);$('modal').className=cls;$('modalCard').setAttribute('aria-modal',cls==='link-check'&&isPhone()?'false':'true');if($('modal').hidden){markLayer();const f=document.activeElement;UI.modalFrom=f&&f!==document.body&&!f.closest('#modal')?f:null;}$('modalCard').innerHTML=html;$('modal').hidden=false;const a=document.activeElement;if(a&&a!==document.body&&!a.closest('#modal')){a.blur();const m=$('modalCard');m.tabIndex=-1;m.focus({preventScroll:true});}}
+// Pie Control is a management panel, like the NOC dashboard: the clock keeps running under it (and it follows the days,
+// pieModal(true)). Every other window stops the clock until it is closed (#376).
+const CLOCK_MODALS={pie:1},modalStops=()=>!$('modal').hidden&&!CLOCK_MODALS[$('modal').className];
 // Keyboard focus goes back to what opened the modal (screen readers and keyboards keep their place).
 function closeModal(){const was=!$('modal').hidden;if(was)markLayer();pieGlobeClose();$('modal').hidden=true;UI.pending=null;HOOKS.modal?.(false);
   const f=UI.modalFrom;UI.modalFrom=null;if(was&&f&&f.isConnected&&!f.closest('#modal'))try{f.focus({preventScroll:true});}catch(e){}}
+// The NOC dashboard and the bank are windows of their own, not modals: a keyboard that opened one lands in it, and goes
+// back to what opened it when it closes. A tap (nothing focused) moves nothing.
+function winIn(card){const f=document.activeElement;if(!card||!f||f===document.body||card.contains(f))return;if(!f.closest('#dash,#bankBox,#modal'))UI.winFrom=f;f.blur();card.tabIndex=-1;try{card.focus({preventScroll:true});}catch(e){}}
+function winBack(){const f=UI.winFrom;UI.winFrom=null;if(f&&f.isConnected&&!f.closest('#dash:not([hidden]),#bankBox:not([hidden])'))try{f.focus({preventScroll:true});}catch(e){}}
 const NETWORK_NAMES=[
   'Packet Pals','Shinternet','Post, Telegraph & Tubes','Peering Pressure','Best Effort Telecom',
   'Mostly Online','Buffering & Sons','Lord of the Pings','The Ping Dynasty',

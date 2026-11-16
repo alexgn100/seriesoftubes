@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -16,15 +17,19 @@ import (
 
 	"github.com/fjaeckel/seriesoftubes/relay/internal/canon"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/fed"
+	"github.com/fjaeckel/seriesoftubes/relay/internal/netguard"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/update"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/wire"
 )
 
 // Options for Dial.
 type Options struct {
-	HTTPClient *http.Client // nil: the default, with system roots
+	HTTPClient *http.Client // nil: the default, with system roots; redirects are never followed
 	Header     http.Header  // extra handshake headers (tests set X-Forwarded-For)
 	Versions   []int64      // nil: [1]
+	// Feats is what hello lists (9.3 feats); nil: what this relay's checks take (ix2), empty: none,
+	// as an older game.
+	Feats []string
 }
 
 // Welcome is the node's answer to hello.
@@ -35,6 +40,7 @@ type Welcome struct {
 	Now    int64
 	Impl   *update.Impl // what the node runs, when it says (informational)
 	Feats  []string     // optional messages the node takes (9.3 feats)
+	Nonce  string       // for bound auth (9.3), when the node listed bind and gave one
 }
 
 // ErrFrame is an err frame from the node.
@@ -55,6 +61,7 @@ type Client struct {
 	other   chan *wire.Frame
 	done    chan struct{}
 	err     error
+	url     string // the URL dialled, which a bound auth names
 }
 
 // Dial connects, says hello as a client and waits for welcome.
@@ -63,8 +70,9 @@ func Dial(ctx context.Context, url string, o Options) (*Client, error) {
 	if vers == nil {
 		vers = []int64{fed.Version}
 	}
+	// A node URL is dialled as given: a redirect (to an internal address, say) is a failed dial.
 	c, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{
-		HTTPClient: o.HTTPClient, HTTPHeader: o.Header, Subprotocols: []string{fed.Subprotocol},
+		HTTPClient: netguard.Client(o.HTTPClient, false), HTTPHeader: o.Header, Subprotocols: []string{fed.Subprotocol},
 	})
 	if err != nil {
 		return nil, err
@@ -79,7 +87,20 @@ func Dial(ctx context.Context, url string, o Options) (*Client, error) {
 	for i, v := range vers {
 		vl[i] = v
 	}
-	if err := cl.send(ctx, map[string]any{"m": "hello", "vers": vl, "role": "client"}); err != nil {
+	// By default it reads what this relay's checks take, ix2 records included (9.3 feats).
+	hello := map[string]any{"m": "hello", "vers": vl, "role": "client"}
+	feats := o.Feats
+	if feats == nil {
+		feats = []string{wire.FeatIx2}
+	}
+	if len(feats) > 0 {
+		fl := make([]any, len(feats))
+		for i, f := range feats {
+			fl[i] = f
+		}
+		hello["feats"] = fl
+	}
+	if err := cl.send(ctx, hello); err != nil {
 		c.CloseNow()
 		return nil, err
 	}
@@ -103,6 +124,10 @@ func Dial(ctx context.Context, url string, o Options) (*Client, error) {
 	cl.Welcome.Now, _ = wire.Int(f.Raw["now"])
 	cl.Welcome.Impl = update.ReadImpl(f.Raw["impl"])
 	cl.Welcome.Feats = wire.Feats(f.Raw["feats"])
+	if n, _ := f.Str("nonce"); fed.IsID(n) && slices.Contains(cl.Welcome.Feats, wire.FeatBind) {
+		cl.Welcome.Nonce = n
+	}
+	cl.url = url
 	go cl.loop()
 	return cl, nil
 }
@@ -219,6 +244,16 @@ func (cl *Client) Request(ctx context.Context, m map[string]any) (*wire.Frame, e
 	}
 }
 
+// Bounds of one Collect: a node that answers more forever is not followed past them. Frames are
+// at most a client frame each, so maxCollectFrames bounds the bytes (32 MB). Vars for tests.
+var (
+	maxCollectItems  = 1 << 16
+	maxCollectFrames = 512
+)
+
+// ErrTooLong is Collect's error for an answer past its bounds; what came before it is returned.
+var ErrTooLong = errors.New("answer too long")
+
 // Collect gathers recs frames of a request until more is false.
 func (cl *Client) Collect(ctx context.Context, m map[string]any) ([]map[string]any, error) {
 	id, ch, err := cl.Start(ctx, m)
@@ -228,11 +263,15 @@ func (cl *Client) Collect(ctx context.Context, m map[string]any) ([]map[string]a
 	defer cl.Stop(id)
 	var items []map[string]any
 	var entries []any // a catalog answer's entries, joined over its frames (9.3)
+	frames := 0
 	for {
 		select {
 		case f, ok := <-ch:
 			if !ok {
 				return items, errors.New("connection closed")
+			}
+			if frames++; frames > maxCollectFrames || len(items) >= maxCollectItems || len(entries) >= maxCollectItems {
+				return items, ErrTooLong
 			}
 			if f.M == "err" {
 				code, _ := f.Str("code")
@@ -302,7 +341,11 @@ func (cl *Client) Challenge(ctx context.Context, server, node string, now int64)
 // Auth proves a key to the node (9.3 auth), signed for the node and server of the welcome at t;
 // it reports whether the node took it as an operator's of its server.
 func (cl *Client) Auth(ctx context.Context, k *fed.Signer, t int64) (bool, error) {
-	f, err := cl.Request(ctx, map[string]any{"m": "auth", "key": k.Key, "t": t, "sig": k.Auth(cl.Welcome.Node, cl.Welcome.Server, t)})
+	m := map[string]any{"m": "auth", "key": k.Key, "t": t, "sig": k.Auth(cl.Welcome.Node, cl.Welcome.Server, t)}
+	if cl.Welcome.Nonce != "" {
+		m["url"], m["sig"] = cl.url, k.AuthBound(cl.Welcome.Node, cl.Welcome.Server, t, cl.Welcome.Nonce, cl.url)
+	}
+	f, err := cl.Request(ctx, m)
 	if err != nil {
 		return false, err
 	}

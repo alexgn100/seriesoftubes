@@ -1,0 +1,26 @@
+{
+  "description": "total is Traffic: 10^12 Mbps (1 Ebps) is accepted.",
+  "input": {
+    "now": 1767312100,
+    "record": {
+      "v": 1,
+      "kind": "stats",
+      "key": "q6-YSQOwroLpff9kQ8staCV6h0Hy9ioi8qHnRU_PWMw",
+      "t": 1767312000,
+      "body": {
+        "mode": "normal",
+        "pops": {},
+        "traffic": [],
+        "tier1": false,
+        "shareCountry": false,
+        "total": 1000000000000
+      },
+      "sig": "hi2F8o-No8Ep300Lf6Kl24aF0Go0mnKt5dnnT_LOJ1e_XfAW-752wSWph8mWvrknA-6_hn-O_VjGQOZRoAGJCw"
+    }
+  },
+  "expect": {
+    "ok": true,
+    "kind": "stats",
+    "id": "XK1NeboOZhR8N00t1zGOSZnXuESSo3aTgWiSgPYrRpU"
+  }
+}

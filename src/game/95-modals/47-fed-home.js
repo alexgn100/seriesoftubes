@@ -31,7 +31,21 @@ const FU_ICON='<svg class="mm-ico" viewBox="0 0 32 32" aria-hidden="true" focusa
 const fuIcon=()=>FU_ICON;
 const fuAi=()=>`<span class="fu-bot" role="img" aria-label="${tr('fedui.ai_player')}" title="${tr('fedui.ai_player')}">🤖</span>`;
 // A network's name as others see it: as typed (escaped), or only its ASN where a server hides the name.
-function fuName(key){const a=FU.nets.get(key),b=a&&a.rec&&a.rec.body;if(!b)return esc(fuShort(key));if(FU.hideNames.has(key))return 'AS'+b.asn;return esc(b.name);}
+function fuName(key){const a=FU.nets.get(key),b=a&&a.rec&&a.rec.body;if(!b)return esc(fuShort(key));if(FU.hideNames.has(key))return 'AS'+b.asn;return esc(fedSafeName(b.name));}
+// The key's short fingerprint, next to an ASN wherever who is who matters (an ASN alone can be ground out).
+const fuFp=k=>{const x=fedFp(k);return x?`<span class="fu-fp" title="${tr('fedui.key_fingerprint')}">#${x}</span>`:'';};
+/* Networks whose names read alike (fedLook): those this browser knows, the rows of the board shown, and this player's
+   own. Worked out again only when one of them changed. */
+function fuLookNets(){const f=S&&S.fed,sl=FU.slice,me=f&&f.key?f.key.pub:'',nm=S?S.name:'';
+  const c=FU.lookN;if(c&&c.nets===FU.nets&&c.sl===sl&&c.me===me&&c.nm===nm)return c.set;
+  const l=[...FU.nets.values()].filter(n=>n.rec&&n.rec.body&&!FU.hideNames.has(n.key)).map(n=>[n.key,n.rec.body.name]);
+  if(sl&&Array.isArray(sl.rows))for(const r of sl.rows)if(r.name&&!FU.nets.has(r.key))l.push([r.key,r.name]);if(me&&nm)l.push([me,nm]);
+  const set=fedLookDups(l);FU.lookN={nets:FU.nets,sl,me,nm,set};return set;}
+const fuLookTag=k=>fuLookNets().has(k)?` <span class="fu-tag look">${tr('fedui.same_name_as_another_network')}</span>`:'';
+// A server only heard of whose name reads like another known server's: says which (the registry's first).
+function fuSrvLook(s,srvs=FU.srvs){if(!s||s.source==='registry')return '';const f=fedLook(s.name);if(!f)return '';
+  const o=srvs.filter(x=>x.id!==s.id&&fedLook(x.name)===f).sort((a,b)=>(a.source==='registry'?0:1)-(b.source==='registry'?0:1))[0];
+  return o?` <span class="fu-tag look">${tr('fedui.same_name_as_server',{server:esc(o.name)})}</span>`:'';}
 const fuSrvName=id=>{const s=FU.srvs.find(x=>x.id===id);return s?esc(s.name):esc(fuShort(id));};
 // The server a joined node URL belongs to (from the status, or the catalog's node lists).
 function fuSrvOf(url){const st=FED.st[url];if(st&&st.server)return FU.srvs.find(x=>x.id===st.server)||{id:st.server,name:fuShort(st.server),nodes:[],operators:[],source:'gossip'};
@@ -43,7 +57,9 @@ function fuWhyMode(){if(!S||!UI.started)return tr('fedui.open_a_normal_network_f
 const fuPolicy=s=>s.sync==='open'?tr('fedui.policy_open'):s.sync==='selective'?tr('fedui.policy_selective'):s.sync==='standalone'?tr('fedui.policy_standalone'):tr('fedui.policy_unknown');
 const fuErrText=code=>({mode:fuWhyMode(),url:tr('fedui.that_is_not_a_server_address'),full:tr('fedui.you_are_on_four_servers_already'),crypto:tr('fedui.this_browser_cannot_sign'),
   offline:tr('fedui.not_connected_to_this_server_now'),timeout:tr('fedui.the_server_did_not_answer_in'),no_key:tr('fedui.no_operator_key_on_this_device'),
-  not_operator:tr('fedui.the_server_says_this_key_is'),no_majority:tr('fedui.needs_more_operators_signatures'),too_many:tr('fedui.report_enough_for_today')}[code]||tr('fedui.the_server_said_no_code',{code:esc(code)}));
+  not_operator:tr('fedui.the_server_says_this_key_is'),no_majority:tr('fedui.needs_more_operators_signatures'),too_many:tr('fedui.report_enough_for_today')}[code]||(fedCodeKnown(code)?tr('fedui.the_server_said_no_code',{code:esc(code)}):tr('fedui.the_server_said_no')));
+// An error code in the operator panel: as it is when this game knows it, else as an unknown error.
+const fuCode=x=>fedCodeKnown(x)?`<span class="mono">${esc(x)}</span>`:tr('fedui.unknown_error');
 // Queued actions (offers and answers) say they are queued; stats and announcements are not the player's actions.
 const fuQueued=()=>S&&S.fed?S.fed.out.filter(r=>r.kind!=='stats'&&r.kind!=='announce').length:0;
 
@@ -91,11 +107,12 @@ function fuLoad(){if(FU.loadNext)return FU.loadNext;
   const p=FU.loadNext=(FU.loading||Promise.resolve()).then(()=>{FU.loadNext=null;return fuLoadRun();}).finally(()=>{if(FU.loading===p)FU.loading=null;});FU.loading=p;return p;}
 async function fuLoadRun(){const v=UI.fu&&UI.fu.v;if(!v)return;
   try{FU.srvs=await fedServers();FU.opKey=await fedOpKey();
-    if(v==='glass'||v==='server'||v==='net'||v==='home'||v==='boards'||v==='filters'||v==='report'){FU.gossip=(await fedGet('kv','gossip'))||[];FU.votes=FU.opKey?(await fedGet('kv','votes'))||[]:(await fedVotesTidy(),[]);
+    if(v==='glass'||v==='server'||v==='net'||v==='home'||v==='join'||v==='boards'||v==='filters'||v==='report'){FU.gossip=(await fedGet('kv','gossip'))||[];FU.votes=FU.opKey?(await fedGet('kv','votes'))||[]:(await fedVotesTidy(),[]);
       FU.nets=new Map((await fedNetworks()).map(n=>[n.key,n]));FU.hideNames=new Set();FU.excl=new Set(await fedShunned());
-      for(const s of FU.srvs){const h=await fedHides(s.id,FU.srvs);if(h)for(const k of h.rec.body.names)FU.hideNames.add(k);}}
+      // Names are hidden only as the servers this save joined ask: any other server's list is not this player's.
+      for(const id of fuSrvIds()){const h=await fedHides(id,FU.srvs);if(h)for(const k of h.rec.body.names)FU.hideNames.add(k);}}
     if(v==='home'){const f=S&&S.fed;FU.shun=f&&f.key?await fedExclInfo(f.key.pub):null;FU.asn=f&&f.key?await fedAsn(f.key.pub):null;}
-    if(v==='glass'||v==='server')await fuGlassLoad();
+    if(v==='glass'||v==='server'||v==='join')await fuGlassLoad();
     if(v==='server'&&UI.fu.id&&FU.opKey&&fuOpOf(UI.fu.id)){await fuOpReportsLoad(UI.fu.id);FU.chain=await fedOpChain(UI.fu.id);}
     if(v==='report'&&UI.fu.key)await fuRepLoad(UI.fu.key);
     if(v==='net'&&UI.fu.key)await fuNetLoad(UI.fu.key);
@@ -111,48 +128,73 @@ function fuHtml(){const v=UI.fu.v;
 const fuMsg=()=>FU.msg?`<p class="${FU.msg.bad?'why':'note'} fu-msg" role="status">${FU.msg.html}</p>`:'';
 
 /* ---------- the multiplayer sheet (settings) ---------- */
-function fuHomeHtml(){const f=S&&S.fed,ok=S&&UI.started&&fedEligible(),on=!!(f&&f.on),st=fedStatus();
+/* The Multimode sheet. Joined, it says where you stand first: the rank, what waits for your answer (one Accept and one
+   Decline per request, its terms on a tap) and what waits for theirs, the servers and their state. Settings, privacy
+   and devices fold behind one button; the long explanations are for players who have not joined yet. */
+const fuOpenK=k=>!!(UI.fu&&UI.fu.o&&UI.fu.o[k]);
+const fuFoldBtn=(k,label,n)=>{const o=fuOpenK(k);return `<button class="fu-fold${o?' on':''}" data-act="fuFold" data-args="${esc(JSON.stringify({k}))}" aria-expanded="${o}"><span class="psa" aria-hidden="true">${o?'▾':'▸'}</span><span class="grow">${label}</span>${n?`<span class="fu-cnt2 num">${n}</span>`:''}</button>`;};
+function fuHomeHtml(){const f=S&&S.fed,ok=S&&UI.started&&fedEligible(),on=!!(f&&f.on),st=fedStatus(),play=ok&&on&&!!f.key;
   let h=fuHead(fuIcon()+' '+tr('fedui.multiplayer'),tr('fedui.playing_with_others'));
-  h+=`<p class="tagline">${tr('fedui.other_players_networks_become_places_to')}</p>${fuMsg()}`;
-  // Joined: the leaderboards come first, as a card with this network's rank.
-  if(ok&&on){const m=fuMyRank();h+=`<button class="plug fu-lb" data-act="fuOpen" data-args='{"v":"boards"}'><span class="pi" aria-hidden="true">🏆</span><span class="grow"><b>${tr('fedui.leaderboards')}</b><span class="meta">${m?'#'+m.rank+' · ':''}${fuBoardName(fuDefQ().board)}</span></span><span class="go" aria-hidden="true">›</span></button>`;}
+  if(!play)h+=`<p class="tagline">${tr('fedui.other_players_networks_become_places_to')}</p>`;h+=fuMsg();
   if(!ok)h+=`<p class="note fu-why">${fuWhyMode()}</p>`;
   // Excluded by the federation: why, and that solo play goes on.
   if(on&&FU.shun&&FU.shun.shunned)h+=`<div class="fu-box bad"><b>${tr('fedui.the_federation_excluded_your_network')}</b><p class="meta">${FU.shun.reasons.length?tr('fedui.enough_servers_voted_to_shun_it'):tr('fedui.enough_servers_voted_to_exclude_it')}</p>${FU.shun.reasons.length?`<ul class="fu-reasons">${FU.shun.reasons.map(r=>`<li>${fuReason(r)}</li>`).join('')}</ul>`:''}${FU.shun.servers&&FU.shun.servers.length?`<p class="meta">${tr('fedui.listed_by_servers',{servers:[...new Set(FU.shun.servers.map(x=>FU.srvs.some(s=>s.id===x.srv)?fuSrvName(x.srv):esc(fedUrlHost(x.url))))].join(', ')})}</p>`:''}<p class="meta">${tr('fedui.your_game_plays_on_as_always')}</p></div>`;
-  if(on){h+=`<div class="fu-status ${st.state}"><span class="fed-dot ${st.state}" aria-hidden="true"></span><span>${fuStatusText(st)}</span></div>`;
-    const q=fuQueued();if(q&&st.state!=='connected')h+=`<p class="note">${trn('fedui.n_actions_queued_they_go_out',q)}</p>`;
-    if(fuLongGone())h+=`<div class="fu-box"><p>${tr('fedui.your_server_has_not_answered_for')}</p>${btn(tr('fedui.see_other_servers'),'fuOpen',{v:'join'},'ghost sm')}</div>`;}
-  if(on&&f.key)h+=`<p class="meta fu-id">${tr('fedui.you_are_asn_to_everyone',{asn:FU.asn?'AS'+FU.asn:'AS…',name:esc(S.name)})}</p>`;
-  // Joined servers.
-  if(f&&f.servers.length){h+=`<h3 class="sub4">${tr('fedui.your_servers')}</h3><div class="fu-list">${f.servers.map(u=>{const s=fuSrvOf(u),x=FED.st[u];
-      return `<div class="fu-item"><span class="fed-dot ${x?x.state:'offline'}" aria-hidden="true"></span><div class="grow fu-txt"><b>${s?esc(s.name):esc(u)}</b><span class="meta">${s?fuPolicy(s):esc(u)}</span></div>${btn(tr('fedui.leave'),'fuLeave',{url:u},'ghost sm')}</div>`;}).join('')}</div>`;}
-  if(ok){const full=f&&f.servers.length>=FED_MAX_SERVERS;h+=`<div class="btns">${btn(f&&f.servers.length?tr('fedui.join_another_server'):tr('fedui.join_a_server'),'fuOpen',{v:'join'},'pink',full)}${btn(tr('fedui.looking_glass'),'fuOpen',{v:'glass'},'ghost')}</div>`;
+  // Where you stand: connected or not, as whom, what is queued meanwhile.
+  if(on){const q=fuQueued();h+=`<div class="fu-where"><div class="fu-status ${st.state}"><span class="fed-dot ${st.state}" aria-hidden="true"></span><span>${fuStatusText(st)}</span></div>`;
+    if(f.key)h+=`<p class="meta fu-id">${tr('fedui.you_are_asn_to_everyone',{asn:FU.asn?'AS'+FU.asn:'AS…',name:esc(S.name)})}</p>`;
+    if(q&&st.state!=='connected')h+=`<p class="note">${trn('fedui.n_actions_queued_they_go_out',q)}</p>`;
+    else if(st.state==='offline')h+=`<p class="meta">${tr('fedui.your_game_plays_on_as_always')}</p>`;
+    if(fuLongGone())h+=`<div class="fu-box"><p>${tr('fedui.your_server_has_not_answered_for')}</p>${btn(tr('fedui.see_other_servers'),'fuOpen',{v:'join'},'ghost sm')}</div>`;
+    h+='</div>';}
+  // Joined: the leaderboards come first, as a card with this network's rank.
+  if(ok&&on){const m=fuMyRank();h+=`<button class="plug fu-lb" data-act="fuOpen" data-args='{"v":"boards"}'><span class="pi" aria-hidden="true">🏆</span><span class="grow"><b>${tr('fedui.leaderboards')}</b><span class="meta">${m?'#'+m.rank+' · ':''}${fuBoardName(fuDefQ().board)}</span></span><span class="go" aria-hidden="true">›</span></button>`;}
+  // What waits for an answer: requests from other players (yours to answer), then your own (theirs to answer).
+  if(play)h+=fpWaiting();
+  // Then who is worth peering with (89-fedplay-suggest.js): the nudge towards working with other players.
+  if(play)h+=fedSuggestHtml();
+  // Exchanges other players run, and where founding one would gather players (89-fedplay-ix.js).
+  if(play)h+=fedIxListHtml(FU.nets)+fedFoundHtml();
+  // Joined servers: one line each.
+  if(f&&f.servers.length){h+=`<h3 class="sub4">${tr('fedui.your_servers')}</h3><div class="fu-list">${f.servers.map(u=>{const s=fuSrvOf(u),x=FED.st[u],xs=x?x.state:'offline';
+      return `<div class="fu-item"><span class="fed-dot ${xs}" aria-hidden="true"></span><div class="grow fu-txt"><b>${s?esc(s.name):esc(u)}</b><span class="meta">${fuStatusText({state:xs==='waiting'||xs==='idle'?'offline':xs,since:x&&xs==='offline'?x.since:null})}${s?' · '+fuPolShort(s):''}</span></div>${btn(tr('fedui.leave'),'fuLeave',{url:u},'ghost sm')}</div>`;}).join('')}</div>`;}
+  if(ok){const full=f&&f.servers.length>=FED_MAX_SERVERS;h+=`<div class="btns">${btn(f&&f.servers.length?tr('fedui.join_another_server'):tr('fedui.join_a_server'),'fuOpen',{v:'join'},f&&f.servers.length?'ghost':'pink',full)}${btn(tr('fedui.looking_glass'),'fuOpen',{v:'glass'},'ghost')}</div>`;
     if(full)h+=`<p class="meta">${tr('fedui.you_are_on_four_servers_already')}</p>`;}
   else h+=`<div class="btns">${btn(tr('fedui.looking_glass'),'fuOpen',{v:'glass'},'ghost')}</div>`;
   h+=`<div class="btns fu-info">${btn(tr('mphelp.how_multiplayer_works'),'helpMp',{from:'fed'},'ghost sm')}${btn(tr('fedui.privacy'),'privacy',{from:'fed'},'ghost sm')}</div>`;
-  if(f){h+=`<h3 class="sub4">${tr('fedui.privacy')}</h3><div class="setline"><span>${tr('fedui.share_my_country')}</span><div class="seg">${btn(tr('common.on'),'fuShare',{on:true},f.share?'pink sm':'ghost sm')}${btn(tr('common.off'),'fuShare',{on:false},f.share?'ghost sm':'pink sm')}</div></div><p class="meta" style="margin:0 0 6px">${tr('fedui.only_your_country_never_anything_finer')}</p>`;
-    h+=`<h3 class="sub4">${tr('fedui.muted_networks')}</h3>`+(f.muted.length?`<div class="fu-list">${f.muted.map(k=>`<div class="fu-item"><div class="grow fu-txt"><b>${fuName(k)}</b></div>${btn(tr('fedui.unmute'),'fuMute',{key:k,on:false},'ghost sm')}</div>`).join('')}</div>`:`<p class="meta">${tr('fedui.none_muted_networks_vanish_from_your')}</p>`);
-    if(fedHasPriv(f)){h+=`<h3 class="sub4">${tr('fedui.move_to_another_device')}</h3><p class="meta">${tr('fedui.carry_this_network_s_identity_over')}</p><div class="btns">${btn(tr('fedui.move_to_another_device'),'fuOpen',{v:'move'},'ghost sm')}${btn(tr('common.import_a_save'),'importPick',{},'ghost sm')}</div>`;}}
-  // The operator key belongs to the device, not to a save.
-  h+=`<h3 class="sub4">${tr('fedui.operating_a_server')}</h3>`+(FU.opKey?`<div class="fu-item"><div class="grow fu-txt"><b>${tr('fedui.operator_key_on_this_device')}</b><span class="meta mono">${esc(fuShort(FU.opKey.pub))}</span></div>${btn(tr('fedui.remove'),'fuOpKeyDel',{},'ghost sm')}</div>`
-    :`<p class="meta">${tr('fedui.run_a_relay_import_your_operator')}</p><div class="btns">${btn(tr('fedui.import_operator_key'),'fuOpen',{v:'opkey'},'ghost sm')}</div>`);
-  if(f&&fedHasPriv(f))h+=`<h3 class="sub4">${tr('fedui.leave_for_good')}</h3><p class="meta">${tr('fedui.says_goodbye_to_every_server')}</p><div class="btns">${btn(tr('fedui.quit_multiplayer'),'fuOpen',{v:'quit'},'ghost sm red')}</div>`;
+  // Settings, privacy and devices: folded once joined (they are set once), open before.
+  const set=()=>{let x='';
+    if(f){x+=`<h3 class="sub4">${tr('fedui.privacy')}</h3><div class="setline"><span>${tr('fedui.share_my_country')}</span><div class="seg">${btn(tr('common.on'),'fuShare',{on:true},f.share?'pink sm':'ghost sm')}${btn(tr('common.off'),'fuShare',{on:false},f.share?'ghost sm':'pink sm')}</div></div><p class="meta" style="margin:0 0 6px">${tr('fedui.only_your_country_never_anything_finer')}</p>`;
+      x+=`<h3 class="sub4">${tr('fedui.muted_networks')}</h3>`+(f.muted.length?`<div class="fu-list">${f.muted.map(k=>`<div class="fu-item"><div class="grow fu-txt"><b>${fuName(k)}</b></div>${btn(tr('fedui.unmute'),'fuMute',{key:k,on:false},'ghost sm')}</div>`).join('')}</div>`:`<p class="meta">${tr('fedui.none_muted_networks_vanish_from_your')}</p>`);
+      if(fedHasPriv(f)){x+=`<h3 class="sub4">${tr('fedui.move_to_another_device')}</h3><p class="meta">${tr('fedui.carry_this_network_s_identity_over')}</p><div class="btns">${btn(tr('fedui.move_to_another_device'),'fuOpen',{v:'move'},'ghost sm')}${btn(tr('common.import_a_save'),'importPick',{},'ghost sm')}</div>`;}}
+    // The operator key belongs to the device, not to a save.
+    x+=`<h3 class="sub4">${tr('fedui.operating_a_server')}</h3>`+(FU.opKey?`<div class="fu-item"><div class="grow fu-txt"><b>${tr('fedui.operator_key_on_this_device')}</b><span class="meta mono">${esc(fuShort(FU.opKey.pub))}</span></div>${btn(tr('fedui.remove'),'fuOpKeyDel',{},'ghost sm')}</div>`
+      :`<p class="meta">${tr('fedui.run_a_relay_import_your_operator')}</p><div class="btns">${btn(tr('fedui.import_operator_key'),'fuOpen',{v:'opkey'},'ghost sm')}</div>`);
+    if(f&&fedHasPriv(f))x+=`<h3 class="sub4">${tr('fedui.leave_for_good')}</h3><p class="meta">${tr('fedui.says_goodbye_to_every_server')}</p><div class="btns">${btn(tr('fedui.quit_multiplayer'),'fuOpen',{v:'quit'},'ghost sm red')}</div>`;
+    return x;};
+  if(on)h+=fuFoldBtn('set','⚙️ '+tr('common.settings')+' · '+tr('fedui.privacy'))+(fuOpenK('set')?`<div class="fu-set">${set()}</div>`:'');
+  else h+=set();
   return h;}
 const fuReason=r=>({cheating:tr('fedui.reason_cheating'),offensive_name:tr('fedui.reason_offensive_name'),spam:tr('fedui.reason_spam'),abuse:tr('fedui.reason_abuse')}[r]||esc(r));
 
 /* ---------- joining: the catalog, policy first; a typed address; an invite ---------- */
-function fuSrvCard(s,f){const joined=!!f&&f.servers.some(u=>(s.nodes||[]).some(n=>n.url===u)),url=s.nodes&&s.nodes[0]&&s.nodes[0].url,ok=S&&UI.started&&fedEligible();
-  return `<div class="fu-srv${s.source==='registry'?' reg':''}"><p class="fu-pol">${fuPolicy(s)}</p><div class="fu-srvh"><b>${esc(s.name)}</b>${s.source==='registry'?`<span class="fu-tag reg">${tr('fedui.in_the_registry')}</span>`:`<span class="fu-tag">${tr('fedui.only_heard_of')}</span>`}</div>
-  ${s.desc?`<p class="meta">${esc(s.desc)}</p>`:''}<p class="meta">${trn('fedui.n_operators',(s.operators||[]).length)} · ${trn('fedui.n_nodes',(s.nodes||[]).length)}${s.langs&&s.langs.length?' · '+esc(s.langs.join(', ')):''}${s.noLogs?' · '+tr('fedui.no_address_logs'):''}</p>
-  <div class="btns">${joined?`<span class="fu-tag on">✓ ${tr('fedui.joined')}</span>`:ok&&url?btn(tr('fedui.join'),'fuJoin',{url},'pink sm',FU.busy):''}${btn(tr('fedui.details'),'fuOpen',{v:'server',id:s.id,back:'join'},'ghost sm')}</div></div>`;}
+/* A server as a compact card: its policy first (where your network will be seen), then the name (a tap: its details)
+   with Join beside it, and the facts that matter: languages, players seen there, operators, no address logs. */
+function fuSrvCard(s,f,at,rec){const joined=!!f&&f.servers.some(u=>(s.nodes||[]).some(n=>n.url===u)),url=at||fedJoinUrl(s),ok=S&&UI.started&&fedEligible(),np=FU.players&&FU.players.get(s.id);
+  return `<div class="fu-srv${s.source==='registry'?' reg':''}${rec?' rec':''}"><p class="fu-pol">${fuPolicy(s)}</p><div class="fu-srvh"><button class="lnk fu-sn" data-act="fuOpen" data-args="${esc(JSON.stringify({v:'server',id:s.id,back:'join'}))}" aria-label="${esc(s.name)}: ${tr('fedui.details')}"><b>${esc(s.name)}</b></button>${rec?`<span class="fu-tag on">⭐ ${tr('fedui.recommended')}</span>`:''}${s.source==='registry'?`<span class="fu-tag reg">${tr('fedui.in_the_registry')}</span>`:`<span class="fu-tag">${tr('fedui.only_heard_of')}</span>`}${fuSrvLook(s)}
+  <span class="grow"></span>${joined?`<span class="fu-tag on">✓ ${tr('fedui.joined')}</span>`:ok&&url?btn(tr('fedui.join'),'fuJoin',{url},'pink sm',FU.busy):''}</div>
+  ${s.desc?`<p class="meta fu-desc">${esc(s.desc)}</p>`:''}<p class="meta">${s.langs&&s.langs.length?'🗣 '+esc(s.langs.join(', ').toUpperCase())+' · ':''}${np?trn('fedui.n_players',np)+' · ':''}${trn('fedui.n_operators',(s.operators||[]).length)}${s.noLogs?' · '+tr('fedui.no_address_logs'):''}</p></div>`;}
 function fuJoinHtml(){const f=S&&S.fed,ok=S&&UI.started&&fedEligible(),inv=UI.fedInvite;
   let h=fuHead(fuIcon()+' '+tr('fedui.multiplayer'),tr('fedui.join_a_server'),{v:'home'});
   h+=`<p class="tagline">${tr('fedui.names_are_public')}</p>${fuMsg()}`;
   if(!ok)h+=`<p class="note fu-why">${fuWhyMode()}</p>`;
   if(inv){const s=FU.srvs.find(x=>(x.nodes||[]).some(n=>n.url===inv));
-    h+=`<div class="fu-box"><b>${tr('fedui.you_were_invited')}</b>${s?fuSrvCard(s,f):`<p class="fu-pol">${tr('fedui.policy_unknown')}</p><p class="meta mono">${esc(inv)}</p>${ok?`<div class="btns">${btn(tr('fedui.join'),'fuJoin',{url:inv},'pink sm',FU.busy)}</div>`:''}`}</div>`;}
-  const list=FU.srvs.slice().sort((a,b)=>(a.source==='registry'?0:1)-(b.source==='registry'?0:1)||a.name.localeCompare(b.name));
-  h+=`<h3 class="sub4">${tr('fedui.servers_we_know')}</h3>`+(list.length?`<div class="fu-srvs">${list.map(s=>fuSrvCard(s,f)).join('')}</div>`:`<p class="meta">${tr('fedui.no_servers_known_yet')}</p>`);
+    h+=`<div class="fu-box"><b>${tr('fedui.you_were_invited')}</b>${s?fuSrvCard(s,f,inv):`<p class="fu-pol">${tr('fedui.policy_unknown')}</p><p class="meta mono">${esc(inv)}</p>${ok?`<div class="btns">${btn(tr('fedui.join'),'fuJoin',{url:inv},'pink sm',FU.busy)}</div>`:''}`}</div>`;}
+  // The one the title screen would pick (fsDefault: an open registry server that answered lately) leads, marked; then
+  // the other registry servers, those already joined last; servers only heard of fold away (anyone can run one).
+  const isJ=s=>!!f&&f.servers.some(u=>(s.nodes||[]).some(n=>n.url===u)),du=fsDefault(FU.srvs.filter(s=>!isJ(s))),rec=FU.srvs.find(s=>s.source==='registry'&&(s.nodes||[]).some(n=>n.url===du));
+  const by=(a,b)=>(a===rec?0:1)-(b===rec?0:1)||(isJ(a)?1:0)-(isJ(b)?1:0)||a.name.localeCompare(b.name),reg=FU.srvs.filter(s=>s.source==='registry').sort(by),heard=FU.srvs.filter(s=>s.source!=='registry').sort(by);
+  h+=`<h3 class="sub4">${tr('fedui.servers_we_know')}</h3>`+(reg.length||heard.length?`<div class="fu-srvs">${reg.map(s=>fuSrvCard(s,f,null,s===rec)).join('')}</div>`:`<p class="meta">${tr('fedui.no_servers_known_yet')}</p>`);
+  if(heard.length)h+=(reg.length?fuFoldBtn('heard',tr('fedui.only_heard_of'),heard.length):'')+(!reg.length||fuOpenK('heard')?`<div class="fu-srvs">${heard.map(s=>fuSrvCard(s,f)).join('')}</div>`:'');
   if(ok)h+=`<label class="f" for="fuUrl">${tr('fedui.or_type_a_server_address')}</label><div class="fu-typed"><input class="t" id="fuUrl" type="url" inputmode="url" placeholder="wss://…" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(UI.fu.url||'')}">${btn(tr('fedui.join'),'fuJoinTyped',{},'',FU.busy)}</div><p class="meta">${tr('fedui.a_server_you_type_shows_its')}</p>`;
   return h;}
 

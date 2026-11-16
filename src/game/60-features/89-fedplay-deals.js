@@ -9,30 +9,36 @@
    (depeering only costs a detour through transit). Nothing here runs in the day loop except fedPlayDay (swaps). */
 const FEDP_PNI_G=10,FEDP_CONS_NAMES=['Brine Line','Deep Blue Tube','Salty Spaghetti','Kraken Express','Tidal Tube','Mermaid Mainline','Barnacle Backbone','Seaweed Skein'];
 const fedMe=(s=S)=>s&&s.fed&&s.fed.key?s.fed.key.pub:null;
-const fedRoleOf=(deal,mine)=>deal==='peering'||deal==='swap'?'peer':mine?'buy':'sell';
-// A deal as the save keeps it, from an offer and when it starts (null: waiting for the accept).
-function fedDealMk(rec,id,res,mine){const b=rec.body,k=mine?b.to:rec.key,n=fedNetOf(k);
+// Who pays: the author buys, except in co-founding, where the founder (the author) sells a share of its exchange.
+const fedRoleOf=(deal,mine)=>deal==='peering'||deal==='swap'?'peer':deal==='cofound'?(mine?'sell':'buy'):mine?'buy':'sell';
+/* A deal as the save keeps it, from an offer and when it starts (null: waiting for the accept). It keeps when the other
+   network was last heard and its box (fedDealBox): the deal outlives its announce in this browser's store. bx: the box
+   when the caller has it. renews only names a deal with the same network (fedRenOf). */
+function fedDealMk(rec,id,res,mine,bx){const b=rec.body,k=mine?b.to:rec.key,n=fedNetOf(k),a=FEDN.ann.get(k),ab=a&&a.rec&&a.rec.body.box;
   return {id,deal:b.deal,key:k,name:n?n.name:'AS?',asn:n?n.asn:0,start:res.start,end:res.end,terms:JSON.parse(JSON.stringify(b.terms)),role:fedRoleOf(b.deal,mine),
-    st:res.start===null?'wait':'run',on:false,rep:0,why:'',ai:!!(n&&n.ai),renews:fedOwn(b,'renews')?b.renews:null};}
-// The waiting or running deal that renews deal id, or null: a deal is renewed once.
-const fedRenewal=(f,id)=>f.deals.find(d=>d.renews===id&&d.st!=='over')||null;
+    st:res.start===null?'wait':'run',on:false,rep:0,why:'',ai:!!(n&&n.ai),renews:fedOwn(b,'renews')&&fedRenOf(S.fed,b.renews,k)?b.renews:null,
+    heard:Math.max(a?a.heard:0,fedNow()),box:bx||(typeof ab==='string'&&!FdBox(ab)?ab:null)};}
+// The deal id with network key, or null: only the network a deal is with can renew it.
+const fedRenOf=(f,id,key)=>!!f&&f.deals.find(d=>d.id===id&&d.key===key)||null;
+// The waiting or running deal that renews deal id (with network key), or null: a deal is renewed once.
+const fedRenewal=(f,id,key)=>f.deals.find(d=>d.renews===id&&d.key===key&&d.st!=='over')||null;
 /* When a renewal of deal id (with key) bound at t starts (§10.10): when the deal it renews ends, or t when later, as
    fedDeal() has it, so the old and the new deal never run (and bill) together. Not a renewal: t. */
 function fedRenStart(f,id,key,t){const o=id?f.deals.find(d=>d.id===id&&d.key===key):null;return o?Math.max(o.end??t,t):t;}
 // A wave renewal takes over the room of the running wave it renews (same route, at least as big): it needs no more.
 const fedWaveRen=(s,b,from)=>!!b.renews&&s.fed.deals.some(d=>d.id===b.renews&&d.key===from&&d.deal==='wave'&&d.role==='sell'&&d.st==='run'&&d.terms.a===b.terms.a&&d.terms.b===b.terms.b&&d.terms.gbps>=b.terms.gbps);
-// A deal starts: one-off fees (a PNI's setup) move in this game only, the buyer pays and the seller earns.
-function fedDealGo(d){if(d.deal==='pni'){const v=d.terms.setup||0;if(d.role==='buy')S.cash-=v;else if(d.role==='sell')S.cash+=v;}}
+// A deal starts: one-off fees (a PNI's or a co-founder's setup) move in this game only, the buyer pays and the seller earns.
+function fedDealGo(d){if(d.deal==='pni'||d.deal==='cofound'){const v=d.terms.setup||0;if(d.role==='buy')S.cash-=v;else if(d.role==='sell')S.cash+=v;}}
 // Running now, by the clock (unix seconds): the flag compute() reads. Deals past their end are over.
 function fedDealsOn(s,now){let ch=false;if(!s.fed)return false;
   for(const d of s.fed.deals){if(d.st!=='run'){if(d.on){d.on=false;ch=true;}continue;}
     // Renew is for the side that asks for deals (fpRenew), and only while no renewal follows.
     if(d.end!==null&&now>=d.end){d.st='over';d.on=false;d.why='term';ch=true;
-      toast(tr('fedplay.deal_ran_out',{net:esc(d.name),deal:fedDealName(d.deal)}),'',d.role!=='sell'&&!fedRenewal(s.fed,d.id)?[{l:tr('fedplay.renew'),act:'fpRenew',args:{id:d.id}}]:[]);continue;}
+      toast(tr('fedplay.deal_ran_out',{net:esc(d.name),deal:fedDealName(d.deal)}),'',d.role!=='sell'&&d.deal!=='cofound'&&!fedRenewal(s.fed,d.id,d.key)?[{l:tr('fedplay.renew'),act:'fpRenew',args:{id:d.id}}]:[]);continue;}
     const on=d.start!==null&&d.start<=now&&!!fedNetOf(d.key);if(on!==d.on){d.on=on;ch=true;}}
   // Waves sold come off the seller's fiber (mwG() caches by CM_V); waves bought are links.
   if(ch)CM_V++;return fedWaveLinks(s)||ch;}
-const FEDP_DN={peering:N_('fedplay.d_peering'),transit:N_('fedplay.d_transit'),pni:N_('fedplay.d_pni'),swap:N_('fedplay.d_swap'),consortium:N_('fedplay.d_consortium'),port:N_('fedplay.d_port'),wave:N_('fedplay.d_wave')};
+const FEDP_DN={peering:N_('fedplay.d_peering'),transit:N_('fedplay.d_transit'),pni:N_('fedplay.d_pni'),swap:N_('fedplay.d_swap'),consortium:N_('fedplay.d_consortium'),port:N_('fedplay.d_port'),wave:N_('fedplay.d_wave'),cofound:N_('fedplay.d_cofound')};
 const fedDealName=k=>tr(FEDP_DN[k]||FEDP_DN.peering);
 // Ends a running or waiting deal here and tells the other side (a signed decline; queued, sent when online).
 function fedEnd(s,d,why,reason){d.st='over';d.on=false;d.why=why;const f=s.fed;CM_V++;fedWaveLinks(s);
@@ -49,7 +55,7 @@ function fedOffer(key,deal,o={}){const n=fedNetOf(key),a=FEDN.ann.get(key);if(!n
   // Listed by a joined server: no new deals with it (running ones go on until the exclusion is confirmed).
   if(fedExcl1(key))return {miss:[{l:'excluded'}]};
   // Without a box key (an announce from before sealed deals) nothing can be sealed for it: wait for a newer announce.
-  if(n.fst==='dark'||FdK(a.rec.body.box))return {miss:[{l:'quiet'}]};
+  if(n.fst==='dark'||FdBox(a.rec.body.box))return {miss:[{l:'quiet'}]};
   const B=a.rec.body,R0=B.rates||{},p=fedPair(n),miss=[];let terms=null;
   if(!FEDP_DEALS.includes(deal)||deal==='consortium')return {miss:[{l:'terms'}]};
   if(!B.auto[deal]||B.auto[deal]==='decline')return {miss:[{l:'declines'}]};
@@ -71,6 +77,11 @@ function fedOffer(key,deal,o={}){const n=fedNetOf(key),a=FEDN.ann.get(key);if(!n
     const rt=r.routes.find(x=>x.a+'|'+x.b===o.at)||r.routes.find(x=>S.pops[x.a]&&S.pops[x.b])||r.routes[0],sz=r.sizes.find(x=>x.gbps*1000===mb)||r.sizes[0],tier=fedWaveT(sz.gbps);
     if(!S.pops[rt.a]||!S.pops[rt.b])miss.push({l:'ends'});else if(tier<0||!waveOk(rt.a,rt.b,tier))miss.push({l:'gear',n:fmtCap(sz.gbps)});
     terms={a:rt.a,b:rt.b,gbps:sz.gbps,monthly:sz.monthly,term:term(r.term)};}
+  else if(deal==='cofound'){// This network runs the exchange and offers a share of it (89-fedplay-ix.js): o.at, o.share, o.term.
+    const mine=Object.keys(S.myIx),fp=n.fpops||[],at=o.at&&S.myIx[o.at]?o.at:mine.find(c=>fp.includes(c))||mine[0],share=FEDX_SHARES.includes(+o.share)?+o.share:250;
+    if(!at)return {miss:[{l:'myix'}]};if(!fp.includes(at))miss.push({l:'cfpop',n:fpCity(at)});if(!fedP().rates.ix)miss.push({l:'ixsell'});
+    if(!fedIx2())miss.push({l:'ix2'});if(fedCofounders(at).length>=FEDX_CO)miss.push({l:'cofull',n:FEDX_CO});
+    terms={at,share,...fedCofoundPrice(at,share),term:FEDX_TERMS.includes(+o.term)?+o.term:180};}
   if(B.policy!=='selective'&&B.cond&&!B.cond.ai&&S.fed.ai)miss.push({l:'ai'});
   // A newcomer buying from an established network pays the newcomer price (§10.10, 89-fedplay-mentor.js).
   terms=fedNewTerms(deal,terms,B,fedNow());
@@ -82,16 +93,16 @@ async function fedRequest(key,deal,o={},renews=null){const s=S,f=s&&s.fed;if(!f|
   if(!FEDN.ann.has(key))await fedPlayRefresh();if(S!==s)return 'mode';
   const x=fedOffer(key,deal,o);if(x.miss.length)return {miss:x.miss};
   if(!renews&&f.deals.some(d=>d.key===key&&d.deal===deal&&d.st!=='over'&&JSON.stringify(d.terms)===JSON.stringify(x.terms)))return 'dup';
-  if(renews&&fedRenewal(f,renews.id))return 'dup';
+  if(renews&&fedRenewal(f,renews.id,key))return 'dup';
   const body=x.body;if(renews)body.renews=renews.id;
   let r;try{r=await fedSignMine('offer',body,f);}catch(e){return {miss:[{l:'quiet'}]};}const id=await fedId(r);if(S!==s)return 'mode';
   const res=fedDeal([{id:x.a.id,kind:'announce',key,t:x.a.rec.t,body:x.a.rec.body}],{id,key:f.key.pub,t:r.t,body},null,renews?{id:renews.id,start:renews.start,end:renews.end??r.t}:null);
   if(!res.ok)return res.error;
   // Checked again: two taps on Renew sign two offers while WebCrypto works.
-  if(renews&&fedRenewal(f,renews.id))return 'dup';
+  if(renews&&fedRenewal(f,renews.id,key))return 'dup';
   if(!fedQueue(r,f))return 'full';
   // The record went out sealed; the deal is kept from the offer in clear.
-  const d=fedDealAdd(f,fedDealMk({...r,body},id,res,true));if(d.st==='run')fedDealGo(d);fedDealsOn(s,fedNow());
+  const d=fedDealAdd(f,fedDealMk({...r,body},id,res,true,x.a.rec.body.box));if(d.st==='run')fedDealGo(d);fedDealsOn(s,fedNow());
   toast(d.st==='run'?tr('fedplay.deal_started',{net:esc(d.name),deal:fedDealName(deal)}):tr('fedplay.request_sent',{net:esc(d.name),deal:fedDealName(deal)}),d.st==='run'?'good':'');
   after();return null;}
 
@@ -100,33 +111,44 @@ async function fedRequest(key,deal,o={},renews=null){const s=S,f=s&&s.fed;if(!f|
 function fedTheirMiss(s,b,from){const P=fedP(s),n=fedNetOf(from),T=b.terms,miss=[];
   if(b.deal==='peering'){const where=T.via==='ix'?fedMyIx():Object.keys(s.pops);if(!T.at.every(c=>where.includes(c)))miss.push({l:T.via==='ix'?'ix':'pop'});
     if(P.pol==='selective'){if(!n)return null;const p=fedPair(n);miss.push(...fedCondMiss(P.cond,{mbps:p.mbps,ratio:p.ratio,shared:p.shared,rpki:true,tier1:!!n.t1,ai:!!n.ai}));}}
-  else if(b.deal==='transit'){if(!T.at.every(c=>s.pops[c]))miss.push({l:'pop'});}
+  else if(b.deal==='transit'){if(!T.at.every(c=>s.pops[c]))miss.push({l:'pop'});if(fedTheirAbsurd(s,b))miss.push({l:'terms'});}
   else if(b.deal==='pni'){if(!s.pops[T.at])miss.push({l:'pop'});}
   else if(b.deal==='port'){if(!s.myIx[T.at])miss.push({l:'myix'});}
   else if(b.deal==='swap'){if(!s.pops[T.take.a]||!s.pops[T.take.b])miss.push({l:'pop'});}
   else if(b.deal==='wave'){if(!fedWaveRen(s,b,from)&&!fedWaveRoom(T.a,T.b,T.gbps))miss.push({l:'room'});}
+  // Co-founding: a POP there, the founder's newest announce selling ports there, honest shares, the cash for the setup.
+  else if(b.deal==='cofound'){if(!s.pops[T.at])miss.push({l:'cfpop',n:fpCity(T.at)});if(fedTheirAbsurd(s,b))miss.push({l:'terms'});const a=FEDN.ann.get(from),r=a&&a.rec&&a.rec.body.rates&&a.rec.body.rates.ix;
+    if(!r||!r.at.includes(T.at))miss.push({l:'noix'});if(!fedCofoundFair(T))miss.push({l:'fair'});if(s.cash<T.setup)miss.push({l:'cash'});}
   if(n&&n.ai&&P.pol==='selective'&&!P.cond.ai)miss.push({l:'ai'});
-  // The newcomer price claims the day the buyer joined: it must be the one its announce says, when this game has it.
-  if(fedOwn(T,'founded')){const a=FEDN.ann.get(from);if(a&&a.rec&&a.rec.body.founded!==T.founded)miss.push({l:'newcomer'});}
+  /* The newcomer price claims the day the buyer joined: it must be the one its announce says, when this game has it, and
+     not after this browser first heard of it (a day's slack for clocks). */
+  if(fedOwn(T,'founded')){const a=FEDN.ann.get(from);if(a&&a.rec&&(a.rec.body.founded!==T.founded||a.fs>0&&fedDiv(a.fs,FED_DAY)+1<T.founded))miss.push({l:'newcomer'});}
   return miss;}
+/* Terms no card of this network gives, whatever mode it reviews in: transit committing past ten times its biggest tier
+   (fedTransitMax; billed on that commit), a co-founding share or term off the lists. */
+function fedTheirAbsurd(s,b){const T=b.terms;
+  if(b.deal==='transit')return !Number.isSafeInteger(T.mbps)||T.mbps>fedTransitMax(fedP(s));
+  if(b.deal==='cofound')return !FEDX_TERMS.includes(T.term)||!FEDX_SHARES.includes(T.share);
+  return false;}
 async function fedPlayDeal(e){const s=S,f=s&&s.fed;if(!f||!f.key||!fedEligible(s))return;const me=f.key.pub,r=e.rec,b=r.body,P=fedP(s);
   if(r.key===me)return;// this network's own records, echoed back
   if(r.kind==='offer'){
     if(b.deal==='consortium'&&!fedOwn(b,'to')){if(fedConsSeen(s,r,e.id))after();return;}
     if(b.to!==me||f.deals.some(d=>d.id===e.id)||P.rq.some(q=>q.id===e.id)||f.muted.includes(r.key))return;
     if((await fedShunned()).includes(r.key)){await fedAnswer(s,r,e.id,'excluded');return;}
-    // A deal is renewed once: a second renewal of it (booked or waiting for review) is declined.
-    if(b.renews&&(fedRenewal(f,b.renews)||P.rq.some(q=>q.rec.body.renews===b.renews))){await fedAnswer(s,r,e.id,'conditions');return;}
-    const mine=P.mine.map(x=>({id:x.id,kind:'announce',key:me,t:x.t,body:x.body})),ren=b.renews?f.deals.find(d=>d.id===b.renews&&d.key===r.key):null;
+    /* Only the network a deal is with renews it, and only once: a renewal naming a deal with someone else, or a second
+       renewal (booked or waiting for review), is declined. */
+    if(b.renews&&(!fedRenOf(f,b.renews,r.key)||fedRenewal(f,b.renews,r.key)||P.rq.some(q=>q.rec.key===r.key&&q.rec.body.renews===b.renews))){await fedAnswer(s,r,e.id,'conditions');return;}
+    const mine=P.mine.map(x=>({id:x.id,kind:'announce',key:me,t:x.t,body:x.body})),ren=b.renews?fedRenOf(f,b.renews,r.key):null;
     const res=fedDeal(mine,{id:e.id,key:r.key,t:r.t,body:b},null,ren?{id:ren.id,start:ren.start,end:ren.end??r.t}:null);
     if(!res.ok){if(res.error!=='not_found')await fedAnswer(s,r,e.id,res.error==='declined'?'declined':'conditions');return;}
-    const miss=fedTheirMiss(s,b,r.key);if(S!==s)return;
-    if(res.auto&&miss&&!miss.length){const d=fedDealAdd(f,fedDealMk(r,e.id,res,false));fedDealGo(d);fedDealsOn(s,fedNow());
+    const miss=fedTheirMiss(s,b,r.key),bx=await fedBoxOf(r.key);if(S!==s)return;
+    if(res.auto&&miss&&!miss.length){const d=fedDealAdd(f,fedDealMk(r,e.id,res,false,bx));fedDealGo(d);fedDealsOn(s,fedNow());
       toast(tr('fedplay.they_started',{net:esc(d.name),deal:fedDealName(d.deal)}),'good');after();return;}
     if(res.auto&&miss&&miss.length){await fedAnswer(s,r,e.id,'conditions');return;}
-    /* A full queue lets its oldest offer go with a decline, so that requester is not left waiting: the newest stay (a
-       flood of offers cannot keep new ones out, and what waits longest is the least likely to be wanted). */
-    const old=P.rq.length>=FEDP_RQ_MAX?P.rq.shift():null;P.rq.push({id:e.id,rec:r});const n=fedNetOf(r.key);
+    // Terms no one could honestly ask for (fedTheirAbsurd) are declined even under review.
+    if(fedTheirAbsurd(s,b)){await fedAnswer(s,r,e.id,'conditions');return;}
+    const old=fedRqRoom(P,r.key);P.rq.push({id:e.id,rec:r});const n=fedNetOf(r.key);
     toast(tr('fedplay.review_waiting',{net:esc(n?n.name:'AS?'),deal:fedDealName(b.deal)}),'goal',[{l:tr('fedplay.review'),act:'fpQueue',args:{}}]);after();
     if(old)await fedAnswer(s,old.rec,old.id,'declined');return;}
   if(r.kind==='accept'){const c=P.cons.find(x=>x.id===b.offer);if(c){if(fedConsSign(s,c,r.key))after();return;}
@@ -136,26 +158,40 @@ async function fedPlayDeal(e){const s=S,f=s&&s.fed;if(!f||!f.key||!fedEligible(s
   if(r.kind==='decline'){const i=P.rq.findIndex(q=>q.id===b.offer&&q.rec.key===r.key);if(i>=0){P.rq.splice(i,1);after();return;}
     const d=f.deals.find(x=>x.id===b.offer&&x.key===r.key&&x.st!=='over');if(!d)return;const was=d.st;d.st='over';d.on=false;d.why=b.reason;CM_V++;fedWaveLinks(s);
     toast(was==='wait'?tr('fedplay.declined',{net:esc(d.name),deal:fedDealName(d.deal)}):b.reason==='depeer'?tr('fedplay.depeered',{net:esc(d.name)}):tr('fedplay.ended_by',{net:esc(d.name),deal:fedDealName(d.deal)}),'bad');after();}}
+/* Room in the review queue for one more offer from key; gives the offer let go (declined by the caller), or null. A
+   requester keeps at most FEDP_RQ_PER waiting (its own oldest goes); a full queue lets go the oldest offer of the
+   requester with the most, so one network's flood never pushes out the others' genuine requests. */
+function fedRqRoom(P,key){const by=new Map();for(const q of P.rq)by.set(q.rec.key,(by.get(q.rec.key)||0)+1);
+  let k=(by.get(key)||0)>=FEDP_RQ_PER?key:null;
+  if(!k&&P.rq.length>=FEDP_RQ_MAX){let m=0;for(const q of P.rq){const n=by.get(q.rec.key);if(n>m){m=n;k=q.rec.key;}}}
+  if(!k)return null;const i=P.rq.findIndex(q=>q.rec.key===k);return i<0?null:P.rq.splice(i,1)[0];}
 // Accepts an offer waiting for review: the deal starts at the accept's time (a renewal: when the deal it renews ends).
 async function fedAcceptRq(id){const s=S,f=s&&s.fed,P=s&&s.fedp;if(!f||!P||!fedHasPriv(f))return 'off';const q=P.rq.find(x=>x.id===id);if(!q)return 'gone';
   const b=q.rec.body;if((await fedShunned()).includes(q.rec.key))return {miss:[{l:'excluded'}]};
-  if(b.renews&&fedRenewal(f,b.renews))return 'dup';
+  if(b.renews&&fedRenewal(f,b.renews,q.rec.key))return 'dup';
+  if(fedTheirAbsurd(s,b))return {miss:[{l:'terms'}]};
   // A wave needs room on the route when it starts, not only when it was asked for (a renewal takes over its own).
   if(b.deal==='wave'){const T=b.terms;if(!fedWaveRen(s,b,q.rec.key)&&!fedWaveRoom(T.a,T.b,T.gbps))return {miss:[{l:'room'}]};}
-  const r=await fedSignMine('accept',{offer:id,to:q.rec.key},f);if(S!==s)return 'mode';if(!fedQueue(r,f))return 'full';
-  const term=b.terms.term,st=fedRenStart(f,b.renews,q.rec.key,r.t),d=fedDealMk(q.rec,id,{start:st,end:term?st+term*FED_DAY:null},false);
+  // Co-founding is checked again when accepted: the cash for the setup, and the founder still selling ports there.
+  if(b.deal==='cofound'){const m=fedTheirMiss(s,b,q.rec.key);if(m&&m.length)return {miss:m};}
+  const bx=await fedBoxOf(q.rec.key),r=await fedSignMine('accept',{offer:id,to:q.rec.key},f);if(S!==s)return 'mode';if(!fedQueue(r,f))return 'full';
+  const term=b.terms.term,st=fedRenStart(f,b.renews,q.rec.key,r.t),d=fedDealMk(q.rec,id,{start:st,end:term?st+term*FED_DAY:null},false,bx);
   P.rq=P.rq.filter(x=>x!==q);fedDealAdd(f,d);fedDealGo(d);fedDealsOn(s,fedNow());toast(tr('fedplay.deal_started',{net:esc(d.name),deal:fedDealName(d.deal)}),'good');after();return null;}
 async function fedDeclineRq(id){const s=S,P=s&&s.fedp;if(!P)return 'off';const q=P.rq.find(x=>x.id===id);if(!q)return 'gone';P.rq=P.rq.filter(x=>x!==q);await fedAnswer(s,q.rec,id,'declined');after();return null;}
 
 /* ---------- the hourly walk over running deals ---------- */
-// Quiet (dark), shunned and muted networks end their deals with a NOC notice, never a bill; sellers learn what buyers report.
+/* Quiet (dark), shunned and muted networks end their deals with a NOC notice, never a bill; sellers learn what buyers report.
+   Quiet is the other network's own silence, as the deal keeps it (heard): never that its announce left this browser's
+   store or the snapshot. Deals from before heard was kept go by the snapshot until they are first heard. */
 function fedDealsTick(s,now,shun,muted,stats){const f=s.fed,me=fedMe(s);let ch=false;if(!f)return false;
-  for(const d of f.deals){if(d.st==='over')continue;const n=s.fedn&&s.fedn.nets.find(x=>x.k===d.key);
+  for(const d of f.deals){if(d.st==='over')continue;const n=s.fedn&&s.fedn.nets.find(x=>x.k===d.key),a=FEDN.ann.get(d.key);
+    if(a){if(a.heard>(d.heard||0)){d.heard=a.heard;ch=true;}const bx=a.rec&&a.rec.body.box;if(typeof bx==='string'&&!FdBox(bx)&&bx!==d.box){d.box=bx;ch=true;}}
     if(muted.has(d.key)){fedEnd(s,d,'muted','depeer');ch=true;continue;}
     if(shun.has(d.key)){fedEnd(s,d,'excluded','excluded');ch=true;toast(tr('fedplay.ended_excluded',{net:esc(d.name)}),'bad');continue;}
-    if(!n||n.st==='dark'){fedEnd(s,d,'quiet','quiet');ch=true;toast(tr('fedplay.ended_quiet',{net:esc(d.name)}),'bad');continue;}
-    if(n.name!==d.name){d.name=n.name;ch=true;}if(!!n.ai!==d.ai){d.ai=!!n.ai;ch=true;}
-    if(d.deal==='transit'&&d.role==='sell'){const st=stats.get(d.key),t=st&&Array.isArray(st.traffic)?st.traffic.find(x=>x.key===me):null,v=t?Math.max(t.in,t.out):0;if(v!==d.rep){d.rep=v;ch=true;}}}
+    const q=FEDN.left.has(d.key)?'dark':d.heard?fedQuiet(now,d.heard).state:!n?'dark':n.st;
+    if(q==='dark'||q==='forgotten'){fedEnd(s,d,'quiet','quiet');ch=true;toast(tr('fedplay.ended_quiet',{net:esc(d.name)}),'bad');continue;}
+    if(n&&n.name!==d.name){d.name=n.name;ch=true;}if(n&&!!n.ai!==d.ai){d.ai=!!n.ai;ch=true;}
+    if(d.deal==='transit'&&d.role==='sell'){const st=stats.get(d.key),t=st&&Array.isArray(st.traffic)?st.traffic.find(x=>x.key===me):null,v=t?Math.min(Math.max(t.in,t.out),fedRepMax(d)):0;if(v!==d.rep){d.rep=v;ch=true;}}}
   const P=s.fedp;if(P)for(const c of P.cons)if(c.st==='open'&&now-c.t>2592000){c.st='gone';ch=true;}
   return fedDealsOn(s,now)||ch;}
 // Players whose traffic reaches this network with no deal between you: how peers are discovered.
@@ -180,8 +216,11 @@ function fedDealExits(){const out=[],f=S.fed;if(!f)return out;
     else if(d.deal==='pni'){if(popUp(T.at))out.push({k:'p',id:k,city:T.at,cap:T.mbps/1000,lab:labOf(N_('common.pni_with_net'),'net',n.name),net:id,set:one});}
     else if(d.deal==='transit'){for(const c of T.at)if(popUp(c))out.push(d.role==='buy'?{k:'t',id:k+':'+c,city:c,cap:Math.max(1,T.mbps/1000*2),lab:labOf(N_('common.net_transit'),'net',n.name),net:id,set:null}
       :{k:'p',id:k+':'+c,city:c,cap:Math.max(1,T.mbps/1000*2),lab:labOf(N_('fedplay.ex_customer'),'net',n.name),net:id,set:one});}
-    else if(d.deal==='port'&&popUp(T.at)){let set=one;if(d.role==='buy'){set=new Set([id]);for(const m of NETS)if(m.fed&&m.fst!=='dark'&&m.fpol==='open'&&(m.fix||[]).includes(T.at))set.add(m.id);}
-      out.push({k:'p',id:k,city:T.at,cap:T.mbps/1000,lab:labOf(d.role==='buy'?N_('fedplay.ex_port'):N_('fedplay.ex_member'),'net',n.name),net:id,set});}}
+    /* A port on a player's exchange (a co-founder's comes with its share) reaches the founder, the open players there
+       and, from the founder's newest announce (ix2), the computer-run networks on it. Sold: that player only. */
+    else if((d.deal==='port'||d.deal==='cofound')&&popUp(T.at)){let set=one;if(d.role==='buy'){set=new Set([id]);for(const m of NETS)if(m.fed&&m.fst!=='dark'&&m.fpol==='open'&&(m.fix||[]).includes(T.at))set.add(m.id);
+        const xm=n.fxm&&n.fxm[T.at];if(xm)for(const x of xm.n)if(NET[x]&&!NET[x].fed)set.add(x);}
+      out.push({k:'p',id:k,city:T.at,cap:d.deal==='cofound'?FEDP_PNI_G:T.mbps/1000,lab:labOf(d.role==='buy'?N_('fedplay.ex_port'):N_('fedplay.ex_member'),'net',n.name),net:id,set});}}
   return out;}
 // Peering sessions at an exchange (ixSessions): players you peer with there.
 function fedIxSes(c,set){const f=S.fed;if(!f)return;for(const d of f.deals)if(d.on&&d.deal==='peering'&&d.terms.via==='ix'&&d.terms.at.includes(c)){const n=fedNetOf(d.key);if(n&&n.fst!=='dark')set.add(n.id);}}
@@ -197,7 +236,9 @@ const trPops=N=>N.fpops&&N.fpops.length?N.fpops:N.pops;
    out whenever its body changes (fedStatsTick), and exact figures change every slot, which would send a record every
    5 minutes per player instead of about hourly, swelling relays and every board download for no ranking gain. */
 const FED_STEPS=[1,1.2,1.5,2,2.5,3,4,5,6,8,10];
-const fedStep=v=>{if(!(v>0))return 0;const e=10**Math.floor(Math.log10(v)),m=v/e;let b=1;for(const x of FED_STEPS)if(Math.abs(x-m)<Math.abs(b-m))b=x;return Math.min(1e9,Math.round(b*e));};
+// Reported traffic is Traffic (spec 2.1): up to 10^12 Mbps, so the boards rank networks past 1 Pbps as what they carry.
+const FED_TRAFFIC_MAX=1e12;
+const fedStep=v=>{if(!(v>0))return 0;const e=10**Math.floor(Math.log10(v)),m=v/e;let b=1;for(const x of FED_STEPS)if(Math.abs(x-m)<Math.abs(b-m))b=x;return Math.min(FED_TRAFFIC_MAX,Math.round(b*e));};
 function fedTrafficList(){const out=[],me=fedMe();if(!R||!S.fedn||!me)return out;const m=fedMyMix();
   for(const n of S.fedn.nets){if(n.k===me)continue;const N=fedNetOf(n.k);if(!N)continue;const e=R.netEg[N.id];let inM=e?Math.round(((e.p||0)+(e.ix||0))*1000):0;
     for(const d of S.fed.deals)if(d.on&&d.key===n.k&&d.deal==='transit')inM+=d.role==='buy'?Math.round(fedExUse(d)*1000):(d.rep||0);
@@ -208,13 +249,22 @@ function fedTrafficList(){const out=[],me=fedMe();if(!R||!S.fedn||!me)return out
 FED.hooks.stats=b=>{try{if(S&&S.fed){b.traffic=fedTrafficList();b.total=fedStep(((R&&R.served)||0)*1000);
   const l=fedTransitLists(S);if(l.cust.length)b.cust=l.cust;if(l.up.length)b.up=l.up;b.tier2=b.tier1||isTier2();}}catch(e){}return b;};
 // Offers and accepts the core passes on besides those to or from this network: open consortium projects and their signers.
+// Networks the open game still needs, kept in the announce store however many others come (fedAnnCap).
+FED.hooks.keep=()=>{const s=S,f=s&&s.fed,out=new Set(FEDN.pin);if(!f)return out;for(const d of f.deals)if(d.st!=='over')out.add(d.key);
+  for(const k of f.muted)out.add(k);if(s.fedp)for(const q of s.fedp.rq)out.add(q.rec.key);return out;};
 FED.hooks.deal=r=>r.kind==='offer'&&r.body.deal==='consortium'&&!fedOwn(r.body,'to')||r.kind==='accept'&&!!(S&&S.fedp&&S.fedp.cons.some(c=>c.id===r.body.offer));
 
 /* ---------- consortium cables: a project lists its signers; once funded every member gets fibre pairs ---------- */
 /* A project's share is what its author's game asked; it is never under the honest price in this game (a share of 0
    would be a free cable), so it shows and costs at least that (fedConsShare, which moves with this game's market). */
+/* Room: an author has at most FEDP_CONS_PER open projects here (a newer one lets its oldest go), and a full list lets
+   go an ended project, else the oldest open one of the author with the most. Projects this network signed stay. */
 function fedConsSeen(s,r,id){const P=fedP(s),T=r.body.terms;if(P.cons.some(c=>c.id===id)||!own(CITY,T.a)||!own(CITY,T.b)||T.a===T.b)return false;
-  if(P.cons.length>=FEDP_CONS_MAX){const i=P.cons.findIndex(c=>c.st!=='open');if(i<0)return false;P.cons.splice(i,1);}
+  const drop=k=>{const i=P.cons.findIndex(c=>c.st==='open'&&c.k===k&&!c.me);if(i<0)return false;P.cons.splice(i,1);return true;};
+  if(P.cons.filter(c=>c.st==='open'&&c.k===r.key).length>=FEDP_CONS_PER&&!drop(r.key))return false;
+  if(P.cons.length>=FEDP_CONS_MAX){const i=P.cons.findIndex(c=>c.st!=='open');
+    if(i>=0)P.cons.splice(i,1);
+    else{const by=new Map();for(const c of P.cons)if(!c.me)by.set(c.k,(by.get(c.k)||0)+1);let k=null,m=0;for(const [x,n] of by)if(n>m){m=n;k=x;}if(!k||!drop(k))return false;}}
   P.cons.push({id,k:r.key,name:fedSafeName(T.name),a:T.a,b:T.b,m:T.members,sh:Math.max(T.share,fedConsShare(T.a,T.b,T.pairs)),pr:T.pairs,sg:[r.key],t:r.t,st:'open',me:r.key===fedMe(s)});return true;}
 function fedConsSign(s,c,key){if(c.st!=='open'||c.sg.includes(key)||c.sg.length>=16)return false;c.sg.push(key);fedConsCheck(s,c);return true;}
 // Funded once enough have signed: each member's game lays its own fibre pairs and pays its own share.
@@ -246,12 +296,19 @@ function fedPlayDay(){const f=S.fed;if(!f)return false;let ch=fedWaveLinks(S);
   return ch;}
 
 /* ---------- shared incidents: a route leak spreading through the federation ---------- */
-/* Every game picks the same leaker on the same real day from the networks it knows (a hash of the day and the keys), on
-   about one day in FEDP_LEAK. It reaches the leaker's direct partners and, through player transit that does not filter,
-   their customers; a network that filters with RPKI drops it (contained), any other gets the leak incident. */
+/* Games that know the same networks pick the same leaker on the same real day (a hash of the day, the keys and the set of
+   candidates), on about one day in FEDP_LEAK. Candidates are active networks this game has known for FEDP_LEAK_AGE
+   days that joined at least that long ago: a key cannot be made today to win a day, and since the set of candidates
+   salts the hash, no key can be worked out in advance to win one either. It reaches the leaker's direct partners and,
+   through player transit that does not filter, their customers; a network that filters with RPKI drops it
+   (contained), any other gets the leak incident. */
+// The leaker of real day D among the candidates this game knows (this network included).
+function fedLeaker(s,D){const old=k=>{const a=FEDN.ann.get(k),fd=a&&a.rec&&a.rec.body.founded;
+    return !!a&&Number.isSafeInteger(fd)&&D-fd>=FEDP_LEAK_AGE&&D-fedDiv(a.fs||0,FED_DAY)>=FEDP_LEAK_AGE;};
+  const keys=[s.fed.key.pub,...s.fedn.nets.filter(n=>n.st==='active'&&old(n.k)).map(n=>n.k)].sort(fedByStr),salt=hstr(keys.join(','));
+  const h=k=>hstr(D+'|'+salt+'|'+k);return keys.reduce((a,k)=>h(k)<h(a)?k:a,keys[0]);}
 function fedLeakCheck(s,now){const P=fedP(s),f=s.fed,D=fedDiv(now,FED_DAY);if(P.leakD===D||!f||!f.key)return false;P.leakD=D;
-  if(hstr('leak|'+D)%FEDP_LEAK!==0||!s.fedn)return true;const me=f.key.pub,keys=[me,...s.fedn.nets.filter(n=>n.st==='active').map(n=>n.k)];
-  const lk=keys.reduce((a,k)=>hstr(D+'|'+k)<hstr(D+'|'+a)?k:a,keys[0]),run=f.deals.filter(d=>d.on);
+  if(hstr('leak|'+D)%FEDP_LEAK!==0||!s.fedn)return true;const me=f.key.pub,lk=fedLeaker(s,D),run=f.deals.filter(d=>d.on);
   if(lk===me){if(run.length){s.cash-=2500;toast(tr('fedplay.leak_mine',{n:run.length}),'bad');}return true;}
   const ln=fedNetOf(lk);if(!ln)return true;
   const hop=run.some(d=>d.key===lk)||run.some(d=>d.deal==='transit'&&d.role==='buy'&&(()=>{const a=FEDN.ann.get(d.key);return !(a&&a.rec&&a.rec.body.cond&&a.rec.body.cond.rpki);})()&&d.key!==lk&&FEDN.ann.has(lk));

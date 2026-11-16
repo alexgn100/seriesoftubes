@@ -12,9 +12,9 @@ function frame(now){
   if(ANALYTICS.host&&S&&!S.lost&&UI.speed&&document.visibilityState==='visible'){UI.playMs=(UI.playMs||0)+dt;const m=UI.playMs/60000;for(const k of PLAY_MARKS)if(m>=k)track('play_'+k+'m',true);}
   if(S&&UI.started&&!S.lost&&now-(UI.lastSave||0)>5000)save();
   // The panels catch up on the frame after a day, so one frame does not carry both the day's simulation and them.
-  if(UI.panelsDue){NOC.dirty=true;UI.panelsDue=false;if(!pressing){renderPanel();renderLeft();if(!$('dash').hidden)renderDash();renderBank();}renderHint();}
+  if(UI.panelsDue){NOC.dirty=true;UI.panelsDue=false;if(!pressing){renderPanel();renderLeft();if(!$('dash').hidden)renderDash();renderBank();if(!$('modal').hidden&&$('modal').className==='pie')pieModal(true);}renderHint();}
   if(NOC.peer)nocPump(now);
-  if(S&&!S.lost&&$('modal').hidden&&UI.speed&&!pzOn())runClock(dt);
+  if(S&&!S.lost&&!modalStops()&&UI.speed&&!pzOn())runClock(dt);
   if((UI.speed||pzOn())&&!(S&&S.lost))animT+=dt; /* paused = frozen dots, waves and clouds */
   const t=animOn()?animT:0;
   if(!(UI.mapHid=mapHidden())){const st=mapStill(t,now);if(st!==MAP_STILL&&!(st===MAP_AMBIENT&&now-(UI.drawnAt||0)<AMB_MS)){
@@ -49,14 +49,14 @@ const FRAME=[],MAP_MOVING=0,MAP_AMBIENT=1,MAP_STILL=2,AMB_MS=29;
 function mapStill(t,now){const sl=UI.sel,dr=UI.drag;
   const v=[t,cam.x,cam.y,cam.z,CW,CH,DPR,S,R,S&&S.day,S&&S.links.length,S&&S.offers.length,S&&S.inc.length,sl&&sl.type,sl&&sl.id,UI.hover,UI.snap&&UI.snap.id,dr&&dr.mode,dr&&dr.cx,dr&&dr.cy,FLOATS.length,UI.mk?UI.mk.tx:0,UI.mk?UI.mk.mood:0,zoomMoving()];
   let same=v.length===FRAME.length,clock=same&&FRAME[0]!==v[0];for(let i=0;i<v.length;i++)if(FRAME[i]!==v[i]){if(i)clock=false;same=false;FRAME[i]=v[i];}
-  if(!(glOn()||WL.cv&&WL.key===(cam.z*DPR).toFixed(4)&&wlCovers(cam.z)))return MAP_MOVING;
+  if(!(glOn()||WL.cv&&WL.key===wlKey(cam.z)&&wlCovers(cam.z)))return MAP_MOVING;
   return same?(now-(UI.drawnAt||0)<1000?MAP_STILL:MAP_MOVING):clock?MAP_AMBIENT:MAP_MOVING;}
 function tickErr(e){console.error('[tubes] tick failed',e);if(UI.tickErr)return;UI.tickErr=true;track('tick_error',true);
   toast(tr('loop.something_in_the_noc_glitched_the'),'bad');}
 function boot(data){
   i18nDom();
   try{UI.muted=localStorage.getItem('sot-mute')==='1';UI.anim=localStorage.getItem('sot-anim')||'auto';}catch(e){}
-  applyAnim();
+  applyAnim();themeBoot();
   if(data&&data.S){S=migrate(data.S);UI.started=true;if(data.cam)Object.assign(cam,data.cam);compute();renderAll();}
   else{const sv=UI.slot?loadSave():null,stamp=sv&&sv.sv;if(sv)delete sv.sv;
     let okSave=false;if(sv){try{S=migrate(sv);compute();okSave=true;}catch(e){console.error('[tubes] loading the network failed',e);S=null;UI.started=false;}}

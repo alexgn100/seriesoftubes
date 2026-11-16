@@ -9,6 +9,139 @@ All notable changes to this project are documented here. The project follows
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 - Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
 
+## [4.5.0] — 2026-11-16
+
+- The NOC dashboard has a DDoS tab: every attack under way with its RTBH, scrubbing and hack-back buttons, your totals, and a history of past attacks with their size, target and how they ended. Attacks your network shrugs off, and Auto-RTBH pulling the plug, no longer pop up (they are in the NOC's notifications and the new tab); an attack that hurts still does, and its button opens the tab.
+- Once you have made Tier 1, conference news and de-peerings no longer pop up: they go to the NOC's notification list instead. That covers conference reminders and reports (which used to vanish altogether), your sales engineer's bookings, the carriers a capacity conference sends, a network de-peering you at an exchange, and the Cogentle and Goggle peering spat (its incident stays in the NOC).
+- Big networks: a POP's Peering tab no longer slows every game day and every click while it is open. The list of PNIs worked out what a PNI would carry at every one of your POPs to show the one on screen; now it only works out that one.
+- Big networks: the first minute after loading a game is smoother. The lowest latency you could ever build between two cities, which latency offers are checked against, is now worked out about ten times faster, for every POP.
+- A subsea cable of your own can land in the inland cities where cables land (Nairobi, Johannesburg, Khartoum, Atlanta, Montreal): it comes ashore where their cables do and runs on overland (#416).
+- Barranquilla and Cartagena are on the map, and Colombia's Caribbean cables now land there, as they really do, instead of in Bogotá. Bogotá is reached overland from the coast, and cables you already lease to Bogotá keep working (#416).
+
+## [4.4.0] — 2026-11-16
+
+- A large UX redesign: much less scrolling and things are easier to find, on phones and on computers. Lambda Bazaar has a window of its own, the 🔍 search finds anything, and the Deals, Goals, NOC and Networks tabs, the NOC dashboard, the city and link panels, Multimode, the bank, Settings and How to play are all shorter and put what needs you first.
+- Orbit customers in the far north no longer go short when the crusts further south fill up: overflow now lands under the crust with the most room, keeping the polar crust free for the places only it reaches.
+- An unhappy orbit customer now says why it is short and what fixes it (a full dish, full crusts, no dish in reach, slow fiber where it lands), on its card and in the warning.
+- Orbit customers link the NOC, Pie Control and their POP: each view has buttons to the other two, the NOC shows the POP whose dish lands them, Pie Control can drop them, and that POP's panel lists the orbit customers coming down there.
+- Orbit offers now warn when the sky cannot deliver them: no crust over the city yet, every crust there full, no dish to land them, or too little room for the bandwidth they want. Your sales desk no longer signs those (the shark still oversells bandwidth); you still can.
+- RouteScript's `spill at … within … ms` rules no longer push your ordinary internet traffic up through your pies: their detours now stay on fiber, so the crusts keep their room for the latency customers who pay for it (#409).
+
+## [4.3.0] — 2026-11-15
+
+- The NOC intern can now run your rocket launches: a new standing order books launches to keep your crusts at 60, 80 or 100% as old pies wear out, with its own monthly budget.
+- Pie dishes can be taken down, antennas and all, from Pie Control's Dishes tab, to free a slot under the 200-dish limit: the scrap dealer pays back a quarter of what they cost.
+- Orbit customers now land under any crust over them that has room, instead of going short when the first one is full, and the sales desk stops selling under full crusts.
+- Pie Control's Bottlenecks list only what really costs you traffic: no more full dish or full crust while a neighbour has room, and a full crust shows the traffic it loses rather than its whole size. A full dish with all its antennas offers to fill up a dish nearby.
+- Joining a busy Multimode server no longer drops the reach you see: players who are Tier 1 themselves are left out of it, as they already were for Tier 1 and your customers, and the bank covenant that asks for 99% reach no longer breaks because of them.
+- Switching tabs in Pie Control now gives the globe back in full: a highlighted customer, backhaul or dish no longer keeps the rest dimmed and zoomed in.
+- In dark mode, the cash amount at the top is readable again on iPhones, where it showed dark on the dark chip.
+- A Multimode server keeps its session with a neighbour that the registry turns into an automatic peer, instead of dropping it and reconnecting.
+
+## [4.2.1] — 2026-11-15
+
+- Networks past 1 Pbps now show their real traffic on the Multimode leaderboards instead of all reading 1.00 Pbps. Servers need relay 4.1.3 or newer to take their records.
+
+## [4.2.0] — 2026-11-15
+
+- Dark mode: Settings has a Theme choice, Light (still the default), Dark, or Auto to follow your device, which darkens the panels and the map's sea and land (#80).
+- Lasers are now research: once it is done, every pie you launch has them, and launches past a crust's size replace its pies without lasers. Games that already flew lasered pies keep the research (#374).
+- Rocket companies can grow: the pie factory takes up to six production lines and a launch pad up to three towers, each flying its own rocket. Lines and pads can be closed again for a quarter of what they cost, and one tap queues a launch for every free tower (#374).
+- Two new research projects move pie dishes to the V band and then the E band, doubling and doubling again what each antenna carries; dishes are upgraded antenna by antenna, and rain hurts higher bands more (#374).
+- Landing rights can be bought 1, 5 or 10 years ahead, for one country or every country with a pie dish, and antennas and dishes can be added in bulk (#374).
+- Pie Control is wider and laid out like the NOC dashboard, with a tab for each thing you run: an overview, bottlenecks with the button that fixes each one, crusts, dishes by country or by load, orbit customers shown on the globe, and the company. Launch options such as insurance now stay set in your save (#374).
+- The NOC's optical upgrades now also act when buyers on the capacity market want waves a full fiber cannot sell: a fiber a carrier rides gets bigger optics, and one nobody rides gets the next line system where your traffic gets around it (#347).
+- A queued rocket launch can be called off before its day: its pies go back on the shelf, and you get all your money back the day you booked it, or half later (#365).
+- Space pauses the game again after you click a button, instead of pressing that button a second time; a button you reach with Tab still presses with Space (#381).
+- Time keeps running while Pie Control is open, and the panel keeps up with each day without jumping back to the top (#376).
+- A circuit that routing sends through orbit now says so: its customer row and the "Move to another path" dialog show the pie crust it crosses, and the fiber path it would otherwise take is offered as a move, so pinning it really takes the circuit off orbit (#379).
+- Launching pies no longer wrecks low-latency circuits that your fiber already carried: a circuit only flies through orbit when the dishes have room for all of it, and otherwise stays on its fiber (#380).
+
+## [4.1.3] — 2026-11-14
+
+- Joining a Multimode server no longer costs you Tier 1, and with it Pie in the Sky: other players' networks, including players who are Tier 1 themselves, no longer count towards the reach Tier 1 needs. The same goes for your customers and offers, which need 99% reach: other players you cannot reach no longer take it from you.
+- Multimode has a third server to play on: (BE) UNITIX - AS211184, in English, joins the server list (#364).
+- A Multimode server that shuts down now waits for its sessions with other servers and its first server-list download to end, instead of leaving them running behind it.
+
+## [4.1.2] — 2026-11-14
+
+- Multimode servers and games now accept traffic figures above 1 Pbps, the first step to ranking the biggest networks properly: today everyone past 1 Pbps shows exactly 1.00 Pbps on the leaderboards. Games keep reporting at most 1 Pbps until servers have updated; a later version lifts that.
+
+## [4.1.1] — 2026-11-14
+
+- Multimode has a second server to play on: charon.clucas.fr, in English and French, joins the server list (#361).
+- The relay downloads for OpenBSD and NetBSD are back: 4.1.0 could not be built for them. On those systems the relay does not watch free disk space.
+
+## [4.1.0] — 2026-11-14
+
+- Exchanges you found grow with other players: every player with a port on yours is listed as a member and draws computer-run networks in faster, Multimode lists the exchanges players run and where a port would save you transit, and suggests founding one where two or more players already are. On up-to-date servers a port on a player's exchange also reaches every network on it, and you can invite up to two players to co-found an exchange: they pay their share of its cost, get a port and earn their share of the members' fees.
+- The NOC dashboard has separate Links and Routers tabs that list every link and every POP, sorted by load, capacity or name and filtered by load, by city, or by kind of link: leased waves, IRU dark fiber, or fiber you built over land or under the sea. A link's row shows what is used and, on dark fiber, how many channels are lit, sold as alien waves or free and what is sold as managed waves, with buttons to add or remove optics, light another fiber pair or order a bigger wave. The Routers tab shows Your AS first, then a table of every POP's router type and count, capacity, forwarding load, router ports and Flowspec rules in use, filtered by region, city or Flowspec and sorted from its header, with buttons to add a router or swap to the next model as the NOC intern would. Tapping a row picks it in the side panel behind the dashboard, so a stray tap never leaves the NOC (#354).
+- Multimode shows who is worth peering with: the players you reach over transit, what peering would save on your transit bill and where you can meet them, in the Multimode sheet and the NOC dashboard. Once you peer with a player directly, your customers send each other more traffic, up to twice as much after 30 days, and it works the same way in their game.
+- Once you sell managed waves on a dark fiber, its panel shows what your traffic uses, how much is left for it and everything the fiber lights (#357).
+- A wave into mainland China now says in its panel whether it is a premium or a regular border crossing, and how much it loses at the border. Premium ones are tagged in the city's list of links and among the other links in a link's panel (#358).
+- Your running Multimode deals no longer end because someone floods the game with thousands of new networks: the players you deal with, wait on or pinned always stay in your game, and a deal only ends for silence when that player has really gone quiet.
+- Only the player a Multimode deal is with can renew it: someone else can no longer book a "renewal" of your deal and block the real one.
+- Transit you sell to another player is billed on what your network can really carry: a buyer can no longer commit to far more than your rate card offers or report traffic that inflates your books, and saves holding such deals are corrected when they load.
+- A Multimode network's founding day can no longer change once it is announced: games and servers ignore an announce that claims another one, so nobody gets the newcomer price by pretending to be new.
+- One player can no longer fill your list of open consortium projects or your review queue: each player keeps at most two open projects and four waiting requests there, and your other players' requests stay.
+- The shared route leak of the day is picked only among networks that have been around for at least 30 days, in a way no one can arrange in advance, and co-founding offers must use the listed shares and terms.
+- The customer cone check of a Multimode leaderboard row is many times faster on big federations.
+- In Multimode, look-alike names are easier to tell apart: networks and servers whose names read the same are marked "same name as…", every ASN on the boards, in the looking glass and in deal sheets comes with a short key fingerprint, and hidden characters no longer show in any name or server description.
+- In the Multimode looking glass, an AI-played network now shows as an AI player instead of "undefined · undefined".
+- In Multimode a server can no longer keep your game busy checking signatures without end: each connection gets a generous budget per minute, and a server that asks for more is left alone for a while.
+- In Multimode, error messages from a server are shown only as the short codes the game knows; anything else shows as an unknown error.
+- In Multimode your game trusts a server's name only after one of its nodes proved who it is, so a node pretending to be another server can no longer put an update notice, errors or an excluded list under that server's name, or send your game to that server's other nodes.
+- Your game now only proves your network to a Multimode server at the address that server really lists, and drops a server that floods it with more updates than it can handle instead of slowing down or running out of memory.
+- When your game proves your network to an up-to-date Multimode server, the proof now only works on that connection to that server, so no other server can reuse it. Server operators can refuse the older kind of proof with the new `legacyAuth` setting; it stays allowed for now so older games keep working.
+- Multimode games and servers now refuse a handful of malformed network keys that could let anyone sign in that network's name.
+- Multimode games refuse deal offers that carry hidden fields meant to slip past their checks.
+- Sealed Multimode deals are now padded, so the servers carrying them can no longer guess what kind of deal it is from its size; older games still open them.
+- A network moved to another device with its Multimode file now arrives offline: the import names the servers it played on, and you join them again from Multimode, so a file or link from someone else can never connect your game to servers you did not choose.
+- Multimode servers can no longer point your game at addresses inside your own network: other nodes a server lists, and servers you only heard of from other servers, are only dialled at public addresses, unless you joined a server on your local network yourself, so LAN parties work as before.
+- The privacy page and the in-game privacy sheet now list everything Multimode sends: the traffic you exchange with each player's network, your traffic mix, the game day and the day you joined, your Tier 1 or Tier 2 standing, the AI model when an agent plays, and that reports you send go to the server's operators. They also say that Share my country is on until you turn it off.
+- Other players' network names in Multimode now show without hidden characters: invisible marks that could reorder or disguise a name are removed.
+- When the game's server list is not there yet, Play with others now suggests the game's own first server rather than one it only heard about from other servers.
+- The game page's security policy is tighter: besides scripts and connections it now also limits where styles, fonts and images may come from, and allows no frames and no form submissions.
+- The game page now has a Content Security Policy: only its own code, its dictionaries and the visit counter may run, and it may only connect to the site itself, Multimode servers and the counter, which keeps your Multimode key out of reach of anything slipped into the page.
+- In Multimode your game keeps a smaller list of the servers it hears about and reads it again only when it changes, which keeps busy sessions smooth, and only the servers you joined can hide other players' names in your game.
+- Multimode servers can now carry the member lists of players' exchanges and co-founding offers, to the games and servers that understand them only, so older servers and games keep working; servers should upgrade before players can use them.
+- The relay's test-only setting for trusting a test certificate no longer also lets it dial internal addresses; that now takes its own test-only setting, with a warning at start. Replacing a registry file over a damaged one reports an error instead of crashing.
+- Multimode servers count new networks from an IPv6 site by its larger address blocks too, as they already did for connections, and never let data through uncounted when they are very busy.
+- Multimode servers no longer write whatever error text another server sends into their log at full length.
+- Multimode servers also refuse to dial other servers at IPv6 addresses that lead to an internal IPv4 address.
+- Multimode servers keep connection slots for the servers in the public list: servers that are not listed, and any one address, can only take a few of them.
+- Multimode server operators can now see how many games still sign in the older way (a new metric and an hourly log line), to know when the older way can be switched off; a configuration reload no longer races with players' connections.
+- Reports to a Multimode server's operators can no longer be crowded out by newly made networks: room is kept for players the server has known for a while, and reports are also limited per address.
+- Multimode servers answer another server's request for their whole inventory once per connection, so it cannot be repeated to keep a server busy.
+- Multimode servers keep room in their list of other servers for the servers in the public list: made-up servers can no longer fill it.
+- Multimode servers no longer let anyone pass as a node of a server that is in the public list or is known to be up to date. Servers in the public list must run this version to keep syncing with up-to-date servers.
+- Multimode servers no longer refuse a neighbour's own players because of what that neighbour passed on from elsewhere: servers outside the public list share one budget, and records held back by a budget are fetched again once it refills.
+- Multimode servers keep the moderation lists only of their own server and of servers in the public list, one per server, and count them like other new data, so made-up servers can no longer fill other servers' memory with them.
+- Multimode servers can no longer be filled up by someone making new networks by the thousand: new networks and the data they bring are counted per connection, address and server each hour, and a nearly full server keeps serving the players it knows. The defaults leave plenty of room for players running many games or AI agents at once.
+- The live boards of "now" keep their places for real players: when they are full, networks that were made up and never announced make way first.
+- A Multimode server sends each new record to a game once, even if the game follows it more than once.
+- Multimode servers bound the list of other servers they learn from each other by size, not only by count, and send it to a new neighbour a piece at a time, so one server with oversized entries can no longer stop servers from syncing. They also no longer pass the same server's entry on again and again when it is replayed to them.
+- Multimode servers check more carefully that the other servers and nodes they sync with are who they say they are. Every node of one server must run this version together: an upgraded node no longer syncs with a sibling that has not been upgraded, while syncing with other servers keeps working.
+- The Multimode server list only accepts a change to a listed server that moves it forward: an older signed copy of its entry, from before an operator or node was removed, can no longer be put back.
+- Multimode servers and games keep the operator history they already know for each server: a key that used to run a server can no longer rewrite that history to add nodes of its own, and the server list shows the newest description from its current operators.
+- Multimode servers now only take a server's description (its name, sync policy and logging promise) from its current operators: a key that was removed from a server can no longer sign one that replaces the real one.
+- Multimode leaderboards only take the time a record arrived from servers in the public list or the server that received it, and never a time before the record was made, so nobody can place stats in the past or push other players off the boards.
+- Server names in the public Multimode list now use plain letters, digits and simple punctuation only, so no server can be listed under a look-alike of another's name.
+- Multimode servers now ignore stray files in their data folder whose names are not a day, instead of reading them as a wrong day, and refuse to store a record under a day out of range.
+- Multimode servers no longer follow redirects when they connect to other servers, and connect to servers they learned of from the registry only on public internet addresses, never on addresses inside the operator's own network.
+- A Multimode server started with `relay up` (the container default) now restarts without its operator key in the data folder, so operators can keep that key only on their own computer, as the hosting guide now recommends.
+- `relay lan` really contacts nothing on the internet now: a relay without a registry no longer checks GitHub for new releases.
+- `relay lan` now answers only devices on the local network, even where the machine also has a public address.
+- `relay backup` always writes a fresh file readable only by the relay's user, and backups kept in the data folder (in its new `backups/` folder) are no longer copied into later backups.
+- The relay's container image no longer turns on metrics for every network by itself: the Compose file that wants them sets them, and the hosting guide warns that ports Docker publishes get past the host's firewall.
+- The relay's Compose file now runs a pinned relay version by default (following every release is opt-in), drops the privileges its containers do not need, and published container images come with signed build provenance.
+- On Windows, the relay now warns at start when its data folder is outside your user profile, where other users of the machine may be able to read its keys.
+- Multimode servers no longer turn away players and AI agents that connect in large numbers from one address: a hundred at once are fine by default, while one address can no longer take all of a server's connections. Server operators can tune the new limits (`openPerAddr`, `connBurst`, `connsPerSec`); older config files keep working.
+- Multimode servers close idle web connections after a minute and only accept connections from the game's own pages, pages on your own machine or LAN, and apps and agents, so other websites cannot make their visitors' browsers use up a server's connections.
+- AI agents playing through the MCP server are now told about every piece of text other players or server operators wrote in a tool result (names, server descriptions, AI setup names, server error codes), in every kind of result and also before joining.
+- For developers: the agent relay of `npm run dev`, which lets AI agents play in your browser tab, now needs a key made for each run, which the dev page and the MCP server pick up on their own, and `npm run dev -- --https` stays on your own machine unless you add `--host`.
+- For developers: the certificate authority `npm run dev -- --https` asks a phone to trust can now only vouch for local names and private addresses, and lasts 180 days; an older one is replaced on the next start, so trust the new one on your phone once more.
+
 ## [4.0.0] — 2026-11-13
 
 - New Multimode: play alongside other players on servers that players run themselves. Switch on Play with others when you start a new game from the title screen, or join later from Multimode in the menu or in Settings. Other players' networks then show up in your game as places your customers want to reach. Multimode is per save and entirely optional, nothing changes for a save that never joins, and if a server is down your game simply plays on. How to play has a new page that explains it all.

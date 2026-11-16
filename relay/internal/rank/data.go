@@ -33,13 +33,14 @@ type stat struct {
 	nl    [4]uint8 // how many of each (at most 128 customers, 16 upstreams)
 	aiw   *aiWho   // nil unless an AI says which
 	cc    string
-	// The checks bound these well within int32: pops 512 cities of 1000, pies 10^7, total 10^9.
-	popsN, pies, total int32
-	normal             bool
-	hasPies            bool
-	ai                 bool
-	tier1              bool
-	tier2              bool
+	// The checks bound these well within int32: pops 512 cities of 1000, pies 10^7. total is Traffic, up to 10^12.
+	popsN, pies int32
+	total       int64
+	normal      bool
+	hasPies     bool
+	ai          bool
+	tier1       bool
+	tier2       bool
 }
 
 // aiWho is the model and harness an AI network names.
@@ -86,7 +87,7 @@ type popc struct {
 
 type tentry struct {
 	key     string
-	in, out int32 // at most 10^9 each (mbps)
+	in, out int64 // Traffic: at most 10^12 each (Mbps)
 }
 
 func i32(v int64) int32 { return int32(min(max(v, math.MinInt32), math.MaxInt32)) }
@@ -122,7 +123,7 @@ func parse(id, key string, slot, t int64, body map[string]any, cc string) *stat 
 	if v, ok := body["pies"]; ok {
 		s.hasPies, s.pies = true, i32(toInt(v))
 	}
-	s.total = i32(toInt(body["total"]))
+	s.total = toInt(body["total"])
 	if a, ok := body["ai"].(map[string]any); ok {
 		s.ai = true
 		m, _ := a["model"].(string)
@@ -141,7 +142,7 @@ func parse(id, key string, slot, t int64, body map[string]any, cc string) *stat 
 		for _, e := range list {
 			m, _ := e.(map[string]any)
 			k, _ := m["key"].(string)
-			s.tr = append(s.tr, tentry{k, i32(toInt(m["in"])), i32(toInt(m["out"]))})
+			s.tr = append(s.tr, tentry{k, toInt(m["in"]), toInt(m["out"])})
 		}
 		if len(s.tr) > 16 {
 			s.trIdx = make(map[string]int32, len(s.tr))

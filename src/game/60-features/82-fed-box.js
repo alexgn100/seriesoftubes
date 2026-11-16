@@ -31,22 +31,28 @@ const fedBoxAad=r=>{const e={};for(const k of Object.keys(r))if(k!=='sig')e[k]=r
 // AES-GCM nonce: from the browser's secure random source only. A repeated nonce under one key would leak the plaintext,
 // so without it nothing is sealed (the deal fails instead of going out weak).
 function fedNonce12(){const a=new Uint8Array(12);crypto.getRandomValues(a);return a;}
+/* The sealed plaintext, padded with spaces to the next multiple of 256 bytes (at most 2032) so a relay cannot tell deals
+   apart by their length (§3.5). Spaces after JSON are whitespace, so games that do not pad open it alike. */
+function fedPadded(plain){const u=fedUtf8(fedCanon(plain)),n=Math.min(Math.ceil(u.length/256)*256,2032);if(u.length>=n)return u;
+  const o=new Uint8Array(n).fill(32);o.set(u);return o;}
 /* Seals plain (a value) inside env (the record without sig and enc) for peer: {n, c}. n: a fixed nonce (vectors). */
 async function fedSeal(seed,me,peer,peerBox,env,plain,n){const k=await fedDealKey(seed,me,peer,peerBox,env.kind);if(!k)throw new Error('box');
   const iv=n?fedBin(n,12):fedNonce12();
-  return {n:fedB64(iv),c:fedB64(new Uint8Array(await fedSubtle().encrypt({name:'AES-GCM',iv,additionalData:fedBoxAad(env)},k,fedUtf8(fedCanon(plain)))))};}
+  return {n:fedB64(iv),c:fedB64(new Uint8Array(await fedSubtle().encrypt({name:'AES-GCM',iv,additionalData:fedBoxAad(env)},k,fedPadded(plain))))};}
 // Opens a sealed record with this seed's key and the other party's (peer, peerBox): the plain value, or null.
 async function fedOpen(seed,me,peer,peerBox,rec){const e=rec&&rec.body&&rec.body.enc,n=e&&fedBin(e.n,12),c=e&&fedUnb64(e.c);if(!n||!c)return null;
   const k=await fedDealKey(seed,me,peer,peerBox,rec.kind);if(!k)return null;
   try{const t=fedUtf8Text(new Uint8Array(await fedSubtle().decrypt({name:'AES-GCM',iv:n,additionalData:fedBoxAad(rec)},k,c)));
     const p=t==null?{e:1}:fedParse(t);return p.e?null:p.v;}catch(err){return null;}}
 // A network's box from its newest announce here, or null.
-async function fedBoxOf(key){const o=await fedGet('ann',key),b=o&&o.rec&&o.rec.body&&o.rec.body.box;return FdK(b)?null:b;}
+// The box a deal with key kept (newest first): a partner's announce can leave this browser's store, its deals go on.
+function fedDealBox(f,key){const l=f&&Array.isArray(f.deals)?f.deals:[];for(let i=l.length-1;i>=0;i--){const d=l[i];if(d&&d.key===key&&typeof d.box==='string'&&!FdBox(d.box))return d.box;}return null;}
+async function fedBoxOf(key){const o=await fedGet('ann',key),b=o&&o.rec&&o.rec.body&&o.rec.body.box;return FdBox(b)?null:b;}
 /* Signs a record of this network, sealing what §5.3 seals: an offer to someone and a decline go out with only
    FED_CLEAR in clear. body is the record as the game thinks of it (in clear). Throws 'nobox' when the other network's
-   box is not known here (no announce of it). */
+   box is not known here (no announce of it, nor a deal with it that kept its box: fedDealBox). */
 async function fedSealMine(kind,body,f){const cl=FED_CLEAR[kind];if(!cl||kind==='offer'&&!fedOwn(body,'to'))return fedSignRec(f.key.priv,kind,body,fedNow());
-  const box=await fedBoxOf(body.to);if(!box)throw new Error('nobox');
+  const box=await fedBoxOf(body.to)||fedDealBox(f,body.to);if(!box)throw new Error('nobox');
   const clear={},plain={},t=fedNow();for(const k of Object.keys(body))(cl.includes(k)?clear:plain)[k]=body[k];
   const enc=await fedSeal(f.key.priv,f.key.pub,body.to,box,{v:1,kind,key:f.key.pub,t,body:clear},plain);
   return fedSignRec(f.key.priv,kind,{...clear,enc},t);}
@@ -54,9 +60,11 @@ async function fedSealMine(kind,body,f){const cl=FED_CLEAR[kind];if(!cl||kind===
    sealed one to or from this network: the body in clear, checked like an offer or a reason), null when it cannot be
    read (not for this network, tampered, malformed), or undefined when the other network's box is not known yet. */
 async function fedOpenRec(f,r){if(!fedOwn(r.body,'enc'))return r;const me=f.key.pub,peer=r.key===me?r.body.to:r.key;
-  if(r.key!==me&&r.body.to!==me)return null;const box=await fedBoxOf(peer);if(!box)return undefined;
+  if(r.key!==me&&r.body.to!==me)return null;const box=await fedBoxOf(peer)||fedDealBox(f,peer);if(!box)return undefined;
   const p=await fedOpen(f.key.priv,me,peer,box,r);if(!p||typeof p!=='object'||Array.isArray(p))return null;
   const cl=FED_CLEAR[r.kind]||[];if(Object.keys(p).some(k=>cl.includes(k)||k==='enc'))return null;
-  const body={};for(const k of Object.keys(r.body))if(k!=='enc')body[k]=r.body[k];Object.assign(body,p);
+  // Members are defined, never assigned: assigning an own __proto__ would set the prototype (fedValues refuses it too).
+  const body={},def=(k,v)=>Object.defineProperty(body,k,{value:v,enumerable:true,writable:true,configurable:true});
+  for(const k of Object.keys(r.body))if(k!=='enc')def(k,r.body[k]);for(const k of Object.keys(p))def(k,p[k]);
   if(r.kind==='offer'?FED_OFFER(body,{rec:r}):FED_REASON(p))return null;
   return {...r,body};}

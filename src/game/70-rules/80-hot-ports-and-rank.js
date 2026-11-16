@@ -17,8 +17,11 @@ const t1Need=()=>NETS.filter(n=>n.type==='t1'&&(!T1_SINCE[n.id]||(S&&S.t1v>=T1_S
 /* Reach is counted through customer cones (#85): a PNI with a Tier 1 reaches everyone who buys transit from it, and
    their customers. That only ever adds reach, so the rule is easier for every save, old ones included, and needs no
    version: what was Tier 1 stays Tier 1. Networks in nobody's cone still need peering of their own. */
-function isTier1(){return t1Need().every(n=>S.pni.some(p=>p.net===n.id&&pniOn(p)))&&S.transit.length===0&&R.reach>0.999;}
+// The reach the game counts and shows (Tier 1, customers, offers, covenants, HUD): other players' networks you cannot
+// reach are left out. A player Tier 1 is in nobody's cone, and nothing may hang on who joins.
+const reachSolo=()=>{let r=R.reach||0;for(const id of FEDN.ids)if(!R.reachable[id])r+=NSH[id]||0;return r;};
+function isTier1(){return t1Need().every(n=>S.pni.some(p=>p.net===n.id&&pniOn(p)))&&S.transit.length===0&&reachSolo()>0.999;}
 // What you are now, not what you once were (#46): buying transit again or losing reach drops the label.
 function tierLabel(){return S.won&&isTier1()?'Tier 1':isTier2()?'Tier 2':'Tier 3';}
-function t1Why(){if(S.transit.length)return tr('hot_ports_and_rank.you_buy_transit_again');const miss=t1Need().filter(n=>!S.pni.some(p=>p.net===n.id&&pniOn(p)));if(miss.length)return tr('hot_ports_and_rank.no_pni_with_list',{list:miss.map(n=>esc(n.name)).join(', ')});{const lost=NETS.filter(n=>!R.reachable[n.id]).sort((a,b)=>NSH[b.id]-NSH[a.id]);if(lost.length)return tr('hot_ports_and_rank.you_cannot_reach_list_outside_cones',{list:lost.slice(0,3).map(n=>esc(n.name)).join(', ')+(lost.length>3?' '+tr('hot_ports_and_rank.and_n_more',{n:lost.length-3}):'')});}return tr('hot_ports_and_rank.your_reach_is_p_not_100',{p:reachPct(R.reach)});}
+function t1Why(){if(S.transit.length)return tr('hot_ports_and_rank.you_buy_transit_again');const miss=t1Need().filter(n=>!S.pni.some(p=>p.net===n.id&&pniOn(p)));if(miss.length)return tr('hot_ports_and_rank.no_pni_with_list',{list:miss.map(n=>esc(n.name)).join(', ')});{const lost=NETS.filter(n=>!R.reachable[n.id]&&!n.fed).sort((a,b)=>NSH[b.id]-NSH[a.id]);if(lost.length)return tr('hot_ports_and_rank.you_cannot_reach_list_outside_cones',{list:lost.slice(0,3).map(n=>esc(n.name)).join(', ')+(lost.length>3?' '+tr('hot_ports_and_rank.and_n_more',{n:lost.length-3}):'')});}return tr('hot_ports_and_rank.your_reach_is_p_not_100',{p:reachPct(reachSolo())});}
 

@@ -1,6 +1,7 @@
 {
   "name": "seriesoftubes",
-  "version": "4.0.0",
+  "version": "4.5.0",
+  "relaySecurity": "4.1.0",
   "description": "A cartoon browser game about building the internet.",
   "private": true,
   "license": "MIT",
@@ -33,6 +34,6 @@
     "fake-indexeddb": "6.2.8",
     "jsdom": "31.0.0",
     "playwright-core": "1.65.0",
-    "ws": "8.22.1"
+    "ws": "8.23.0"
   }
 }

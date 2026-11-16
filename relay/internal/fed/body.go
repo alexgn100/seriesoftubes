@@ -69,9 +69,12 @@ func intIn(lo, hi int64) check {
 func count(n int64) check { return intIn(0, n) }
 
 var (
-	mbps  = intIn(0, 1000000000)
-	money = intIn(0, 1000000000000)
-	days  = intIn(1, 3650)
+	mbps = intIn(0, 1000000000)
+	// traffic is what a network reports for the boards (spec 2.1 Traffic): up to 1 Ebps, so the boards can rank past
+	// 1 Pbps. Deals stay in mbps: their sizes get multiplied by money.
+	traffic = intIn(0, 1000000000000)
+	money   = intIn(0, 1000000000000)
+	days    = intIn(1, 3650)
 )
 
 func boolean(v any) string {
@@ -94,6 +97,16 @@ func oneOf(vals ...string) check {
 		}
 		return BadField
 	}
+}
+
+// boxCheck is a box key's format (3.1): 32 bytes. The weak-key rule is for Ed25519 keys only; a
+// low-order box fails when sealing (3.5).
+func boxCheck(v any) string {
+	s, _ := v.(string)
+	if _, ok := Decode(s, 32); !ok {
+		return BadKey
+	}
+	return ""
 }
 
 func keyCheck(v any) string {
@@ -174,6 +187,9 @@ func reCheck(re *regexp.Regexp) check {
 var (
 	city = reCheck(cityRe)
 	cc   = reCheck(ccRe)
+	// netID is the Net type (5.1): a computer-run network id of the game's catalog, the same
+	// shape as a City. Unknown ids are not refused; the game ignores them.
+	netID = reCheck(cityRe)
 )
 
 // URLOK is the Url type of section 5: a host name with a dot, or a local address (LocalAddr).
@@ -316,6 +332,9 @@ func setKey(e any) string {
 		if k, ok := x["key"].(string); ok {
 			return k
 		}
+		if at, ok := x["at"].(string); ok {
+			return "at:" + at // an exchange's members (5.1): one entry per city
+		}
 		if a, ok := x["a"].(string); ok {
 			if b, ok := x["b"].(string); ok {
 				return a + "|" + b
@@ -429,11 +448,7 @@ var rates = obj(
 		req("ports", ascending(port, 1, 8)),
 		req("term", days),
 	)),
-	opt("ix", obj(
-		req("ports", ascending(port, 1, 8)),
-		req("join", oneOf("anyone", "selective", "approval")),
-		req("at", cities16),
-	)),
+	opt("ix", ixCard),
 	opt("wave", obj(
 		req("routes", list(waveRoute, 1, 32, true)),
 		req("sizes", ascendingBy(obj(req("gbps", waveGbps), req("monthly", money)), 1, 4, "gbps")),
@@ -441,11 +456,70 @@ var rates = obj(
 	)),
 )
 
+// MaxIxNets is how many computer-run members an exchange lists in rates.ix.members (5.1).
+const MaxIxNets = 48
+
+// ixMember is one exchange's members (5.1): its city, the computer-run networks on it and how
+// many players have a port there.
+var ixMember = obj(req("at", city), req("nets", list(netID, 0, MaxIxNets, true)), req("players", count(64)))
+
+// ixCard is rates.ix (5.1): the ports, who may join, where, and optionally (ix2) the members
+// of each of those exchanges, every one of them in at.
+func ixCard(v any) string {
+	if code := object(v, []field{
+		req("ports", ascending(port, 1, 8)),
+		req("join", oneOf("anyone", "selective", "approval")),
+		req("at", cities16),
+		opt("members", list(ixMember, 1, 16, true)),
+	}); code != "" {
+		return code
+	}
+	m := v.(map[string]any)
+	at := map[string]bool{}
+	for _, c := range strs(m["at"]) {
+		at[c] = true
+	}
+	ms, _ := m["members"].([]any)
+	for _, e := range ms {
+		if c, _ := e.(map[string]any)["at"].(string); !at[c] {
+			return BadField
+		}
+	}
+	return ""
+}
+
 var auto = func() check {
 	a := oneOf("auto", "review", "decline")
-	// wave is optional: announces from before wave deals (absent: wave requests are declined).
-	return obj(req("peering", a), req("transit", a), req("pni", a), req("swap", a), req("consortium", a), req("port", a), opt("wave", a))
+	// wave is optional: announces from before wave deals (absent: wave requests are declined);
+	// cofound likewise (ix2; absent: co-founding offers are declined).
+	return obj(req("peering", a), req("transit", a), req("pni", a), req("swap", a), req("consortium", a), req("port", a), opt("wave", a), opt("cofound", a))
 }()
+
+// FeatIx2 names the optional feature of players' exchanges (9.3 feats): rates.ix.members and
+// auto.cofound in an announce, and cofound offers.
+const FeatIx2 = "ix2"
+
+// FeatBind names bound node handshake proofs (6.2, 9.4): a node that lists it in hello or welcome
+// signs and wants proofs that name the checking node and the role.
+const FeatBind = "bind"
+
+// Ix2 reports whether a record holds what only the ix2 feature carries: an announce listing its
+// exchanges' members (rates.ix.members) or how it takes co-founding (auto.cofound). A node passes
+// such a record only to sessions that listed ix2 in feats (9.3, 9.4): older ones refuse those fields.
+func Ix2(r *Record) bool {
+	if r.Kind != "announce" {
+		return false
+	}
+	if a, ok := r.Body["auto"].(map[string]any); ok {
+		if _, ok := a["cofound"]; ok {
+			return true
+		}
+	}
+	rt, _ := r.Body["rates"].(map[string]any)
+	ix, _ := rt["ix"].(map[string]any)
+	_, ok := ix["members"]
+	return ok
+}
 
 var cond = obj(
 	req("minMbps", mbps), req("maxRatio", intIn(100, 100000)), req("minShared", count(64)),
@@ -469,7 +543,7 @@ func checkAnnounce(r *Record) string {
 			}
 			return ""
 		}),
-		req("box", keyCheck),
+		req("box", boxCheck),
 		req("home", cc),
 		req("day", count(10000000)),
 		req("founded", intIn(0, Div(r.T, Day))),
@@ -501,7 +575,7 @@ func checkAnnounce(r *Record) string {
 			}
 			return ""
 		}),
-		req("traffic", obj(req("in", mbps), req("out", mbps))),
+		req("traffic", obj(req("in", traffic), req("out", traffic))),
 		req("policy", oneOf("open", "selective", "restrictive")),
 		opt("cond", condCheck),
 		req("rates", rates),
@@ -557,7 +631,7 @@ func checkStats(r *Record) string {
 		}),
 		opt("pies", count(10000000)),
 		req("traffic", list(func(v any) string {
-			if code := object(v, []field{req("key", keyCheck), req("in", mbps), req("out", mbps)}); code != "" {
+			if code := object(v, []field{req("key", keyCheck), req("in", traffic), req("out", traffic)}); code != "" {
 				return code
 			}
 			if v.(map[string]any)["key"] == r.Key {
@@ -565,7 +639,7 @@ func checkStats(r *Record) string {
 			}
 			return ""
 		}, 0, 256, true)),
-		opt("total", mbps),
+		opt("total", traffic),
 		opt("cust", others(MaxCust)),
 		opt("up", others(MaxUp)),
 		req("tier1", boolean),
@@ -588,6 +662,9 @@ var dealTerms = map[string]check{
 	"wave": ordered(obj(req("a", city), req("b", city), req("gbps", waveGbps), req("monthly", money), req("term", days), opt("founded", count(10000000)))),
 	"consortium": obj(req("name", nameCheck), req("a", city), req("b", city), req("members", intIn(2, 16)),
 		req("share", money), req("pairs", intIn(1, 16))),
+	// cofound (ix2): the author, who runs the exchange at at, offers the counterparty share per mille
+	// of it for setup once and monthly a month.
+	"cofound": obj(req("at", city), req("share", intIn(100, 500)), req("setup", money), req("monthly", money), req("term", days)),
 }
 
 // Box limits (5.3): a 12-byte AES-GCM nonce, and a ciphertext of at least one byte plus the 16-byte tag.
@@ -613,6 +690,21 @@ func bytesCheck(lo, hi int) check {
 
 // encCheck is the Box type of 5.3: {n, c}, which only the two parties of a deal can open. A relay
 // checks its shape, never what is inside.
+// BoxPad is the bucket sealed plaintexts are padded to (3.5).
+const BoxPad = 256
+
+// PadSealed pads a sealed plaintext (canonical JSON) with spaces to the next multiple of BoxPad,
+// at most BoxMax - 16 bytes, so a relay cannot tell deals apart by their length (3.5). Spaces after
+// JSON are whitespace: an opener that does not pad reads it the same.
+func PadSealed(b []byte) []byte {
+	n := (len(b) + BoxPad - 1) / BoxPad * BoxPad
+	n = min(n, BoxMax-16)
+	for len(b) < n {
+		b = append(b, ' ')
+	}
+	return b
+}
+
 var encCheck = obj(req("n", bytesCheck(BoxNonce, BoxNonce)), req("c", bytesCheck(BoxMin, BoxMax)))
 
 // notSelfKey: a Key that is not the author's own.
@@ -661,7 +753,7 @@ func CheckOfferTerms(author string, body map[string]any) string {
 	}
 	return object(body, []field{
 		toField,
-		req("deal", oneOf("peering", "transit", "pni", "swap", "consortium", "port", "wave")),
+		req("deal", oneOf("peering", "transit", "pni", "swap", "consortium", "port", "wave", "cofound")),
 		basis,
 		opt("renews", idCheck),
 		req("terms", terms),
@@ -739,6 +831,10 @@ func checkBody(r *Record) string {
 	case "receipt":
 		return object(r.Body, []field{req("rec", idCheck), req("server", idCheck), opt("cc", cc)})
 	case "proof":
+		// to and role (a node handshake's bound proof, 6.2) come together or not at all.
+		if _, to := r.Body["to"]; to {
+			return object(r.Body, []field{req("nonce", idCheck), req("role", oneOf(RoleAnswer, RoleCall)), req("server", idCheck), req("to", keyCheck)})
+		}
 		return object(r.Body, []field{req("nonce", idCheck), req("server", idCheck)})
 	}
 	return BadKind

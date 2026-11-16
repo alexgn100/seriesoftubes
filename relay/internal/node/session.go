@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/netip"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/fjaeckel/seriesoftubes/relay/internal/canon"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/fed"
+	weborigin "github.com/fjaeckel/seriesoftubes/relay/internal/origin"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/privacy"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/store"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/update"
@@ -40,6 +43,9 @@ const (
 	nodeRate  = 5000.0
 	nodeBurst = 50000.0
 )
+
+// A node session's queue bounds; vars so tests can lower them.
+var nodeQueue, nodeLow int64 = nodeQueueBytes, nodeLowWater
 
 // Request costs in a client's token bucket: the ones that answer from the whole store cost more.
 var clientCost = map[string]float64{"auth": 2, "rank": 10, "rankwhy": 5, "facets": 5, "nets": 5, "servers": 10, "sub": 5, "unsub": 2, "fetch": 2}
@@ -70,8 +76,12 @@ type session struct {
 	hasPend atomic.Bool
 	yield   bool // the last page stopped at maxScan (guarded by r.mu)
 
+	unshake func() // ends this session's place among the handshakes (accept); nil once done
+
 	// client
-	cc      string         // the connection's country, never its address
+	cc      string         // the connection's country
+	addr    netip.Addr     // what its address is counted by (an IPv6 /64), in memory only, for the growth budgets
+	q       quota          // its own growth budgets (guarded by r.mu)
 	subs    map[int64]*sub // (guarded by r.mu)
 	proved  []string       // keys this session proved with auth, at most 4 (guarded by r.mu)
 	exSent  bool           // the excluded list follows this session (guarded by r.mu)
@@ -85,13 +95,18 @@ type session struct {
 	same       bool
 	verified   bool            // the peer node is known to be a node of its server
 	synced     bool            // carry exchanged: live pushes flow
+	carried    bool            // the peer's carry was answered (once per session)
 	send, take []string        // classes
 	wanted     map[string]bool // ids asked for and not yet pushed (guarded by r.mu, bounded)
+	retry      map[string]bool // ids refused rate_limited, asked for again later (guarded by r.mu, bounded)
+	neighbour  bool            // the peer's server is a configured neighbour (guarded by r.mu)
+	unbound    bool            // the peer proved itself with an unbound proof (legacy, 6.2): it never displaces a bound session
 	push       *listPager      // records waiting to be pushed for want (guarded by r.mu)
 	dialURL    string
 	dialer     string          // the r.dialers key of the dialer that made this session, when this node dialled
+	dialing    context.Context // that dialer's lifetime: a session it made after it stopped never comes up
 	impl       *update.Impl    // what the peer node runs, when it said (informational)
-	feats      []string        // optional messages the peer node takes (9.4 feats)
+	feats      []string        // optional messages and fields the peer takes (9.3, 9.4 feats)
 	stPend     map[string]bool // keys whose newest live state goes to this peer next (guarded by r.mu)
 
 	// client: its own token bucket for live states (states.go)
@@ -99,6 +114,9 @@ type session struct {
 	stAt  time.Time
 
 	updSent string // the update hint this operator session was last sent (guarded by r.mu)
+
+	authNonce string   // the nonce this client session's welcome carried, for bound auth (9.3); "" when none
+	authURLs  []string // this node's own URLs when the welcome was sent: a bound auth names one
 }
 
 // sub is one client subscription.
@@ -108,15 +126,16 @@ type sub struct {
 	live  bool // the backlog is sent: live records follow
 }
 
-func newSession(r *Relay, c *websocket.Conn, node bool) *session {
+// newSession starts a session with client bounds; a node session gets node bounds (becomeNode)
+// only once the peer has proved it is a node.
+func newSession(r *Relay, c *websocket.Conn) *session {
 	ctx, cancel := context.WithCancel(r.ctx)
-	s := &session{r: r, c: c, node: node, limit: fed.ClientFrame, out: make(chan []byte, queueFrames),
+	s := &session{r: r, c: c, limit: fed.ClientFrame, out: make(chan []byte, queueFrames),
 		maxQ: clientQueueBytes, lowQ: clientLowWater, ctx: ctx, cancel: cancel, subs: map[int64]*sub{},
 		wanted: map[string]bool{}, tokenAt: time.Now(), wdone: make(chan struct{})}
+	r.mu.Lock() // the config may be reloaded meanwhile
 	s.tokens = float64(4 * r.cfg.Limits.MsgsPerSec)
-	if node {
-		s.becomeNode()
-	}
+	r.mu.Unlock()
 	s.heard.Store(time.Now().UnixNano())
 	c.SetReadLimit(-1) // frames are limited by our own reader, so we can answer too_big first
 	go s.writer()
@@ -124,11 +143,19 @@ func newSession(r *Relay, c *websocket.Conn, node bool) *session {
 	return s
 }
 
+// shook ends the session's handshake: it no longer counts among those waiting for one.
+func (s *session) shook() {
+	if f := s.unshake; f != nil {
+		s.unshake = nil
+		f()
+	}
+}
+
 func (s *session) becomeNode() {
 	s.node = true
 	s.limit = fed.NodeFrame
-	s.maxQ = nodeQueueBytes
-	s.lowQ = nodeLowWater
+	s.maxQ = nodeQueue
+	s.lowQ = nodeLow
 	s.tokens = nodeBurst
 }
 
@@ -217,10 +244,16 @@ func (r *Relay) later(s *session, p pager) {
 	r.pump(s)
 }
 
-// listPager pages a list fixed when asked: fetch and catalog answers, pushes for want.
+// oneFrame is a frame that waits its turn behind the pages queued before it.
+type oneFrame struct{ f map[string]any }
+
+func (o *oneFrame) next(*Relay, *session) (map[string]any, bool) { return o.f, true }
+
+// listPager pages a list fixed when asked: fetch and catalog answers, pushes for want, the
+// catalog a new node session hears (gossip).
 type listPager struct {
 	rid     int64
-	m       string // recs, catalog or push
+	m       string // recs, catalog, push or gossip
 	entries []*store.Entry
 	vals    []map[string]any
 	pos     int
@@ -230,8 +263,11 @@ type listPager struct {
 
 func (p *listPager) next(r *Relay, s *session) (map[string]any, bool) {
 	limit := fed.ClientFrame - 1024
-	if p.m == "push" {
+	if p.m == "push" || p.m == "gossip" {
 		limit = fed.NodeFrame - 64<<10
+	}
+	if p.m == "gossip" {
+		limit = min(limit, int(s.lowQ)) // pages that never fill the queue (2 MB in use: no change)
 	}
 	n := len(p.entries) + len(p.vals)
 	page := []any{}
@@ -272,6 +308,11 @@ func (p *listPager) next(r *Relay, s *session) (map[string]any, bool) {
 		return map[string]any{"m": "push", "items": page}, done
 	case "catalog":
 		return map[string]any{"m": "catalog", "id": p.rid, "entries": page, "more": !done}, done
+	case "gossip":
+		if len(page) == 0 {
+			return nil, done
+		}
+		return map[string]any{"m": "catalog", "entries": page}, done
 	}
 	r.o.Metrics.Add("relay_records_out_total", "", float64(len(page)))
 	m := map[string]any{"m": "recs", "id": p.rid, "items": page, "cursor": "", "more": !done}
@@ -594,6 +635,10 @@ func splitTokens(v string) []string {
 	return append(out, cur)
 }
 
+// Handshakes waiting at once: inbound sessions that have not yet said hello count against
+// MaxClients, and node handshakes before their proof are also held to maxNodeHandshakes.
+const maxNodeHandshakes = 16
+
 func (r *Relay) accept(w http.ResponseWriter, req *http.Request) {
 	if !offers(req) {
 		http.Error(w, "subprotocol "+fed.Subprotocol+" required", http.StatusBadRequest)
@@ -601,41 +646,69 @@ func (r *Relay) accept(w http.ResponseWriter, req *http.Request) {
 	}
 	r.mu.Lock()
 	trusted := r.cfg.Proxies()
-	full := len(r.clients) >= r.cfg.Limits.MaxClients+r.cfg.Limits.MaxNodes
+	origins := r.cfg.AllowedOrigins
+	full := len(r.clients)+int(r.hand.Load()) >= r.cfg.Limits.MaxClients+r.cfg.Limits.MaxNodes
+	if !full {
+		r.hand.Add(1)
+	}
 	r.mu.Unlock()
 	if full {
+		w.Header().Set("Retry-After", "10")
 		http.Error(w, "busy", http.StatusServiceUnavailable)
 		return
 	}
-	// The address is used here, in memory, and dropped when this block ends.
+	shaking := true
+	defer func() {
+		if shaking {
+			r.hand.Add(-1)
+		}
+	}()
+	// A browser always says which page opened the connection: only the game's may (and the
+	// operator's own). Agents, command lines and other relays send no Origin.
+	if !weborigin.OK(req.Header.Get("Origin"), origins) {
+		r.o.Metrics.Inc("relay_refused_total", "origin")
+		http.Error(w, "origin not allowed", http.StatusForbidden)
+		return
+	}
+	// The address is used here, in memory only: counted while the connection is open, then
+	// dropped (the limiter forgets it once its bucket has refilled).
 	cc := ""
-	{
-		addr := privacy.ClientAddr(req, trusted)
-		if addr.IsValid() && !r.limiter.Allow(addr, r.now()) {
+	var akey netip.Addr // what the growth budgets count it by (growth.go), memory only
+	addr := privacy.ClientAddr(req, trusted)
+	if addr.IsValid() {
+		akey = addrKey(addr)
+		ok, retry := r.limiter.Acquire(addr, r.now())
+		if !ok {
 			r.o.Metrics.Inc("relay_refused_total", fed.RateLimited)
+			w.Header().Set("Retry-After", strconv.FormatInt(retry, 10))
 			http.Error(w, "too many connections", http.StatusTooManyRequests)
 			return
 		}
-		if r.o.Countries != nil && addr.IsValid() {
+		defer func() { r.limiter.Release(addr, r.now()) }()
+		if r.o.Countries != nil {
 			cc = r.o.Countries.Country(addr)
 		}
 	}
 	c, err := websocket.Accept(w, req, &websocket.AcceptOptions{
 		Subprotocols: []string{fed.Subprotocol},
-		// Browsers connect from the game's origin; no cookies or ambient authority exist.
+		// Checked above (weborigin.OK): no cookies or ambient authority exist, the check only keeps
+		// other websites from spending the relay's connections.
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
 		return
 	}
-	s := newSession(r, c, false)
-	s.cc = cc
+	s := newSession(r, c)
+	s.cc, s.addr = cc, akey
+	shaking = false
+	s.unshake = func() { r.hand.Add(-1) }
 	r.serve(s)
 }
 
 // serve runs an accepted connection until it ends.
 func (r *Relay) serve(s *session) {
 	defer s.end()
+	defer s.shook()
 	hctx, cancel := context.WithTimeout(s.ctx, handshakeTimeout)
 	f, ok := s.readFrame(hctx)
 	cancel()
@@ -648,14 +721,29 @@ func (r *Relay) serve(s *session) {
 		return
 	}
 	if h.Role == "node" {
-		s.becomeNode()
+		// Client bounds until the proof checks (answerNode), and few such handshakes at once.
+		if r.nodeHand.Add(1) > maxNodeHandshakes {
+			r.nodeHand.Add(-1)
+			s.fail(0, fed.NotReady, 0)
+			return
+		}
+		un := s.unshake
+		s.unshake = func() {
+			r.nodeHand.Add(-1)
+			if un != nil {
+				un()
+			}
+		}
 		r.answerNode(s, h)
 		return
 	}
 	r.mu.Lock()
 	ok = r.serving() && len(r.clients) < r.cfg.Limits.MaxClients
 	if ok {
+		// Read by shows under the lock: set before the session can be sent anything.
+		s.feats = h.Feats
 		r.clients[s] = true
+		s.shook()
 	}
 	r.mu.Unlock()
 	if !ok {
@@ -669,7 +757,13 @@ func (r *Relay) serve(s *session) {
 		r.mu.Unlock()
 	}()
 	s.ver = h.Ver
-	s.enqueue(map[string]any{"m": "welcome", "ver": h.Ver, "server": r.ServerID(), "node": r.Key(), "now": r.now(), "impl": r.implValue(), "feats": feats()})
+	welcome := map[string]any{"m": "welcome", "ver": h.Ver, "server": r.ServerID(), "node": r.Key(), "now": r.now(), "impl": r.implValue(), "feats": r.feats()}
+	// A nonce for bound auth (9.3), only when this node knows its own URL: a game signs it with the URL it dialled.
+	if s.authURLs = r.ownURLs(); len(s.authURLs) > 0 {
+		s.authNonce = nonce()
+		welcome["nonce"] = s.authNonce
+	}
+	s.enqueue(welcome)
 	for {
 		f, ok := s.readFrame(s.ctx)
 		if !ok {
@@ -694,9 +788,38 @@ func (r *Relay) serve(s *session) {
 	}
 }
 
+// ownURLs are the URLs a game may have dialled this node at: its configured url and the one its
+// server's chain lists for it.
+func (r *Relay) ownURLs() []string {
+	var out []string
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if u := r.cfg.URL; u != "" {
+		out = append(out, u)
+	}
+	if r.own != nil {
+		for _, n := range r.own.Nodes {
+			if n.Key == r.Key() && n.URL != "" && !slices.Contains(out, n.URL) {
+				out = append(out, n.URL)
+			}
+		}
+	}
+	return out
+}
+
+// legacyAuth counts a client auth of the older, unbound form (relay_auth_total legacy), and logs
+// the count at most once an hour: legacyAuth can be switched off once they stop.
+func (r *Relay) legacyAuth(now int64) {
+	r.o.Metrics.Inc("relay_auth_total", "legacy")
+	n := r.legacyN.Add(1)
+	if at := r.legacyAt.Load(); now-at >= 3600 && r.legacyAt.CompareAndSwap(at, now) {
+		r.o.Log.Info("auth: games still prove keys the older, unbound way (legacyAuth)", "since_start", n)
+	}
+}
+
 // allow is a per-connection token bucket; requests cost by the work they ask for (clientCost).
 func (s *session) allow(cost float64) bool {
-	rate := float64(s.r.cfg.Limits.MsgsPerSec)
+	rate := float64(s.r.conf.Load().Limits.MsgsPerSec) // Reload may replace the config meanwhile
 	now := time.Now()
 	s.tokens = min(4*rate, s.tokens+now.Sub(s.tokenAt).Seconds()*rate)
 	s.tokenAt = now
@@ -718,7 +841,18 @@ func (r *Relay) clientFrame(s *session, f *wire.Frame) {
 		key, _ := f.Str("key")
 		sig, _ := f.Str("sig")
 		t, _ := wire.Int(f.Raw["t"])
-		if code := fed.CheckAuth(key, t, sig, r.Key(), r.ServerID(), now); code != "" {
+		var code string
+		if _, bound := f.Raw["url"]; bound {
+			url, _ := f.Raw["url"].(string)
+			if code = fed.CheckAuthBound(key, t, sig, r.Key(), r.ServerID(), now, s.authNonce, url, s.authURLs); code == "" {
+				r.o.Metrics.Inc("relay_auth_total", "bound")
+			}
+		} else if !r.conf.Load().LegacyAuthOK() {
+			code = fed.BadSig // only bound auth is taken (legacyAuth: false)
+		} else if code = fed.CheckAuth(key, t, sig, r.Key(), r.ServerID(), now); code == "" {
+			r.legacyAuth(now)
+		}
+		if code != "" {
 			s.fail(f.ID, code, 0)
 			return
 		}
@@ -750,7 +884,7 @@ func (r *Relay) clientFrame(s *session, f *wire.Frame) {
 			s.fail(f.ID, code, 0)
 			return
 		}
-		res, rcpt, code := r.ingest(rec, nil, origin{client: true, cc: s.cc})
+		res, rcpt, code := r.ingest(rec, nil, origin{client: true, cc: s.cc, sess: s})
 		if code != "" {
 			retry := int64(0)
 			if code == fed.RateLimited {

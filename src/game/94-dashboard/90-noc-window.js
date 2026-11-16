@@ -5,8 +5,8 @@
    per network, opened once a window says hello, so other games' tabs never unpack them. With no window nothing is sent. */
 const NOC_HB=3000,NOC_LOST=10000,NOC_GAP=1000;
 // What a click in the window does: changes only its own view, or runs in the game. Every button the dashboard draws is in one list.
-const NOC_LOCAL=['chartToggle','connCity','connF','connNet','connSort','custCity','custF','custSort','dashClose','dashSort','dashTab','listMore','popsReg','popsSort'];
-const NOC_GO=['buyIx','buyNni','buyTransit','cache','connCancel','custGo','dashLink','downIx','downP','downT','goConn','lagIx','lagNni','lagP','lagT','leaseSwap','mktCfg','mktHold','mktRoute','netFocus','opsOpen','pni','pniAllOpen','pniChase','popGo'];
+const NOC_LOCAL=['chartToggle','connCity','connF','connNet','connSort','custCity','custF','custSort','dashClose','dashRow','dashSort','dashTab','ddosF','infraCity','infraF','infraHot','infraSort','listMore','popsReg','popsSort','rtrCity','rtrFs','rtrReg'];
+const NOC_GO=['addCh','addPair','addRouter','buyIx','buyNni','buyTransit','cache','connCancel','custGo','dashLink','dashPop','ddosEngage','downIx','downP','downT','goConn','hackback','lagIx','lagNni','lagP','lagT','leaseSwap','marketOpen','mktCfg','mktFloorLow','mktHold','mktPreset','mktRoute','netFocus','opsOpen','pni','pniAllOpen','pniChase','popGo','rmCh','routingOpen','rtbh','unrtbh','upLink','upRouter'];
 const NOC={win:false,id:null,ctl:null,st:null,stId:null,peer:false,until:0,dirty:false,sent:0,speed:1,hid:false,yoAt:0,gone:false};
 {const id=RW_IN?null:new URLSearchParams(location.search).get('noc');if(slotOkId(id)){NOC.win=true;NOC.id=id;}}
 if(!RW_IN)try{if(typeof BroadcastChannel==='function'){NOC.ctl=new BroadcastChannel('sot-noc');NOC.ctl.onmessage=e=>{const m=e.data;if(!m||typeof m!=='object'||!slotOkId(m.id))return;if(NOC.win)nocWinMsg(m);else nocGameMsg(m);};}}catch(e){}
@@ -56,7 +56,7 @@ function nocBar(){const b=$('nocBar');if(!b)return;
   if(b._h!==h){b._h=h;morph(b,h);}}
 function nocBeat(now=performance.now()){nocPost({t:'hi',id:NOC.id});if(now-NOC.yoAt>NOC_LOST&&!NOC.gone){NOC.gone=true;nocBar();}}
 function nocFwd(act,a){if(NOC_GO.includes(act))nocPost({t:'act',id:NOC.id,act,args:a||{}});}
-function nocWinBoot(){i18nDom();document.body.classList.add('noc-window');UI.dtab='conn';try{UI.anim=localStorage.getItem('sot-anim')||'auto';}catch(e){}$('dash').hidden=true;$('dash').insertAdjacentHTML('beforebegin','<div id="nocBoard"><header id="nocBar"></header><main id="nocWall"></main></div>');
+function nocWinBoot(){i18nDom();document.body.classList.add('noc-window');UI.dtab='conn';try{UI.anim=localStorage.getItem('sot-anim')||'auto';}catch(e){}themeBoot();$('dash').hidden=true;$('dash').insertAdjacentHTML('beforebegin','<div id="nocBoard"><header id="nocBar"></header><main id="nocWall"></main></div>');
   const bd=$('nocBoard');bd.addEventListener('click',nocUiClick);bd.addEventListener('change',e=>{if(e.target.hasAttribute&&e.target.hasAttribute('data-nc-city')){NOCW.city=e.target.value;nocRender();}});bd.addEventListener('pointerdown',e=>{if(e.target.closest('#nocWall'))pressing=true;});
   // The game's keyboard shortcuts are for the map, which is not here. Tab and the browser's own keys still work.
   addEventListener('keydown',e=>e.stopImmediatePropagation(),true);

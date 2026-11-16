@@ -27,7 +27,7 @@ func CheckReceipt(v any, rec *Record, server string, nodes []string, now int64) 
 	if code != "" {
 		return nil, code
 	}
-	if r.T%SlotLen != 0 {
+	if r.T%SlotLen != 0 || !ReceiptTimeOK(r.T, rec) {
 		return nil, BadField
 	}
 	if r.Str("rec") != rec.ID || r.Str("server") != server {
@@ -48,6 +48,19 @@ func CheckReceipt(v any, rec *Record, server string, nodes []string, now int64) 
 	return r, ""
 }
 
+// ReceiptTimeOK says whether a receipt's t fits its record's t (6.1). A node signs a receipt at
+// slot(receive time) and takes a record only while rec.t <= now + Skew and its age is within the
+// kind's maximum, so an honest receipt is never earlier than slot(rec.t) - Skew, nor later than
+// rec.t plus that maximum. Anything else would move the record's board slot (10.1) to a time it
+// never had: backfilled slots, or a fresh record dated more than 7 days back.
+func ReceiptTimeOK(t int64, rec *Record) bool {
+	if t < Slot(rec.T)-Skew {
+		return false
+	}
+	age := kinds[rec.Kind].maxAge
+	return age == 0 || t <= rec.T+age
+}
+
 // ReceiptServer returns the server a receipt names, if it is shaped like one.
 func ReceiptServer(v any) (string, string, bool) {
 	r, code := receiptShape(v)
@@ -66,13 +79,39 @@ func (s *Signer) MakeReceipt(rec *Record, server string, now int64, country stri
 	return s.Seal("receipt", Slot(now), body)
 }
 
-// MakeProof answers a challenge (6.2).
+// MakeProof answers a client's challenge (6.2). Its body names no checker, so it is never good
+// for a node handshake with a peer that listed FeatBind.
 func (s *Signer) MakeProof(nonce, server string, now int64) map[string]any {
 	return s.Seal("proof", now, map[string]any{"nonce": nonce, "server": server})
 }
 
-// CheckProof checks a proof against the challenge (6.2), in the spec's order.
+// MakeBoundProof is a node handshake proof (6.2, 9.4) bound to the node that checks it (to) and
+// to this side's role in the handshake: "answer" in a welcome, "call" in the caller's proof. A
+// proof made for one checker or role is no good for another, so a node cannot be made to sign
+// one that lets someone else pass as it.
+func (s *Signer) MakeBoundProof(nonce, server, to, role string, now int64) map[string]any {
+	return s.Seal("proof", now, map[string]any{"nonce": nonce, "server": server, "to": to, "role": role})
+}
+
+// Roles of a bound proof (6.2).
+const (
+	RoleAnswer = "answer"
+	RoleCall   = "call"
+)
+
+// CheckProof checks a client challenge's proof (6.2), in the spec's order: a bound proof is
+// refused, as the client asked for none.
 func CheckProof(v any, nonce, server, node string, now int64) string {
+	return checkProof(v, nonce, server, node, now, "", "", false)
+}
+
+// CheckNodeProof checks a node handshake proof (6.2, 9.4): bound to this node (to) and to the
+// peer's role. legacy also takes an unbound proof, from a peer that did not list FeatBind.
+func CheckNodeProof(v any, nonce, server, node string, now int64, to, role string, legacy bool) string {
+	return checkProof(v, nonce, server, node, now, to, role, legacy)
+}
+
+func checkProof(v any, nonce, server, node string, now int64, to, role string, legacy bool) string {
 	m, ok := v.(map[string]any)
 	if !ok || m["kind"] != "proof" {
 		return BadChallenge
@@ -82,6 +121,13 @@ func CheckProof(v any, nonce, server, node string, now int64) string {
 		return BadChallenge
 	}
 	if r.Key != node || r.Str("server") != server {
+		return BadChallenge
+	}
+	_, bound := r.Body["to"]
+	switch {
+	case bound && (to == "" || r.Str("to") != to || r.Str("role") != role):
+		return BadChallenge
+	case !bound && to != "" && !legacy:
 		return BadChallenge
 	}
 	if !Verify(r.Key, r.Sig, r.Signed()) {

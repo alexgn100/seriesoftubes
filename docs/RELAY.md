@@ -33,8 +33,8 @@ that **nothing in front of the relay logs addresses either**. So turn access log
 recording client addresses. That is the whole reason for the examples below being the way they are.
 
 The relay reads the client's address from `X-Forwarded-For` only when the request comes from a trusted proxy
-(`trustedProxies`, loopback by default), uses it in memory for the country lookup and connection limits, and forgets
-it.
+(`trustedProxies`, loopback by default), uses it in memory for the country lookup, connection limits and growth
+budgets (`budgets` below: counted by the address, an IPv6 address by its /64, for at most an hour), and forgets it.
 
 ### Caddy
 
@@ -86,8 +86,8 @@ from the registry by pull request and shunned by its peers.
   [HOSTING.md, getting the relay](HOSTING.md#getting-the-relay).
 - **Container:** `ghcr.io/fjaeckel/seriesoftubes-relay` (tags `X.Y.Z`, `X.Y`, `latest`; linux/amd64 and arm64) is built
   `FROM scratch` (a few MB), runs as an unprivileged user (uid 65532) and keeps everything in the `/data` volume.
-  `relay init` in it writes `"listen": "0.0.0.0:8080"` so the proxy can reach it, and metrics on `0.0.0.0:9100` for
-  the Docker network (see Metrics). Add the address your proxy connects from to `trustedProxies`
+  `relay init` in it writes `"listen": "0.0.0.0:8080"` so the proxy can reach it; metrics stay off unless the Compose
+  file sets `RELAY_METRICS` and `RELAY_METRICS_PUBLIC` (see Metrics). Add the address your proxy connects from to `trustedProxies`
   (`relay init --trusted-proxies 172.30.0.0/24`, your container network). Without it every player seems to come from
   the proxy, shares its one connection limit (30 per 5 minutes by default) and gets no country. Trust only a network
   on which nothing but your proxy can reach the relay: anything trusted can claim any address. The relay warns at
@@ -117,7 +117,8 @@ This makes the data folder (mode 0700) with:
 
 `init` also takes `--listen ADDR`, `--trusted-proxies CIDR,…` (added to loopback), `--tls-cert FILE --tls-key FILE`,
 and `--metrics ADDR [--metrics-public]`; `--listen`, `--metrics` and `--metrics-public` default to `$RELAY_LISTEN`,
-`$RELAY_METRICS` and `$RELAY_METRICS_PUBLIC` (set in the container image).
+`$RELAY_METRICS` and `$RELAY_METRICS_PUBLIC` (the container image sets `RELAY_LISTEN`; `relay/docker-compose.yml` the
+other two).
 
 ### 3. Found a server, or join one
 
@@ -179,7 +180,7 @@ Steps 2 to 4 in one command, for containers and one-command setups (the image's 
 | `--registry` | `RELAY_REGISTRY` | first start: `servers.json`, an `https://` URL or a file | the game's |
 | `--operator-key` | `RELAY_OPERATOR_KEY` | first start: an operator key file to use | a new key |
 | `--listen` | `RELAY_LISTEN` | first start | `127.0.0.1:8080` (the image: `0.0.0.0:8080`) |
-| `--metrics`, `--metrics-public` | `RELAY_METRICS`, `RELAY_METRICS_PUBLIC` | first start | off (the image: `0.0.0.0:9100`, public) |
+| `--metrics`, `--metrics-public` | `RELAY_METRICS`, `RELAY_METRICS_PUBLIC` | first start | off (`relay/docker-compose.yml`: `0.0.0.0:9100`, public) |
 | `--tls-cert`, `--tls-key` | `RELAY_TLS_CERT`, `RELAY_TLS_KEY` | first start | none: plain HTTP behind a proxy |
 | `--trusted-proxies` | `RELAY_TRUSTED_PROXIES` | **every start**, when set | loopback only |
 | `--notify-url` | `RELAY_NOTIFY_URL` | **every start**, when set (empty: off) | off |
@@ -197,7 +198,8 @@ What it does:
   (`docker compose cp relay:/data/operator.key ./operator.key`). The private key is never printed or logged.
 - **A setup stopped halfway** (a crash, a restart) carries on: keys already made are kept (never replaced), a config
   without a server goes on to genesis or join.
-- **Later starts** only serve; nothing is founded again. Trusted proxies and the release webhook are local settings,
+- **Later starts** only serve; nothing is founded again, and `operator.key` is not read: once you have copied it
+  off the machine, delete it there (operator actions can be signed elsewhere, see HOSTING.md). Trusted proxies and the release webhook are local settings,
   signed nowhere, so they follow the environment whenever it sets them (an empty `RELAY_NOTIFY_URL` turns the webhook
   off). Everything else stays as `config.json` and the server's signed record have it: a different `RELAY_URL`,
   `RELAY_LISTEN`, metrics or TLS setting is logged with how to change it (edit `config.json`; a node's URL is a signed
@@ -231,11 +233,38 @@ and the TLS file names change on restart only. The certificate and key themselve
 | `countryDb` | | A country-only MaxMind-format database (GeoLite2-Country, DB-IP Country Lite). Optional |
 | `registry` | `https://seriesoftub.es/federation/servers.json` | The registry snapshot (a URL or a file); used for the shun tally |
 | `metrics` | | A **localhost** address for `/metrics`, for example `127.0.0.1:9100`. Anything else is refused unless `metricsPublic` is set |
-| `metricsPublic` | `false` | Allow `metrics` beyond localhost, for a Prometheus in another container (the image sets it, with `0.0.0.0:9100`). The relay warns at start; keep the port off the internet |
+| `metricsPublic` | `false` | Allow `metrics` beyond localhost, for a Prometheus in another container (`relay/docker-compose.yml` sets it, with `0.0.0.0:9100`). The relay warns at start; keep the port off the internet |
 | `trustedProxies` | loopback | Proxies whose `X-Forwarded-For` is believed (in a container: add the proxy's network, see Container above) |
 | `listed` | `false` | A note for yourself: whether you mean to be in the registry |
 | `notifyURL` | off | An `https://` URL the relay POSTs to once per new relay release (see Versions and update notices). Anything else is refused |
-| `limits` | | `maxClients` 5000, `maxNodes` 64, `connsPerAddr` 30 per `addrWindowSec` 300, `msgsPerSec` 20 |
+| `allowedOrigins` | `[]` | Web pages besides the game's that may connect from a browser: `https://example.org`, `https://*.example.org`, or `"*"` for any. See below |
+| `legacyAuth` | `true` | Whether players' games may prove their key the older way, not bound to the connection and the node's URL. Up-to-date games use the bound way with up-to-date relays; this will be switched off by default in a later release, once older games are gone: planned for relay 5.0.0, not before 2027-03-01. `relay_auth_total{form="legacy"}` counts the older auths your node still takes (and the log says so at most once an hour): once it stays at 0 for a few weeks, set `false` to take only the bound way |
+| `limits` | | `maxClients` 5000, `maxNodes` 64, `openPerAddr` 256, `connBurst` 120, `connsPerSec` 1, `msgsPerSec` 20. See below |
+| `budgets` | | How fast others can make the node keep more (network keys cost nothing to make), per hour, counted in memory only. New network keys (ones the node has no record of yet): `newKeysPerConn` 64, `newKeysPerAddr` 1024 (per IPv4 address or IPv6 /64; an IPv6 /56 gets twice and a /48 four times the per-address budgets in all, as for connections; when too many addresses are busy at once to count another, it waits), `newKeysPerPeer` 20000 (per registry server or configured neighbour; all other servers share one such budget, and their sessions also count against their address's). Records another server passes on that carry a receipt of a registry server or of your own server are not counted again, and records refused by a budget are asked for again every 10 minutes. Bytes of new records: `bytesPerConn` 16 MiB, `bytesPerAddr` 256 MiB, `bytesPerPeer` 2 GiB. Live states of networks without an announce: `liveKeysPerConn` 16, `liveKeysPerAddr` 256, `liveKeysPerPeer` 5000. High-water mark, past which only networks that already have an announce here may put (newcomers get `rate_limited` until there is room): `maxRecords` 20000000, `maxStoreBytes` 32 GiB, `maxHeapBytes` 6 GiB (or 4/5 of `GOMEMLIMIT` when lower), `minFreeDisk` 1 GiB. Players running many games, or many AI agents, from one address stay well inside the defaults. Records from this server's own nodes and the command line are not counted |
+
+### Limits per address: many players or agents behind one address
+
+A whole school behind one NAT, or someone running a hundred AI agents side by side, all come from one address. The
+relay counts per address, in memory only, never on disk:
+
+- **`openPerAddr`** (256): connections open at once from one address. With IPv6 it counts per `/64`, and also per
+  `/56` (twice as many) and `/48` (four times as many), so a block of addresses gets no more than a few subscribers.
+- **`connBurst`** (120) and **`connsPerSec`** (1): new connections from one address, as a bucket that holds
+  `connBurst` and refills at `connsPerSec`. A hundred agents starting at once all get in; a hundred more within the
+  same minute wait about a second each.
+
+A refused connection gets HTTP 429 with `Retry-After` (seconds). An address is held only while it has a connection open
+and until its bucket has refilled, then forgotten. If many agents behind one address are refused, raise `openPerAddr`
+and `connBurst` (for example 1000 and 500); `maxClients` (5000) bounds all connections together, and connections that
+have not yet said `hello` count against it. Check `trustedProxies` first: behind a proxy the relay does not believe,
+every player seems to come from the proxy's address. Older config files with `connsPerAddr` and `addrWindowSec` still
+load: the old defaults (30 per 300 s) mean the new defaults, other values become `connBurst` and the matching rate.
+
+**Browsers.** A browser says which page opened a connection (its `Origin`). The relay takes connections with no
+`Origin` (agents, command lines, other relays), from the game (`https://seriesoftub.es`), and from pages on your own
+machine or LAN: `localhost`, `*.localhost`, `*.local`, `*.test`, `*.internal`, `*.home.arpa`, and loopback or private
+addresses (so `npm run dev`, `--host`, `--https` and `relay lan` work). Other websites get 403, so they cannot make
+their visitors' browsers use up your connections. A game page you host elsewhere goes in `allowedOrigins`.
 
 ## Adding a second operator, and their node
 
@@ -325,6 +354,12 @@ another node of your server, `peer` when the other server dials you, `this node 
 minutes and your node dials it instead) and whether the session is `up`; each entry of
 `peers` says whether it is `auto` and whether this node `dialled` it.
 
+Automatic peers' addresses come from the registry, not from you, so your relay dials them only on public addresses: a
+name that resolves to a loopback, private, link-local or carrier-grade NAT address (also inside an IPv6 address such as
+NAT64, 6to4 or Teredo) is refused, and no node URL is ever
+followed through a redirect. `relay join` without `--from` and `relay check-registry` treat the registry's URLs the
+same way. Neighbours, `--from` seeds and your own server's nodes may be on private addresses.
+
 **Neighbours** (`neighbours` in the config) are for everything else: servers not in the registry (a friend's, a LAN
 party's), selective servers, or different classes for one of your automatic peers. Your node connects to them; others
 may connect to you. Your node keeps one session with each server whichever side dials (when both list each other, the
@@ -341,10 +376,14 @@ otherwise get every class both ways, and `defaultSend` and `defaultTake` are for
 Shun votes always travel, whatever you choose, as long as the voting server is in your node's registry snapshot (or is
 your own server): only registry servers' votes can count, and a server known from gossip alone costs nothing to make up,
 so your node refuses the votes of any other (and keeps at most 8192 votes of any one server). A server may take records
-without passing them on. Your node keeps at most 4096 catalog entries, 512 of them first heard from any one neighbour,
-each at most 60 KB (so any one fits a game's frame), and reads nothing a new neighbour says about other servers until
+without passing them on. Your node keeps at most 4096 catalog entries (16 MB), 512 of them (2 MB) first heard from any one
+neighbour, each at most 60 KB (so any one fits a game's frame); servers that are not in the registry share 1024 entries
+and 4 MB of that, since anyone can make one, and never keep a registry server's entry out (the oldest of theirs makes
+way). It sends its catalog to a new neighbour a frame at a time as it reads, and reads nothing a new neighbour says about other servers until
 its own entry has checked. A neighbour that does not send its own entry within 30 seconds is dropped, and sessions with
-servers your node does not know yet take at most 8 of its `maxNodes` slots; your own server's nodes always get one.
+servers your node does not know yet take at most 8 of its `maxNodes` slots (a server it learned of but did not keep in
+its catalog counts as one it does not know), servers that are neither in the registry nor your neighbours at most half
+of them and 2 each, and one address (an IPv6 /64) at most 8; your own server's nodes always get one.
 
 ```json
 "neighbours": [
@@ -364,7 +403,7 @@ relay registry-file > federation/servers/SERVER_IDENTITY.json
 
 and open a pull request adding that file. CI runs `relay check-registry` on it: the file parses and fits 64 KB; its
 records are signed; the operator chain follows from the genesis by majority-signed changes; the server record is
-signed by a majority of the current operators and declares `noLogs: true`; no other server has the same name; and one
+signed by a majority of the current operators and declares `noLogs: true`; its name uses only ASCII letters, digits, single spaces and `- . ' & ! + _ : , ( ) /` and no other server has the same name; and one
 of your nodes answers a challenge signed with its node key over `wss://`. A failing check prints the step and the
 error code. You can run the same check yourself:
 
@@ -408,7 +447,8 @@ and stops new deals with it, nothing more.
 
 Players can **report** a network to the operators of a server they joined, with one of the same four reasons and no
 text. A report goes only to your server: your node keeps it 30 days (one per player and reported network, the newest;
-at most 20 new ones per player a day), passes it to your other nodes and to no other server, and shows it only in the
+at most 20 new ones per player a day and 60 an hour from one address, 65536 in all, a quarter of which is kept for players
+it has known for a week or more, whose reports push out the newest players' oldest ones when it is full), passes it to your other nodes and to no other server, and shows it only in the
 operator panel of a game that proved your operator key (Reports: per network, the reasons with counts and how many
 players reported it). It changes nothing by itself: you decide whether to hide the network or vote.
 
@@ -442,7 +482,8 @@ How it works (`relay/internal/rank`):
   and the boards' default view ranks those (10.13): POPs, pies and total traffic as reported now, traffic with
   players from both sides' current reports (a partner that is not playing counts 0), the customer cone over the
   current transit relationships. Live states are never written anywhere: your node keeps the newest of each network
-  in memory (at most 50000 networks and 128 MB), forgets a network 15 minutes after its last state, and loses them
+  in memory (at most 50000 networks and 128 MB; when full, the states heard from least recently make room, those of
+  networks without an announce first), forgets a network 15 minutes after its last state, and loses them
   all on a restart (games send again within seconds). A state that is newer than what your node had goes on to the
   servers it syncs players with, in batches every 2 seconds, and from them onward; so a player on any server shows
   on every connected server's boards of now within a few seconds. Each connection may send one state every 4 seconds.
@@ -463,8 +504,32 @@ How it works (`relay/internal/rank`):
   migrated on start; a relay refuses a folder written by a newer one instead of misreading it. Servers agree on a
   protocol version when they connect and keep speaking the older one until both sides have upgraded, so a federation
   upgrades one server at a time.
-- **Backups:** `relay backup FILE.tar.gz` writes the records, catalog, config and node key (mode 0600). The operator
-  key is left out on purpose: keep your own copy of `operator.key` somewhere safe. If a node loses its disk, the
+- **New record fields roll out by feature, relay first.** A relay refuses fields it does not know (`unknown_field`),
+  so a field older relays have never seen travels only where it is understood. Each node lists what it takes in
+  `feats` (in its `welcome` to games, its `hello` and `welcome` to other nodes; games list theirs in their `hello`), and
+  a node sends a record holding a newer field only to a game or node that listed that feature. The first such feature
+  is `ix2` (players' exchanges: an exchange's members and co-founding in a player's announce, spec 5.1). The order:
+  1. **Relays first.** Release a relay that lists `ix2` and upgrade servers at your pace, nodes of one server one at a
+     time: until a node lists `ix2`, the others keep those records from it, and it keeps serving everything else.
+  2. **The game uses it once servers have upgraded.** A game puts `ix2` fields in its announce only while every server
+     it joined lists `ix2`; while one does not (4.0.0 does not), it announces as before, and its players still trade
+     ports on their exchanges, only without the member lists and co-founding. Nothing needs switching on: the
+     first announce after the last of its servers upgraded carries them.
+  3. **Older games keep working.** A game whose `hello` does not list `ix2` never gets those announces from an upgraded
+     relay (it would refuse them); it sees the player's earlier announce, or none, until it is reloaded.
+  To check which servers have upgraded: the looking glass shows each node's relay version, and `relay status` each
+  peer's (every relay released after 4.0.0 takes `ix2`).
+- **Bound node proofs.** Every relay released after 4.0.0 binds the proof its nodes give in a handshake with another
+  node to that node (`bind`, spec 6.2), so a proof cannot be relayed to pass as a node. Such a relay takes an unbound
+  proof only from a server that is not in the registry, does not say (in its catalog entry) that it runs a relay
+  after 4.0.0, and has not bound its proofs in an earlier session; a session proved that way never keeps out or
+  replaces one that bound its proof. **Servers in the registry must run a relay after 4.0.0 to sync with up-to-date
+  servers.** The unbound form is a transition path only: it is planned to be removed in relay 5.0.0, and not before
+  2027-03-01; upgrade every node before then.
+- **Backups:** `relay backup FILE.tar.gz` writes the records, catalog, config and node key to a new file (mode 0600)
+  that replaces `FILE.tar.gz` when complete (a symlink there is replaced, not followed). To keep backups in the data
+  folder, write them into its `backups/` folder (made when needed): it, and any `*.tar.gz` in the data folder, is left
+  out of later backups. The operator key is left out on purpose: keep your own copy of `operator.key` somewhere safe. If a node loses its disk, the
   server's other nodes and the servers it syncs with fill it back in; what nobody else had is only recent stats and
   offers, which players send again.
 - **What is kept:** records go into one file per day under `log/`. Stats are kept 72 hours (plus, for carrying forward,
@@ -515,7 +580,8 @@ is 3.7.0; anything that is not a version is ignored) and its page on github.com 
 "from GitHub releases". It is never a security hint: only `relay.json` says that. If GitHub answers 403 or 429 the
 relay waits as long as it is asked to, and at least 6 hours (doubling to at most 48 while it repeats); it keeps the
 last release it read. A `relay.json` read again takes over. What other servers' nodes run (gossip) is only shown,
-never taken as news of a release. (The environment variable `RELAY_RELEASES_URL` replaces the API's address, `https://`
+never taken as news of a release. A relay with no `registry` (`relay lan`, or `"registry": ""`) checks for releases
+nowhere: it asks neither the site nor GitHub. (The environment variable `RELAY_RELEASES_URL` replaces the API's address, `https://`
 or `http://` on loopback only; it is for end-to-end tests.)
 
 **Security releases.** `security: true` marks a release that fixes a relay security issue; `minSafe` names the newest
@@ -548,7 +614,8 @@ server for a local network in one step, with no domain, no public certificate an
 - it makes a self-signed certificate (ECDSA P-256, one year, files `lan-cert.pem` and `lan-key.pem`) for the
   machine's mDNS name `<hostname>.local`, `localhost`, loopback and its LAN addresses (private and link-local IPv4,
   IPv6 unique local addresses), and keeps it while it still covers them and is valid for another week;
-- it listens on `--port` on every interface (or `--listen`), serves the protocol at `/fed` and, at `/`, a small page of
+- it listens on `--port` on every interface (or `--listen`), answers only devices on loopback, private, link-local and
+  carrier-grade NAT addresses (it closes any other connection at once), serves the protocol at `/fed` and, at `/`, a small page of
   its own (no scripts, nothing loaded from elsewhere; never the game, which is only on GitHub Pages) with the invite
   link for the address the browser used;
 - it prints for the players, on its own terminal only, the page addresses and the invite links by `.local` name and by
@@ -570,8 +637,10 @@ open in any browser, one player each, so you can play two networks against each 
 by IP address and join with the self-signed certificate (`--browser` works there too).
 
 The run's relays trust its self-signed certificate through the environment variable `RELAY_TEST_ROOTS` (a PEM file
-of certificates trusted besides the system's, for the relay's outgoing connections). It is for tests only: never set
-it on a real relay.
+of certificates trusted besides the system's, for the relay's outgoing connections), and may dial the run's other
+nodes on loopback through `RELAY_TEST_ALLOW_INTERNAL=1` (URLs from the registry, the catalog and other servers may
+then reach loopback and private addresses; the relay logs a warning at start). Both are for tests only: never set them
+on a real relay.
 
 ## Load test
 
@@ -685,16 +754,17 @@ held, disk use, rankings answered from the cache or worked out (`relay_rank_answ
 `relay_latest_version_info`, see Versions and update notices), all `relay_*`, plus the standard Go runtime (`go_*`) and process
 (`process_*`) metrics. It uses the Prometheus client library on its own registry, so nothing else is exposed. Counts
 and versions only: no label ever holds an address, a key or a name. The relay refuses a metrics address that is not on
-localhost unless `"metricsPublic": true` is set, as in the container image, so a Prometheus on the same Docker network
-can scrape `http://relay:9100/metrics` (the image exposes 9100; never publish it to the internet). A ready scrape job,
+localhost unless `"metricsPublic": true` is set, as `relay/docker-compose.yml` does, so a Prometheus on the same Docker
+network can scrape `http://relay:9100/metrics` (never publish it to the internet: Docker's published ports bypass `ufw`,
+so publish it on `127.0.0.1` only if at all). A ready scrape job,
 labels for several nodes and alerting rules: [HOSTING.md, monitoring](HOSTING.md#monitoring-with-prometheus).
 
 ## Privacy, in short
 
 - Records hold only what the player signed, plus your node's receipt with the time rounded to the 5-minute slot.
 - The connecting address is used in memory only: to look up a country (when you configured a country-only database and
-  the player shares their country) and to limit connections per address for a few minutes. It is never written,
-  logged, or passed on.
+  the player shares their country) and to limit connections per address while they are open and for a few minutes
+  after. It is never written, logged, or passed on.
 - Logs and metrics hold counts, error codes, record kinds and network keys (the public, pseudonymous game identity).
 - Unknown fields in records are refused, so nothing finer than a country can ever be smuggled into one.
 - Deals between players are sealed for the two players (offers and declines): your node checks their shape and

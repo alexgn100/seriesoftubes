@@ -16,9 +16,11 @@ function fuGlassHtml(){const srvs=FU.srvs.slice().sort((a,b)=>(a.source==='regis
   let h=fuHead('🔭 '+tr('fedui.looking_glass'),FU.opKey?tr('fedui.the_federation_as_this_browser_sees'):tr('fedui.servers_and_networks'),{v:'home'});
   h+=`<p class="tagline">${tr('fedui.public_and_read_only')}</p>`;
   h+=`<h3 class="sub4">${trn('fedui.n_servers_known',srvs.length)}</h3>`+(srvs.length?`<ul class="fu-list">${srvs.map(s=>{const sy=FU.syncs&&FU.syncs.get(s.id);
-    return `<li class="fu-item"><div class="grow fu-txt"><button class="lnk" data-act="fuOpen" data-args="${esc(JSON.stringify({v:'server',id:s.id,back:'glass'}))}"><b>${esc(s.name)}</b></button> ${s.source==='registry'?`<span class="fu-tag reg">${tr('fedui.in_the_registry')}</span>`:`<span class="fu-tag">${tr('fedui.only_heard_of')}</span>`}${fuOpOf(s.id)?` <span class="fu-tag on">${tr('fedui.yours')}</span>`:''}
+    return `<li class="fu-item"><div class="grow fu-txt"><span class="fu-srvh"><button class="lnk" data-act="fuOpen" data-args="${esc(JSON.stringify({v:'server',id:s.id,back:'glass'}))}"><b>${esc(s.name)}</b></button>${fuSrvLook(s)} ${s.source==='registry'?`<span class="fu-tag reg">${tr('fedui.in_the_registry')}</span>`:`<span class="fu-tag">${tr('fedui.only_heard_of')}</span>`}${fuOpOf(s.id)?` <span class="fu-tag on">${tr('fedui.yours')}</span>`:''}</span>
     <span class="meta">${fuPolShort(s)} · ${trn('fedui.n_players',FU.players?FU.players.get(s.id)||0:0)} · ${trn('fedui.n_operators',(s.operators||[]).length)}${sy&&sy.size?' · '+tr('fedui.syncs_with_list',{list:[...sy].map(fuSrvName).join(', ')}):''}</span></div></li>`;}).join('')}</ul>`:`<p class="meta">${tr('fedui.no_servers_known_yet')}</p>`);
-  h+=`<h3 class="sub4">${trn('fedui.n_networks_known',nets.length)}</h3>`+(nets.length?`<ul class="fu-list">${nets.slice(0,300).map(n=>`<li class="fu-item"><div class="grow fu-txt"><button class="lnk" data-act="fuOpen" data-args="${esc(JSON.stringify({v:'net',key:n.key,back:'glass'}))}"><b>${fuName(n.key)}</b></button> <span class="meta">AS${n.rec.body.asn} · ${fuQuietName(n.quiet.state)}</span></div></li>`).join('')}</ul>`:`<p class="meta">${tr('fedui.no_other_networks_yet')}</p>`);
+  // Exchanges players run, with a way to a port on them (89-fedplay-ix.js).
+  h+=fedIxListHtml(FU.nets,30);
+  h+=`<h3 class="sub4">${trn('fedui.n_networks_known',nets.length)}</h3>`+(nets.length?`<ul class="fu-list">${nets.slice(0,fuOpenK('nets')||nets.length<=FU_PG*2+2?300:FU_PG*2).map(n=>`<li class="fu-item"><div class="grow fu-txt"><button class="lnk" data-act="fuOpen" data-args="${esc(JSON.stringify({v:'net',key:n.key,back:'glass'}))}"><b>${fuName(n.key)}</b></button> <span class="meta">AS${n.rec.body.asn} ${fuFp(n.key)} · ${fuQuietName(n.quiet.state)}</span>${fuLookTag(n.key)}</div></li>`).join('')}</ul>${nets.length>FU_PG*2+2?`<div class="btns fu-pg">${btn(fuOpenK('nets')?tr('common.show_fewer'):tr('notifications.show_all_n',{n:Math.min(300,nets.length)}),'fuFold',{k:'nets'},'ghost sm')}</div>`:''}`:`<p class="meta">${tr('fedui.no_other_networks_yet')}</p>`);
   if(!FU.opKey)return h;const votes=FU.votes.slice().sort((a,b)=>b.rec.t-a.rec.t);
   h+=`<h3 class="sub4">${tr('fedui.shun_votes')}</h3><p class="meta">${tr('fedui.only_server_operators_see_votes')}</p>`+(votes.length?`<ul class="fu-list">${votes.slice(0,200).map(fuVoteLine).join('')}</ul>`:`<p class="meta">${tr('fedui.no_votes')}</p>`);
   return h;}
@@ -30,13 +32,13 @@ function fuServerHtml(){const id=UI.fu.id,s=FU.srvs.find(x=>x.id===id),back={v:U
   if(!s)return fuHead('🔭 '+tr('fedui.looking_glass'),'—',back)+`<p class="meta">${tr('fedui.this_server_is_not_known_here')}</p>`;
   const f=S&&S.fed,sy=FU.syncs&&FU.syncs.get(id),joined=!!f&&f.servers.some(u=>(s.nodes||[]).some(n=>n.url===u)),ok=S&&UI.started&&fedEligible();
   let h=fuHead('🔭 '+tr('fedui.looking_glass'),esc(s.name),back)+fuMsg();
-  h+=`<p class="fu-pol">${fuPolicy(s)}</p>${s.desc?`<p class="tagline">${esc(s.desc)}</p>`:''}`;
+  h+=`${fuSrvLook(s)?`<p>${fuSrvLook(s)}</p>`:''}<p class="fu-pol">${fuPolicy(s)}</p>${s.desc?`<p class="tagline">${esc(s.desc)}</p>`:''}`;
   h+=`<dl class="fu-dl"><dt>${tr('fedui.listed')}</dt><dd>${s.source==='registry'?tr('fedui.in_the_registry')+(s.listed?' · '+tr('fedui.since_date',{date:fuDate(s.listed/86400)}):''):tr('fedui.only_heard_of')}</dd>
   ${s.answered?`<dt>${tr('fedui.last_answered')}</dt><dd>${fuDate(s.answered/86400)}</dd>`:''}${s.seen?`<dt>${tr('fedui.last_seen')}</dt><dd>${fuWhen(s.seen)}</dd>`:''}
   <dt>${tr('fedui.players')}</dt><dd>${FU.players?FU.players.get(id)||0:0}</dd><dt>${tr('fedui.operators')}</dt><dd>${(s.operators||[]).length}</dd><dt>${tr('fedui.nodes')}</dt><dd>${(s.nodes||[]).length}</dd>${fuRelaysDl(s)}
   <dt>${tr('fedui.syncs_with')}</dt><dd>${sy&&sy.size?[...sy].map(fuSrvName).join(', '):'—'}</dd>${s.langs&&s.langs.length?`<dt>${tr('common.language')}</dt><dd>${esc(s.langs.join(', '))}</dd>`:''}
   <dt>${tr('fedui.address_logs')}</dt><dd>${s.noLogs?tr('fedui.operators_declare_no_address_logs'):'—'}</dd></dl>`;
-  if(ok&&!joined&&s.nodes&&s.nodes[0])h+=`<div class="btns">${btn(tr('fedui.join'),'fuJoin',{url:s.nodes[0].url},'pink sm',FU.busy)}</div>`;
+  {const u=fedJoinUrl(s);if(ok&&!joined&&u)h+=`<div class="btns">${btn(tr('fedui.join'),'fuJoin',{url:u},'pink sm',FU.busy)}</div>`;}
   const votes=FU.votes.filter(v=>v.rec.body.server===id).sort((a,b)=>b.rec.t-a.rec.t);
   if(FU.opKey)h+=`<h3 class="sub4">${tr('fedui.votes_cast_by_this_server')}</h3>`+(votes.length?`<ul class="fu-list">${votes.map(fuVoteLine).join('')}</ul>`:`<p class="meta">${tr('fedui.no_votes')}</p>`);
   if(fuOpOf(id))h+=fuOpPanel(s);
@@ -65,26 +67,27 @@ function fuOpPanel(s){const c=fedConnTo(s.id),st=fedStatus(),ch=FU.chain;
     return `<li class="fu-item"><div class="grow fu-txt"><b>${fuProp(b.action)}</b><span class="meta mono">${esc(fuShort(b.target))}${b.url?' · '+esc(b.url):''}</span><span class="meta">${tr('fedui.n_of_m_signatures',{n,m:ch.chain.ops.length})} · ${fuWhen(p.rec.t)}</span></div>${signed?`<span class="fu-tag on">✓ ${tr('fedui.signed')}</span>`:btn(tr('fedui.sign'),'fuOpSign',{srv:s.id,id:p.id},'pink sm',!c||FU.busy)}</li>`;}).join('')}</ul>`;
   h+=fuOpReports(s);
   h+=`<h4 class="fu-h4">${tr('fedui.node_status')}</h4><ul class="fu-list">${(s.nodes||[]).map(n=>{const on=st.servers.find(x=>x.node===n.url&&x.server===s.id),e=fedErrs(s.id).find(x=>x.node===n.url);
-    return `<li class="fu-item"><span class="fed-dot ${on?on.state:'idle'}" aria-hidden="true"></span><div class="grow fu-txt"><span class="mono">${esc(n.url)}</span><span class="meta">${on?fuStatusText({state:on.state,since:on.since}):tr('fedui.not_in_use_by_this_game')}${e?' · '+tr('fedui.last_error_code',{code:esc(e.why)}):''}</span></div></li>`;}).join('')}</ul>`;
+    return `<li class="fu-item"><span class="fed-dot ${on?on.state:'idle'}" aria-hidden="true"></span><div class="grow fu-txt"><span class="mono">${esc(n.url)}</span><span class="meta">${on?fuStatusText({state:on.state,since:on.since}):tr('fedui.not_in_use_by_this_game')}${e?' · '+tr('fedui.last_error_code',{code:fuCode(e.why)}):''}</span></div></li>`;}).join('')}</ul>`;
   const errs=fedErrs(s.id).slice(0,10);
-  h+=`<h4 class="fu-h4">${tr('fedui.recent_errors')}</h4>`+(errs.length?`<ul class="fu-list">${errs.map(e=>`<li class="fu-item"><div class="grow fu-txt"><span class="mono">${esc(e.why)}</span><span class="meta">${fuWhen(e.t)}${e.node?' · '+esc(e.node):''}</span></div></li>`).join('')}</ul>`:`<p class="meta">${tr('fedui.none_this_session')}</p>`);
+  h+=`<h4 class="fu-h4">${tr('fedui.recent_errors')}</h4>`+(errs.length?`<ul class="fu-list">${errs.map(e=>`<li class="fu-item"><div class="grow fu-txt"><span>${fuCode(e.why)}</span><span class="meta">${fuWhen(e.t)}${e.node?' · '+esc(e.node):''}</span></div></li>`).join('')}</ul>`:`<p class="meta">${tr('fedui.none_this_session')}</p>`);
   h+=`<p class="meta">${tr('fedui.to_hide_or_shun_a_network')}</p></section>`;
   return h;}
 const fuProp=a=>({add_operator:tr('fedui.add_an_operator'),remove_operator:tr('fedui.remove_an_operator'),set_node:tr('fedui.add_or_move_a_node'),remove_node:tr('fedui.remove_a_node')}[a]||esc(a));
 
 /* ---------- one network: read-only status (and an operator's hide and shun) ---------- */
-async function fuNetLoad(key){const hides=[];for(const s of FU.srvs){const h=await fedHides(s.id,FU.srvs);if(h){const b=h.rec.body;hides.push({id:s.id,hide:b.hide.includes(key),names:b.names.includes(key),refuse:b.refuse.includes(key)});}}
+// Hide lists kept are only of joined servers (and those this player operates): no read per server in the catalog.
+async function fuNetLoad(key){const hides=[];for(const id of new Set([...fuSrvIds(),...FU.srvs.filter(s=>fuOpOf(s.id)).map(s=>s.id)])){const h=await fedHides(id,FU.srvs);if(h){const b=h.rec.body;hides.push({id,hide:b.hide.includes(key),names:b.names.includes(key),refuse:b.refuse.includes(key)});}}
   let ai=false;try{const st=(await fedNetsStats()).get(key);ai=!!(st&&st.ai)||!!(FU.slice&&FU.slice.rows.some(r=>r.key===key&&r.ai));}catch(e){}
-  // The tally only for an operator (from the votes its nodes sent); everyone else knows only excluded or not.
+  // ai: only whether it is an AI (servers' nets answers and boards rows say no more). The tally only for an operator (from the votes its nodes sent); everyone else knows only excluded or not.
   const op=!!FU.opKey;FU.netInfo={key,op,shun:op?await fedShunInfo(key):await fedExclInfo(key),hides,ai};}
 function fuNetHtml(){const key=UI.fu.key,n=FU.nets.get(key),I=FU.netInfo&&FU.netInfo.key===key?FU.netInfo:null,back={v:UI.fu.back||'glass'},f=S&&S.fed;
   if(!n)return fuHead('🔭 '+tr('fedui.looking_glass'),esc(fuShort(key)),back)+`<p class="meta">${tr('fedui.this_network_is_not_known_here')}</p>`;
   const b=n.rec.body,muted=!!f&&f.muted.includes(key),me=!!(f&&f.key&&f.key.pub===key);
   let h=fuHead('🔭 '+tr('fedui.looking_glass'),fuName(key)+(I&&I.ai?' '+fuAi():''),back)+fuMsg();
-  h+=`<dl class="fu-dl"><dt>ASN</dt><dd>AS${b.asn}</dd><dt>${tr('fedui.home_market')}</dt><dd>${esc(pieLicCountry(b.home))}</dd>
+  h+=`<dl class="fu-dl"><dt>ASN</dt><dd>AS${b.asn} ${fuFp(key)}${fuLookTag(key)}</dd><dt>${tr('fedui.home_market')}</dt><dd>${esc(pieLicCountry(b.home))}</dd>
   <dt>${tr('fedui.peering_policy')}</dt><dd>${fuPolName(b.policy)}</dd><dt>${tr('fedui.pops')}</dt><dd>${b.pops.length}</dd><dt>${tr('fedui.customers')}</dt><dd>${b.cust}</dd>
   <dt>${tr('fedui.game_day')}</dt><dd>${b.day}</dd><dt>${tr('fedui.joined_on')}</dt><dd>${b.founded?fuDate(b.founded):'—'}</dd>
-  ${I&&I.ai?`<dt>${tr('fedui.ai_setup')}</dt><dd>${esc(I.ai.model)} · ${esc(I.ai.harness)}</dd>`:''}
+  ${I&&I.ai?`<dt>${tr('fedui.ai_setup')}</dt><dd>${tr('fedui.ai_player')}</dd>`:''}
   <dt>${tr('fedui.last_heard')}</dt><dd>${fuWhen(n.heard)} · ${fuQuietName(n.quiet.state)}</dd><dt>${tr('fedui.seen_on')}</dt><dd>${(n.srv||[]).length?n.srv.map(fuSrvName).join(', '):'—'}</dd></dl>`;
   if(I){const sh=I.shun;
     if(I.op)h+=`<h3 class="sub4">${tr('fedui.shun_votes')}</h3><p class="meta">${sh.shunned?tr('fedui.excluded_by_the_federation'):tr('fedui.n_of_m_votes_needed',{n:sh.votes,m:sh.need})}</p>`+

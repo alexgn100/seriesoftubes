@@ -47,7 +47,9 @@ Records are signed and hashed in one exact byte form, the same in JavaScript and
 
 ### 2.1 Values a record may hold
 
-1. **Objects**, whose member names match `^[A-Za-z0-9_]{1,32}$`. Otherwise `bad_name`.
+1. **Objects**, whose member names match `^[A-Za-z0-9_]{1,32}$` and are none of `__proto__`, `constructor` and
+   `prototype`. Otherwise `bad_name`. (JavaScript's `JSON.parse` makes an own `__proto__` member, and copying it onto
+   another object sets that object's prototype instead; the other two are refused alike.)
 2. **Arrays.**
 3. **Strings** of Unicode scalar values: no character below U+0020 (`bad_string`), no lone surrogate (`bad_string`).
 4. **Booleans.**
@@ -68,7 +70,8 @@ Records arrive as JSON text (RFC 8259) and are checked before anything else is d
    A number is accepted when the double is finite, integral, within the safe range and not negative zero. So `12`,
    `12.0` and `1.2e1` are all the integer 12, while `12.5`, `-0`, `1e400` and `9007199254740992` are `bad_number`.
 3. **String escapes** are decoded as JSON defines. A `\uD800`–`\uDFFF` escape that is not part of a high-then-low
-   surrogate pair is a lone surrogate: `bad_string`.
+   surrogate pair is a lone surrogate: `bad_string`. This holds for member names too (before the name rule of 2.1):
+   `"v\ud800"` is a bad string, never the name `v`, even when the object also has a member `v`.
 4. **Repeated member names** in one object: the last one wins (what `JSON.parse` and Go's `encoding/json` both do).
 5. Then the value rules of 2.1 apply to the decoded value, depth first, members in any order. A vector never holds
    two different faults of this step, so the order within it does not matter.
@@ -76,8 +79,8 @@ Records arrive as JSON text (RFC 8259) and are checked before anything else is d
 **Go, take care.** `encoding/json` silently replaces invalid UTF-8 and lone surrogate escapes with U+FFFD, matches
 struct field names case-insensitively, and fails the whole decode on `1e400`. Check `utf8.Valid` on the text, scan the
 raw text for lone surrogate escapes, decode into `any` with `Decoder.UseNumber()`, and convert numbers by the rule
-above. **JavaScript, take care.** Check strings with `String.prototype.isWellFormed()` (or an equivalent test) after
-`JSON.parse`, and `Number.isSafeInteger(n) && !Object.is(n, -0)` for numbers.
+above. **JavaScript, take care.** Check strings and member names with `String.prototype.isWellFormed()` (or an
+equivalent test) after `JSON.parse`, and `Number.isSafeInteger(n) && !Object.is(n, -0)` for numbers.
 
 ### 2.3 Writing canonical JSON
 
@@ -117,6 +120,15 @@ padding, other alphabets, wrong lengths and non-zero unused bits in the last cha
 | Box key (X25519 public key, 3.5) | 32 | 43 | `bad_key` |
 | Box nonce (3.5) | 12 | 16 | `bad_field` |
 
+A **Key** is also refused (`bad_key`) when it is a weak point: take its 32 bytes with the top bit of the last byte
+cleared as a little-endian `y`; the key is weak when `y >= 2^255 - 20` (that is `y = p - 1`, a point of order 2, or a
+non-canonical `y >= p`, with `p = 2^255 - 19`) or `y` is `0`, `1`, or one of the two `y` of the points of order 8
+(hex, little-endian: `26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05` and
+`c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a`), whatever the sign bit. These are every
+small-order point: with one as key, some verifiers (Go's among them) take one signature for any message (with the
+identity, `R` = identity and `S = 0`), so anyone could sign as it. No key made from a seed is ever weak. This rule is
+for Ed25519 keys only: a box key (X25519) is checked for its format alone (a low-order box fails when sealing, 3.5).
+
 ### 3.2 Signatures
 
 - **Ed25519 only** (RFC 8032, pure Ed25519, no context, no prehash). WebCrypto `Ed25519` in the browser, `crypto/ed25519`
@@ -130,7 +142,8 @@ padding, other alphabets, wrong lengths and non-zero unused bits in the last cha
   one either, and it names the node and server it is for.
 - Verification uses the platform verifier as it is. It MUST refuse a non-reduced scalar (S >= L), as both platforms
   do. A key whose bytes are not a valid curve point simply fails to verify (WebCrypto may throw on import: treat that
-  as `bad_sig`). The vectors avoid the few small-order-point cases where Ed25519 libraries are known to differ.
+  as `bad_sig`). Weak keys (3.1) are refused before any verification, so the small-order cases where Ed25519
+libraries are known to differ never reach a verifier.
 
 ### 3.3 Record ids
 
@@ -175,12 +188,16 @@ ciphertext with its 16-byte tag appended, 17 to 2048 bytes. Anything else is `ba
    `kind` (`offer` or `decline`), so a box can never be moved into a record of another kind.
 3. `aad = canon(the record without sig, its body without enc)`: the box is bound to `v`, `kind`, the author, `t` and
    every field left in clear (`to`, and `offer` for a decline).
-4. `c = AES-256-GCM(key, nonce n, plaintext = canon(the sealed fields as one object), aad)`. `n` is 12 random bytes,
-   never reused with the same key (pick them at random every time).
+4. `c = AES-256-GCM(key, nonce n, plaintext, aad)`, where `plaintext` is `canon(the sealed fields as one object)`
+   followed by spaces (0x20) up to the next multiple of 256 bytes, at most 2032 (so `c` stays within 2048 bytes; a longer
+   canonical text is not padded). `n` is 12 random bytes, never reused with the same key (pick them at random every
+   time). The padding keeps relays from telling deals apart by their length (a decline from a priced offer, a short
+   offer from a consortium); games before it sealed without padding.
 
 **Opening** is the same derivation from the other side (X25519 is symmetric: `X25519(B_priv, A) = shared`), then
 AES-GCM decryption with the same `aad`. A box that does not open (wrong keys, a changed field, a tampered ciphertext) is
-dropped silently. The plaintext is then read as JSON (2.2, 2.1) and checked as 5.3 says.
+dropped silently. The plaintext is then read as JSON (2.2, 2.1), its trailing spaces being JSON whitespace, so padded
+and unpadded boxes read alike, and checked as 5.3 says.
 
 **Why**: X25519, HKDF-SHA256 and AES-GCM are in WebCrypto and in Go's standard library, so neither side needs a library.
 Static keys on both sides mean an offer can be sealed for someone who is offline; the signature over the whole record
@@ -233,8 +250,10 @@ only a `state` frame (9.3) or a `states` frame (9.4) carries one; anywhere a rec
 | Text(n) | String, 0 to n code points, no bidi controls |
 | Label(n) | String, 1 to n code points, no bidi controls |
 | City | String matching `^[a-z0-9]{2,8}$`, a game city id. Unknown cities are not refused; the game ignores them |
+| Net | String matching `^[a-z0-9]{2,8}$`, the id of a computer-run network in the game's catalog (`NETS` in `src/game/30-networks/`; every id there has this shape, `tests/federation-exchanges.test.js` checks it). Like cities, the catalog is not part of this protocol: unknown ids are not refused, the game ignores them. A player's network is never a Net (it is a Key) |
 | CC | String matching `^[A-Z]{2}$`, a country code |
 | Mbps | Integer 0 to 1000000000 |
+| Traffic | Integer 0 to 1000000000000, in Mbps (up to 1 Ebps): a network's traffic as reported for the boards. Games from 4.2.1 send the full value; servers and games from before Traffic (relay 4.1.3) refuse more than 1000000000 (1 Pbps) |
 | Money | Integer 0 to 1000000000000, in game money |
 | Days | Integer 1 to 3650, real days |
 | Count(n) | Integer 0 to n |
@@ -251,6 +270,9 @@ ever hold one fault.
 A network's public description: enough for other games to build it as a network, plus its published terms. The newest
 `announce` of a key (greatest `t`, then lowest id) replaces older ones. A relay keeps at most one `announce` of a key per
 board slot (6.1, 10.1), the newest: a newer one in that slot replaces it, and an older one is refused (`refused`).
+A network's `founded` never changes: a relay refuses (`refused`) an `announce` whose `founded` differs from that of the
+newest `announce` of the key it holds, and a game keeps the `founded` a key first said and ignores announces saying
+another one.
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -264,11 +286,11 @@ board slot (6.1, 10.1), the newest: a newer one in that slot replaces it, and an
 | `ix` | [City] max 512 | Cities where it is at the exchange, unique, each also in `pops` |
 | `cust` | Count(10000000) | Number of customers |
 | `mix` | object | `{content, eyeball, enterprise}`, each Count(1000), summing to exactly 1000 (per mille of its traffic) |
-| `traffic` | object | `{in: Mbps, out: Mbps}`, its total traffic now |
+| `traffic` | object | `{in: Traffic, out: Traffic}`, its total traffic now |
 | `policy` | string | `open`, `selective` or `restrictive` |
 | `cond` | object | Required when `policy` is `selective`, refused (`bad_field`) otherwise. See below |
 | `rates` | object | Rate card, see below; `{}` when it sells nothing |
-| `auto` | object | How requests are handled: `{peering, transit, pni, swap, consortium, port, wave}`, each `auto`, `review` or `decline`. The first six are required; `wave` is optional (announces from before wave deals) and absent means `decline` (10.10) |
+| `auto` | object | How requests are handled: `{peering, transit, pni, swap, consortium, port, wave, cofound}`, each `auto`, `review` or `decline`. The first six are required; `wave` is optional (announces from before wave deals) and absent means `decline` (10.10); `cofound` likewise (feature `ix2`, below) |
 
 `cond`, the conditions of a selective policy: `{minMbps: Mbps, maxRatio: integer 100 to 100000 (the highest in/out ratio
 accepted, times 100: 300 means 3:1), minShared: Count(64) (shared locations), rpki: Bool, tier1: Bool (Tier 1 only),
@@ -279,11 +301,22 @@ ai: Bool (AI players accepted)}`, all required.
 - `transit`: `{perGbps: Money (per Gbps per month at the 95th percentile), commit: [{mbps: Mbps, off: Count(900)}] max 8
   with strictly ascending `mbps` (discount per mille for committing at least `mbps`), term: Days (minimum term)}`.
 - `pni`: `{setup: Money, ports: [{mbps: Mbps, monthly: Money}] 1 to 8 with strictly ascending mbps, term: Days}`.
-- `ix` (an exchange it runs): `{ports: [{mbps, monthly}] 1 to 8 with strictly ascending mbps, join: anyone|selective|approval, at: [City] 1 to 16 unique}`.
+- `ix` (an exchange it runs): `{ports: [{mbps, monthly}] 1 to 8 with strictly ascending mbps, join: anyone|selective|approval, at: [City] 1 to 16 unique, members?}`.
+  `members` (optional, feature `ix2`): who is on those exchanges, `[{at: City, nets: [Net] max 48, players: Count(64)}]`
+  1 to 16, one entry per city (`duplicate`), each `at` also in `ix.at` (`bad_field`). `nets` are the computer-run
+  networks that joined that exchange in the author's game, unique (`duplicate`); `players` how many players have a port
+  there (a running `port` or `cofound` deal it sells). A buyer's port reaches them too (10.10), and a co-founder's
+  share of member fees counts them. Absent: the buyer's port reaches the author and the open players it knows there.
 - `wave` (managed waves on routes it has lit): `{routes: [{a: City, b: City}] 1 to 32, sizes: [{gbps: 100|400|800|1600,
   monthly: Money}] 1 to 4 with strictly ascending gbps, term: Days (minimum term)}`. A route's cities are in byte order
   (`a < b`, `bad_field` otherwise; so a route has one spelling and a city is never paired with itself); routes are unique
   (`duplicate`). Whether the routes are really lit is the seller's game's business, not a rule here.
+
+**Feature `ix2`** (players' exchanges): `rates.ix.members` and `auto.cofound` are newer than this version's first
+relays, which refuse them (`unknown_field`). A game puts them in an announce only while every server it joined lists
+`ix2` in `feats` (9.3); a node passes an announce holding either only to sessions that listed `ix2` (9.3, 9.4). The
+`cofound` deal (5.3) needs no relay to know it (it travels sealed), but a game offers it only on an announce with
+`auto.cofound`, so only to a game that takes it.
 
 Example (keys and signatures shortened):
 
@@ -315,8 +348,8 @@ number at its maximum) is under the 40960-byte limit (13.2); the `records` vecto
 | `mode` | string | `normal`, `sandbox`, `open_gates`, `puzzle`, `scenario`, `weekly` or `architect`. Only `normal` is ranked |
 | `pops` | object | City → POPs in service in that city, 1 to 1000. At most 512 members (`too_many`); member names that are not City: `bad_field`; cities with none are left out. In this game version a network has at most one POP per city, so every count is 1; the count stays for later versions |
 | `pies` | Count(10000000), optional | Pies in service (`pieLiveAll()`). Absent: the save has no Pie in the Sky company |
-| `traffic` | [{key: Key, in: Mbps, out: Mbps}] max 256 | Traffic with each other player network right now: `in` received from it, `out` sent to it. Keys unique (`duplicate`), never the author's own (`bad_field`) |
-| `total` | Mbps, optional | The network's whole traffic right now, the busier direction: what the game shows as traffic served. Absent (older games): 0. Self-reported, nobody can confirm it; accepted, the boards are not competitive (ADR 0005) |
+| `traffic` | [{key: Key, in: Traffic, out: Traffic}] max 256 | Traffic with each other player network right now: `in` received from it, `out` sent to it. Keys unique (`duplicate`), never the author's own (`bad_field`) |
+| `total` | Traffic, optional | The network's whole traffic right now, the busier direction: what the game shows as traffic served. Absent (older games): 0. Self-reported, nobody can confirm it; accepted, the boards are not competitive (ADR 0005) |
 | `cust` | [Key] max 128, optional | Its transit customers among the player networks: those it sells transit to in a deal running now (5.3). Unique (`duplicate`), never the author's own key (`bad_field`). Absent: none. The cone board (10.4) counts an edge only when the customer confirms it in `up` |
 | `up` | [Key] max 16, optional | The player networks it buys transit from in a deal running now. Same rules as `cust` |
 | `tier1` | Bool | Tier 1 in the game's rank |
@@ -363,8 +396,8 @@ The offer in clear (an open consortium project on the wire, or a sealed offer on
 | Field | Type | Rule |
 | --- | --- | --- |
 | `to` | Key | The counterparty, never the author (`bad_field`). Optional for `consortium` only (absent: open to anyone; present: an invitation, sealed like any offer to someone) |
-| `deal` | string | `peering`, `transit`, `pni`, `swap`, `consortium`, `port` or `wave` |
-| `basis` | Id | The counterparty's `announce` whose terms the offer takes. Required for `peering`, `transit`, `pni`, `port`, `wave`; optional for `swap`; refused for `consortium` (`bad_field`) |
+| `deal` | string | `peering`, `transit`, `pni`, `swap`, `consortium`, `port`, `wave` or `cofound` |
+| `basis` | Id | The counterparty's `announce` whose terms the offer takes. Required for `peering`, `transit`, `pni`, `port`, `wave`, `cofound`; optional for `swap`; refused for `consortium` (`bad_field`) |
 | `renews` | Id, optional | The offer that started the running deal this one renews |
 | `terms` | object | By `deal`, below |
 
@@ -377,6 +410,16 @@ The offer in clear (an open consortium project on the wire, or a sealed offer on
 | `swap` | `{give: {a: City, b: City, mbps: Mbps}, take: {a: City, b: City, mbps: Mbps}, term: Days}` |
 | `consortium` | `{name: Name, a: City, b: City, members: integer 2 to 16, share: Money, pairs: integer 1 to 16}` |
 | `wave` | `{a: City, b: City (a < b, as on the card), gbps: 100\|400\|800\|1600, monthly: Money, term: Days, founded?}`: one wave the author buys from `to` |
+| `cofound` | `{at: City, share: integer 100 to 500, setup: Money, monthly: Money, term: Days}`: feature `ix2` (5.1). The author, who runs the exchange at `at`, offers `to` a share of it, in per mille: `to` pays `setup` once and `monthly` a month, gets a port on it, and earns `share` of its members' fees |
+
+`cofound` turns the usual direction around: the author sells and `to` pays. Each game books only its own side, as with
+every deal: the co-founder pays its `setup` when the deal starts and `monthly` while it runs, and earns
+`div(n * fee * share, 1000)` a month, where `n` is the number of `nets` in the `members` entry for `at` of the founder's
+newest announce it holds and `fee` is the game's monthly member fee; the founder earns `setup` and `monthly` and pays
+the same share of the fees its own members pay. The co-founder's port reaches the founder, the members and the open
+players at `at`, as a bought `port` does (10.10). A founder has at most two co-founders per exchange; that and whether
+the shares are fair (no more than `share` of the game's own founding cost and of its biggest fabric's monthly cost) are
+the co-founder's game's business, which declines (`conditions`) otherwise.
 
 `founded` (optional, Count(10000000), on the four priced deals): the buyer (the offer's author) claims the newcomer
 price, giving the real day it joined, as its `announce` says (5.1). 10.10 checks it.
@@ -454,7 +497,9 @@ The server's description, signed by a strict majority of its operators at `head`
 ### 5.7 `hide` (an operator)
 
 The server's moderation lists. The newest `hide` of a server (greatest `t`, then lowest id) signed by any of its
-current operators replaces the previous one; it applies on all its nodes and is advice to other servers.
+current operators replaces the previous one; it applies on all its nodes and is advice to other servers. A relay keeps
+one `hide` per server: it refuses one older than the one it holds (`refused`) and drops the one a newer one replaces
+at once. Like votes, only the `hide` records of the relay's own server and of registry servers are kept (8.3).
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -501,7 +546,11 @@ A node takes a report only when `server` is its own server (`not_node` otherwise
 holds an `announce` of (`refused`): operators judge reports by who sent them. It keeps one report per author and
 `target`, the newest (greatest `t`, then lowest id): a newer one replaces it, an older one is `refused`. It MAY bound
 what one author and everyone can make it keep (`too_many`); the reference relay takes at most 20 new reports per author
-per day, counted by receipt slot, and keeps at most 65536. Reports are kept 30 days (13.1).
+per day, counted by receipt slot, and keeps at most 65536. Keys cost nothing to make, so a node SHOULD keep room for
+reporters with history: the reference relay lets authors whose oldest announce it holds is younger than 7 days fill at
+most three quarters of it, and when it is full a report from an older author takes the place of the oldest report of
+the author whose oldest announce is newest. It also counts a game's reports by its address (at most 60 an hour,
+`rate_limited`). Reports are kept 30 days (13.1).
 
 ```json
 {"v":1,"kind":"report","key":"<bob>","t":1767312000,"sig":"…","body":{"server":"<id>","target":"<mallory>","reason":"offensive_name"}}
@@ -520,7 +569,11 @@ inventory, or signs a receipt for it; anywhere a record is expected (`put`, `pus
 - **Newest wins.** Of one key, a node keeps only the newest state it has (greatest `t`, then lowest id), in memory: an
   older or equal one changes nothing (and is not passed on). It forgets a key once its newest state is no longer live,
   and it MAY bound how many keys it keeps (answering `rate_limited` for a new key while full; the reference relay keeps
-  at most 50000 keys and 128 MB of states). A restart forgets every state.
+  at most 50000 keys and 128 MB of states). A node that bounds them SHOULD make room by dropping the states it heard
+  from least recently, those of keys without an announce first, rather than refuse a key that has one: keys cost
+  nothing to make, and states of made-up keys must not keep players off the boards of now. It MAY also bound how many
+  keys without an announce one connection, address or other server brings in an hour (`rate_limited`; the reference
+  relay: 16 per connection, 256 per address, 5000 per server). A restart forgets every state.
 - **State checks** (7.1 step 9) as for records of that key: `refused` (the key left with a later `t`, or the server
   refuses it), `shunned`.
 - **When a game sends one:** while the tab is visible and a session with a node that lists `state` in `feats` (9.3) is
@@ -549,18 +602,24 @@ When a node receives a record **from a client**, it signs a receipt. The receipt
 | Envelope | Rule |
 | --- | --- |
 | `key` | The node's key, which MUST be one of the server's nodes (`not_node`) |
-| `t` | `slot(receive time)`: a multiple of 300 (`bad_field`). Exact times are never kept |
+| `t` | `slot(receive time)`: a multiple of 300, and `slot(rec.t) - 600 <= t`, and, for a kind with a maximum age (13.2), `t <= rec.t + ` that age (each otherwise `bad_field`). Exact times are never kept |
 | `body.rec` | Id of the record (`bad_field` if it is not that record's id) |
 | `body.server` | The server identity (`bad_field` if not the server the node belongs to) |
 | `body.cc` | CC, optional: only on a `stats` record whose `shareCountry` is true (`bad_field` otherwise), and only when the node found a country for the connection |
 
-Size at most 1024 bytes. Time: `t > now + 600` is `too_new`; there is no maximum age.
+Size at most 1024 bytes. Time: `t > now + 600` is `too_new`; there is no maximum age. The bounds on `t` against the
+record's own `t` hold for every honest receipt (a node takes a record only while `rec.t <= now + 600` and within its
+kind's age, and signs at `slot(now)`); a receipt outside them would move the record's board slot to a time it never
+had, such as a slot long past or one more than 7 days back.
 A node receiving a record from another node keeps the receipts that came with it and adds none, except when a record
 arrives with no valid receipt at all, when it adds its own.
 
-A **valid receipt** is one that checks as above and whose `key` is a node of a server the checker knows: for a client,
-a server in its registry snapshot or catalog (10.8), or the server it is connected to (from its `welcome`); for a
-node, its own server or one it knows from the registry or gossip. Receipts from any other key are ignored. A `stats`
+A **valid receipt** is one that checks as above and whose `key` is a node of a server whose receipts count: a server
+in the checker's registry snapshot (11.3), and for a client the server it is connected to (from its `welcome`, with
+that server's nodes as its catalog has them), for a node its own server. A server known from gossip alone (10.8) costs
+nothing to make up (8.3), so its receipts could date any record to any slot: they are ignored, like those of any other
+key. A record that reaches a node with no valid receipt gets the node's own. Receipts are kept as the first copy of a
+record brought them; a later copy of the same record changes nothing (10.11). A `stats`
 record without a valid receipt has no board slot and is not ranked (10.1).
 
 ### 6.2 Proofs (a node)
@@ -571,6 +630,21 @@ the body's shape, such as a missing or extra field, a wrong `v`, a malformed key
 never the record error codes); `kind` is `proof`, `key` is the node it asked, `body.server` is the server it expected
 (each otherwise `bad_challenge`); the signature (`bad_sig`); `body.nonce` is the nonce it sent and `|t - now| <= 300`
 (otherwise `bad_challenge`). Nonces are 32 random bytes, used once.
+
+**Bound proofs (node handshakes).** A proof answering a client's `challenge` names no checker, so anyone can obtain
+one from any node, over any nonce. In a node handshake (9.4) such a proof would let someone pass as that node by
+relaying the checker's nonce to it. So a node that lists `bind` in its `feats` signs, in node handshakes, a body
+`{nonce, role, server, to}`: `to` is the node key of the node that will check the proof, `role` is `"answer"` in a
+`welcome` and `"call"` in the caller's `proof`. `to` and `role` come together or not at all. The checker additionally
+requires `to` to be its own key and `role` the other side's role (`bad_challenge`); a client checking a `challenge`
+refuses a bound proof. A node refuses an unbound proof in a node handshake, except from a node of another server
+that did not list `bind` (older relays, for the transition) and that is neither in the node's registry snapshot nor
+known to bind (its catalog entry's `impl` names a relay that binds, or it bound its proofs in an earlier session).
+A session proved with an unbound proof never displaces or blocks one whose proof was bound: of two sessions with one
+server the bound one stays (10.9), and an unbound one does not stop a node from dialling that server. The transition
+ends with the next major version of the protocol's reference relay, which takes bound proofs only. A `hello` that claims the answerer's own server and does
+not list `bind` is refused with `bad_challenge` before any proof is made, and a node only accepts a `welcome` from
+its own server at the URL its chain lists for that node.
 
 ## 7. Validation order and error codes
 
@@ -679,7 +753,12 @@ majority stays applied however old it is. Relays drop expired pending proposals 
 A `server` record is **valid** when its `head` is the genesis id or an applied proposal (otherwise `bad_chain`), its
 `nodes` and `operators` equal the lists at that head (`bad_chain`), and the number of its signers who were operators at
 that head, times 2, is greater than the number of those operators (`no_majority`). The **current** server record is the
-valid one with the greatest `t` (then lowest id). The lists shown for a server always come from the chain; the
+valid one at the chain's final head with the greatest `t` (then lowest id); only while there is none at the final head
+(its operators have not signed one since the last change) is it the newest valid one at the latest earlier head that
+has one. A record at an earlier head never wins over one at a later head, whatever its `t`: a key removed from the
+chain can still sign valid records at the heads where it was an operator. For the same reason a node takes a **new**
+server record (one it does not hold yet) from a client or another server only when its `head` is the final head
+(`bad_chain` otherwise); the nodes of one server pass each other what they hold. The lists shown for a server always come from the chain; the
 descriptive fields (`name`, `sync`, `noLogs`, `langs`, `desc`) from the current server record, or the genesis `name`
 while there is none.
 
@@ -692,10 +771,12 @@ not yet signed one after the last change) emits no catalog entry and cannot make
 
 `hide`, `shun` and `unshun` are accepted from a key that is a current operator of `body.server` (`not_operator`
 otherwise), as far as the receiver knows the server's chain (`unknown_server` if it knows nothing of it). Relays keep
-and pass on `shun` and `unshun` only of servers in their registry snapshot (11.3), with its operator lists, and of their
-own server; any other is refused (`unknown_server`) and neither stored nor passed on: such a vote could never count
-(10.7 counts registry servers only), and a server known from gossip alone costs nothing to make up, so keeping its votes
-would let anyone fill every relay's store and tally. A relay MAY also bound the votes it keeps of one server (the
+and pass on `hide`, `shun` and `unshun` only of servers in their registry snapshot (11.3), with its operator lists, and
+of their own server; any other is refused (`unknown_server`) and neither stored nor passed on: such a vote could never
+count (10.7 counts registry servers only), and a server known from gossip alone costs nothing to make up, so keeping its
+votes or hides would let anyone fill every relay's store and tally. A `hide` from a client or another server counts
+against the receiving relay's growth budgets like any other record (the reference relay lets its own server's `hide`
+pass its high-water mark). A relay MAY also bound the votes it keeps of one server (the
 reference relay: 8192; over it, `too_many`).
 
 ## 9. The wire protocol
@@ -708,10 +789,20 @@ reference relay: 8192; over it, `too_many`).
   name ending in `.localhost`) dials a node whose URL host ends in `.localhost` with plain `ws://` instead, so a relay
   run on the same machine needs no certificate. URLs in records stay `wss://`; nothing else changes. The page players
   load is never on a loopback host, so this never applies to them.
+- A node URL is dialled as it is: an answer to the opening request that redirects (3xx) is a failed connection, never
+  followed. A node dialling a URL it did not get from its operator (from the registry or the catalog, for an
+  automatic peer, 10.9) connects only to public unicast addresses, checked on the address it actually connects to:
+  never loopback, private (RFC 1918, `fc00::/7`), link-local, `100.64.0.0/10`, unspecified, multicast or reserved
+  ones, nor an IPv6 address that carries such an IPv4 address (IPv4-compatible `::/96`, NAT64 `64:ff9b::/96`, 6to4
+  `2002::/16`) or hides one (Teredo `2001::/32`), nor site-local `fec0::/10`. URLs the operator gave (neighbours, seeds, the server's own nodes, a LAN server's) may be anywhere.
 - Every message is one **text frame** holding one JSON object with a string member `m` (the message type). Binary
   frames close the connection.
 - Frame limits: **65536 bytes** between clients and nodes, **1048576 bytes** between nodes. Larger: `too_big`, and the
-  connection closes.
+  connection closes. A node session has the node limit only once the peer's proof has checked; until then (`hello`,
+  `welcome`, `proof`) the client limit applies.
+- A node takes connections without an `Origin` header (agents, other nodes) and from the game's pages; a browser
+  connection from another website's page may be refused with HTTP 403 before the WebSocket opens. Too many connections
+  from one address are refused with HTTP 429 and `Retry-After`.
 - Members of a frame not defined here are ignored (records inside frames are strict, frames are not). Nothing outside
   the records is ever stored.
 - **Requests** carry `id`, an integer 1 to 2147483647 chosen by the sender; the answer echoes it. Messages that are not
@@ -738,17 +829,17 @@ it is neither answered nor a reason to close, so an older game keeps working wit
 
 | Message | Direction | Fields | Answer |
 | --- | --- | --- | --- |
-| `hello` | client → node | `vers`, `role: "client"` | `welcome` |
-| `welcome` | node → client | `ver` (chosen), `server` (Id), `node` (Key), `now`, `impl` (optional, below), `feats` (optional, below) | |
+| `hello` | client → node | `vers`, `role: "client"`, `feats` (optional, below) | `welcome` |
+| `welcome` | node → client | `ver` (chosen), `server` (Id), `node` (Key), `now`, `impl` (optional, below), `feats` (optional, below), `nonce` (Nonce, optional: for bound `auth`, below) | |
 | `update` | node → client | `version`, `security` (Bool), `source` (`feed` or `github`), `notes` (optional, an `https://` URL); no `id` | Only to a session that proved an operator key of the node's server: a newer relay is out (below) |
-| `auth` | client → node | `id`, `key` (Key), `t` (unix seconds), `sig` (Sig) | `ack` with `op`, or `err` (`bad_key`, `bad_sig`, `too_old`, `too_new`, `too_many`): proves the session holds `key` (below) |
+| `auth` | client → node | `id`, `key` (Key), `t` (unix seconds), `sig` (Sig), `url` (only in a bound auth, below) | `ack` with `op`, or `err` (`bad_key`, `bad_sig`, `too_old`, `too_new`, `too_many`): proves the session holds `key` (below) |
 | `challenge` | client → node | `id`, `nonce` | `proof` `{m, id, proof}`, a proof envelope (6.2) |
 | `put` | client → node | `id`, `rec` (a record) | `ack` or `err` |
 | `state` | client → node | `id` (optional), `rec` (a live state, 5.11) | with `id`: `ack` (`rid`, `dup`: it was not newer) or `err`; without: only an `err` |
 | `ack` | node → client | `id`; answering `put` and `cosign` also `rid` (record id), `dup` (Bool: already had it) and `rcpt` (the receipt, when the record came from this client); answering `auth` also `op` (Bool: `key` is a current operator of this node's server); answering `unsub` only `id` | |
 | `excluded` | node → client | `keys` ([Key], sorted), `more` (Bool), `reasons` ([reason], only to a session that proved an excluded key); no `id` | The networks this server excludes now (10.7), below |
 | `cosign` | client → node | `id`, `rid` (a pending proposal or server record), `key`, `sig` | `ack` or `err`: adds one operator signature to a multi-signer record (same check as 4 and 8) |
-| `sub` | client → node | `id`, `kinds` ([kind]), `since` (cursor, `""` for everything kept) | `recs` frames carrying the `id`, first the backlog, then live records, until `unsub` |
+| `sub` | client → node | `id`, `kinds` ([kind]), `since` (cursor, `""` for everything kept) | `recs` frames carrying the `id`, first the backlog, then live records, until `unsub` (a new record goes once per connection: see below) |
 | `unsub` | client → node | `id` (of the `sub`) | `ack` |
 | `fetch` | client → node | `id`, `ids` ([Id] max 256) | `recs` (missing ids are left out) |
 | `rank` | client → node | `id`, `board`, `measure`, `division`, `filters` (optional), `n` (optional) | `ranks`: the top rows of a slice and the asker's own row (9.5) |
@@ -774,6 +865,9 @@ it is neither answered nor a reason to close, so an older game keeps working wit
   too often, or while several of its answers are still being sent. A node MAY stop a backlog frame after skipping
   records the session may not see (shun votes, others' deals), so a frame can hold no items with `more: true`; its
   cursor still covers what was skipped.
+- **One live copy per connection.** When several `sub`s of one connection follow a record's kind, a node sends the new
+  record once, in the `recs` of the lowest `id` among those whose backlog is sent; each backlog is still sent whole.
+  A client that wants a kind live follows it in one `sub`.
 - **`sub` kinds** this version does not define are ignored. A `sub` left with no kind (`kinds: []`, or only unknown
   ones) gets one `recs` frame with no items and `more: false`, and no live records: never every kind.
 - **A `catalog` answer** that does not fit in one frame is split across several `catalog` frames with the same `id`,
@@ -786,6 +880,15 @@ it is neither answered nor a reason to close, so an older game keeps working wit
   `key` is a current operator of the node's server (`op`). Proved keys last as long as the connection and are never
   stored. A game sends `auth` with its network's key, and with an imported operator key of that server, after it checked
   the node and before its `sub`.
+  **Bound auth.** The form above names no session and no address, so a server a game talks to could pass the game's
+  `auth` on to a node of another server within the 600 s, if the game took that server's `welcome` for the other's. A
+  node that lists `bind` in its client `welcome` and knows its own URL also puts a fresh `nonce` (32 random bytes, one
+  per connection) in it. A game that sees both signs instead `{"m": "auth", "key", "node", "nonce": <the welcome's
+  nonce>, "server", "t", "url": <the URL it dialled>}` and sends `url` in the `auth` frame. The node checks it as above,
+  and that `url` is one of its own (its configured URL and the one its chain lists for it) and the nonce the one it sent
+  on this connection: otherwise `bad_sig`, as for an auth signed for another node. A frame with a `url` member is
+  always checked as bound. A node MAY still take the older form from games that predate this (the reference relay:
+  config `legacyAuth`, default true for now; set to false, the older form is `bad_sig`).
 - **Shun votes go to operators only.** A node sends `shun` and `unshun` records to a client session only when it proved
   a key that is a current operator of the node's server: other sessions never get them, from `sub` (backlog and live),
   `fetch` or `rankwhy`, and are not told they were left out. Between nodes they travel unchanged (9.4).
@@ -815,6 +918,12 @@ it is neither answered nor a reason to close, so an older game keeps working wit
   anything else. A game sends `state` frames, and asks for boards of `now`, only to a node whose `welcome` lists
   `state` (an older node would close the connection on a message it does not know). The same member is in a node's
   `hello` and `welcome` (9.4).
+  **`bind`** in a client `welcome` means the node takes bound `auth` (above), when the `welcome` also has a `nonce`.
+  **`ix2`** means it takes the fields of players' exchanges (5.1 `rates.ix.members`, `auto.cofound`): a game puts them
+  in an announce only while every server it joined lists `ix2` in its `welcome`. A client lists what it takes in its own
+  `hello` (`feats: ["ix2"]`; an older node ignores the member): a node sends a record holding `ix2` fields to a client
+  session only when its `hello` listed `ix2`, from `sub` (backlog and live), `fetch` and `rankwhy` alike, and the session
+  is not told what it did not get (an older game would refuse the record and drop the whole announce).
 - **`state`** sends a live state (5.11). The node checks it (7.1 steps 2 to 8 for kind `state`, then 5.11's state
   checks); a newer state is kept in memory and passed on to other nodes (9.4). A node limits each connection's states
   on its own: the reference relay allows one every 4 s with a burst of 2, and answers `rate_limited` (with `retry`)
@@ -831,7 +940,15 @@ it is neither answered nor a reason to close, so an older game keeps working wit
   line does the same over its local socket.
 - A node attaches a receipt only to records it received from a client, and rate-limits each key (at most one `stats`
   per slot: `rate_limited`). Before a client has put anything, a node may rate-limit by connection address **in memory
-  only** (section 12).
+  only** (section 12). Keys cost nothing to make, so a node MAY also bound, per hour, how many keys it holds no record
+  of yet, and how many bytes of new records, one connection, one address (counted in memory only) or one other server
+  brings (`rate_limited`), and MAY refuse records of keys without an announce while its storage is nearly full
+  (`rate_limited`). A node that answers a pushed record `rate_limited` does not remember it as refused: it is
+  wanted again later in the session (the reference relay: every 10 minutes) and in a later session. A server's
+  identity costs nothing to make up, so a node that bounds other servers SHOULD give its own budget only to servers in
+  its registry snapshot and to its configured neighbours, have all other servers share one (and count their sessions
+  by address too, as clients are), and SHOULD NOT charge a server for a record it passes on that carries a receipt
+  of a registry server or of the node's own server: that server counted it when it first took it.
 
 ### 9.4 Node and node
 
@@ -873,9 +990,13 @@ Nodes of one server, and nodes of different servers that sync, use the same tran
    which are in no class: they **never** travel to another server, and a node takes none from one (`bad_kind`). A server MAY take records
    without passing them on.
 3. **Inventory.** After `carry`, each side sends `inv` for what it will send; the other answers `want` with ids it
-   neither has nor has refused; the first side `push`es them. Afterwards new records are `push`ed as they arrive.
+   neither has nor has refused. Each side sends `carry` once per session; a node answers only the first (a later one
+   is ignored: each answer walks the whole store); the first side `push`es them. Afterwards new records are `push`ed as they arrive.
    Every pushed record is checked like a record from a client (7.1); invalid ones are dropped and logged by kind and
    code, never forwarded.
+   **Feature `ix2`:** a record holding `ix2` fields (5.1) is neither listed in an `inv`, nor answered to a `want`, nor
+   pushed live to a peer whose `hello` or `welcome` did not list `ix2` in `feats`, nodes of the same server included
+   (a server upgrades its nodes one at a time). Such a peer refuses those fields, so it never asks for them again.
 4. Records keep their original signatures and receipts on every hop. Each record is stored once per server, however
    many paths brought it (10.11).
 5. **Pacing.** A node answers `want` with `push` frames one at a time as the peer takes them, and MAY slow down reading
@@ -984,7 +1105,8 @@ it was silent for more than 72 hours and has posted again since.
   `c - 288 * 300` to `c - 300`, followed by the **running slot** `c` for keys with a live state (10.13). The **previous window** is the 288 slots before that: `c - 576 * 300` to
   `c - 289 * 300`. The slot `c` itself is still running and belongs to neither.
 - The **board slot** of a record is the slot of its receipt (6.1). When a record carries several valid receipts, the
-  earliest `t` among them. Never the author's `t`. A record with no valid receipt (6.1) has no board slot and takes no
+  earliest `t` among them. Only receipts of registry servers and of the server that took the record count, and none
+  is earlier than `slot(rec.t) - 600` (6.1). Never the author's `t`. A record with no valid receipt (6.1) has no board slot and takes no
   part in any board.
 
 ### 10.2 Effective record
@@ -1071,7 +1193,9 @@ the total over the previous window (10.4, each over its own slots):
 growth = div((cur - prev) * 10000, max(prev, FLOOR))      in basis points (10000 = +100%)
 ```
 
-(for POPs and pies, `cur` and `prev` are each window's latest value, 10.4) with FLOOR = 10 for POPs and the customer cone, 100 for pies and 1000 (Mbps) for traffic and total traffic. Note floor division: -333.3 is -334.
+(for POPs and pies, `cur` and `prev` are each window's latest value, 10.4) with FLOOR = 10 for POPs and the customer cone, 100 for pies and 1000 (Mbps) for traffic and total traffic. Note floor division: -333.3 is -334. With Traffic values,
+`(cur - prev) * 10000` can pass 2^53 (256 partners of 10^12 Mbps: 2.56 × 10^18), so it is worked out exactly (JS:
+BigInt; Go: int64 holds it); the growth itself stays a safe integer.
 
 ### 10.6 Quiet networks
 
@@ -1146,25 +1270,46 @@ Receiving an entry from a neighbour, a server with identity `self`:
 1. Refuses it (`err`, no store, the session goes on) if its canonical JSON (2.3) is over 61440 bytes (`too_big`: every
    entry kept then fits a client's `catalog` frame), if the records do not check (sections 4, 5, 8; the server record
    must be at the chain's final head), if `path` is empty, its first element is not the entry's server identity
-   (`bad_field`), it has more than 16 elements (`too_many`) or repeats one (`duplicate`), or `seen > now + 600`
+   (`bad_field`), an element is not a server identity (`bad_field`), it has more than 16 elements (`too_many`) or
+   repeats one (`duplicate`), or `seen > now + 600`
    (`too_new`). A relay checks the size before any signature, and need not check again the records of an entry it
    holds unchanged.
 2. Drops it silently if `self` is in `path` (a loop) or if `now >= seen + 604800` (expired).
 3. Otherwise stores it, and passes it on to neighbours that take `catalog` as `path + [self]`, unless that would make
-   the path longer than 16. It also passes it, unchanged (same `path`, `seen` and `impl`), to the other nodes of its own
+   the path longer than 16, and only when what it keeps changed (an older entry again changes nothing) or it last
+   passed that server's entry on 600 s ago or more; the reference relay passes one server's entry on at most once a
+   minute however often it changes. It also passes it, unchanged (same `path`, `seen` and `impl`), to the other nodes of its own
    server, which are not a hop: with one session per pair of servers (10.9) often only one of them has a session with
    the server the entry came from. A node starting a session with another node of its server sends it the entries it
-   keeps in the same way.
-4. A relay MAY bound the entries it keeps, in all and per neighbour they first came from (the reference relay: 4096
-   and 512). An entry for a server it does not keep yet is then dropped silently; entries it keeps still update.
+   keeps in the same way. Either list is sent a frame at a time as the other side reads, never all at once.
+4. A relay MAY bound the entries it keeps, in all and per neighbour they first came from, by count and by bytes of
+   their records (the reference relay: 4096 and 512 entries, 16 MiB and 2 MiB; servers not in its registry share 1024
+   entries and 4 MiB of it). An entry for a server it does not keep yet is then dropped silently; entries it keeps still
+   update, unless newer records would pass a bound (then it keeps the records it has). Entries of servers outside the
+   registry cost nothing to make up, so they SHOULD NOT keep out a registry server's: a neighbour's bound for registry
+   servers' entries leaves out the unlisted ones it passed on, and a registry server's entry takes the place of the
+   unlisted entry seen least recently when the catalog is full.
+5. A server's chain only grows (8.1). If the server already holds a chain for that server identity (from its registry
+   snapshot or an entry kept), an entry whose chain neither extends that chain nor is part of it (the head held is not
+   one of the entry's heads, and the entry's head is not one of those held) is a **fork**: signed by keys that were
+   operators at some head and are no longer. It is dropped silently and the entry held stays (a relay MAY count and
+   log it). An entry whose chain is longer replaces the one held; one at the same head replaces it when its server
+   record is newer (greatest `t`, then lowest id); one whose chain is part of the one held never changes the records.
+
+`path` and `seen` are not signed: any server passing an entry on can change them. They are advisory, for display and
+for choosing among entries (below); nothing a relay or game decides for trust or safety may rest on them.
 
 **Merging** what a viewer knows (clients and relays alike), per server identity:
 
 - Gossip entries with `now >= seen + 604800` are ignored first.
 - In the registry: genesis, chain and server record come from the registry, whatever gossip says. Gossip only adds
   `seen` and `path` (chosen as below). Registry servers never expire; without gossip their `seen` is unknown.
-- Gossip only: the entry with the newest server record (greatest `t`, then lowest id) gives the records; `seen` is the
-  greatest `seen` of all entries for it, and `path` comes from the entry with that `seen` (then the shortest path, then
+- Gossip only: the **chain held** is that of the first entry (in the order they arrived), then of each later entry whose
+  chain extends it. Entries whose chain is neither the chain held nor part of it (forks) are ignored here and below.
+  Of the entries at its final head, the one with the newest server record (greatest `t`, then lowest id) gives the
+  records, whatever the `t` of records at earlier heads.
+- `seen` is the greatest `seen` of the entries whose chain agrees with the chain held (the registry's, or gossip's as
+  above): it is part of it or extends it. `path` comes from the entry with that `seen` (then the shortest path, then
   the lowest path compared element by element). `impl`, registry or not, comes from the freshest entry that has one. The server is forgotten when `now >= seen + 604800`.
 - Standalone servers neither send nor take gossip (`policy`).
 
@@ -1235,14 +1380,17 @@ not an `announce` by `to`). It is checked, in this order:
 1. `basis.t <= offer.t`, otherwise `bad_field`.
 2. **Still current**: the next `announce` by `to` after `basis` (smallest `t` greater than `basis.t`), if any, has
    `t > offer.t - 86400`. Otherwise `stale_terms`. (A day of grace for terms that changed while the offer was on its way.)
-3. `basis.auto[deal]` is `decline`, or absent (an announce from before `wave` deals has no `auto.wave`): `declined`.
+3. `basis.auto[deal]` is `decline`, or absent (an announce from before `wave` deals has no `auto.wave`, one without
+   feature `ix2` no `auto.cofound`): `declined`.
 4. **Terms are the published ones** (`no_terms` when the basis publishes none for this deal, `bad_terms` when they
    differ):
    - `transit`: let `off` be the `off` of the commit tier with the greatest `mbps <= terms.mbps` (0 when none). Then
      `terms.perGbps` MUST equal `div(perGbps * (1000 - off), 1000)` and `terms.term >= rates.transit.term`.
    - `pni`: a port with `mbps == terms.mbps` exists; `terms.setup == rates.pni.setup`, `terms.monthly` equals that port's
      `monthly`, `terms.term >= rates.pni.term`.
-   - `port`: `terms.at` is in `rates.ix.at`, a port with that `mbps` exists, `monthly` equal, `term >= 30`.
+   - `port`: `terms.at` is in `rates.ix.at`, a port with that `mbps` exists, `monthly` equal, `term >= 30`. While it
+     runs, the buyer's game reaches the seller, the open players whose newest announce lists `at` in `ix`, and the `nets`
+     of the `members` entry for `at` in the seller's newest announce it holds (5.1), through that port.
    - `wave`: `{a, b}` is one of `rates.wave.routes` (same `a`, same `b`); a size with `gbps == terms.gbps` exists;
      `terms.monthly` equals its `monthly`; `terms.term >= rates.wave.term`. The computer-run price of a wave (what the
      game's own vendors charge) is a ceiling the seller's game applies when it publishes, as it does for transit; it is
@@ -1251,13 +1399,16 @@ not an `announce` by `to`). It is checked, in this order:
      nothing in the buyer's.
    - `peering`, `swap`, `consortium`: no prices. The policy's conditions (`cond`) need game data and are checked by the
      game, not by these rules.
+   - `cofound`: no prices either. The basis is the counterparty's announce (the co-founder's); the founder sets the
+     terms, and the co-founder's game judges them (5.3).
    - **Newcomer price.** When `terms` has `founded` (transit, pni, port, wave), let `d = div(offer.t, 86400)`. It is
      allowed when `d - terms.founded` is 0 to 29 (the buyer joined less than 30 days before the offer) and the basis's
      `founded` gives `d - basis.founded >= 30` (the seller is established); otherwise `bad_terms`. Every price above is
      then `div(p * 750, 1000)` of the card's `p` (the transit price after its commit tier, the PNI's `setup` and
      `monthly`, the port's and the wave's `monthly`): 25% off, rounded down. Both games compute it from the offer and
      the basis alone, so they agree on the price. That `terms.founded` is the buyer's real join day is the seller's
-     game's business: it declines (`conditions`) when the buyer's newest announce it has says otherwise. Two newcomers
+     game's business: it declines (`conditions`) when the buyer's newest announce it has says otherwise, or when it
+     first heard of the buyer more than a day before `terms.founded`. Two newcomers
      get no discount from each other; a renewal gets it only while the buyer is still new.
 5. Then: with `auto`, the deal is binding at once (`start = offer.t`); with `review`, it binds when the counterparty
    signs `accept` (`start = accept.t`). `end = start + term * 86400`; deals whose terms have no `term` (peering,
@@ -1274,7 +1425,8 @@ before acting on it or accepting it.
 
 **Prices change only at renewal.** A running deal keeps its terms until `end`, whatever newer announces say. A renewal
 is an offer with `renews` set, checked as above against the basis it names; its deal starts at
-`max(end of the renewed deal, its own start)` and runs its own term. A `decline` with reason `depeer` ends a deal at the
+`max(end of the renewed deal, its own start)` and runs its own term. Only the network the renewed deal is with can
+renew it: the counterparty declines (`conditions`) an offer whose `renews` names no deal it has with the offer's author. A `decline` with reason `depeer` ends a deal at the
 decline's `t`.
 
 ### 10.11 Merging and dedupe
@@ -1389,13 +1541,20 @@ Run by CI on every pull request that touches `federation/servers/`, for each add
 6. `server.body.noLogs` is true (`no_logs`), and every node URL in the file (the genesis node, `url` of the chain's
    proposals, the server record's `nodes`) names a host anyone can look up: no IP literal and no host ending in
    `.local` (`local_url`). Such servers are valid and can be joined by invite (a LAN party), but are not listed.
-7. No other file's server name equals this one when both are compared with `A`–`Z` turned into `a`–`z` (`name_taken`).
+7. The server name uses only ASCII letters and digits, the punctuation `- . ' & ! + _ : , ( ) /` and single spaces
+   between other characters (`bad_name`): so no listed name can pass for another with look-alike characters (Cyrillic or
+   Greek letters, fullwidth forms, two spaces for one). Such names are fine for a server, which can be joined by invite
+   or found through gossip; they are only not listed. Then no other file's server name equals this one when both are compared with `A`–`Z` turned into `a`–`z` (`name_taken`).
    Only other files whose server name can be read (the file parses as JSON with a `server` record holding a string
    `name`) are compared; files that do not parse are skipped here (they fail their own check).
 8. If the file exists on the base branch, `listed` and `answered` are unchanged (`bad_field`). This step does not
    apply to the weekly liveness pull request from `federation-liveness.yml` (11.3), the one place stamps change.
    `relay registry-file` copies both stamps from the existing file (`--from FILE`, by default
    `federation/servers/<id>.json` when present and not empty), so a replacement made with it passes.
+   The file also only moves its server forward: the base file's `chain` is a prefix of the new one (`bad_chain`), and
+   the new `server` record is the base file's (same id) or has a greater `t` (`too_old`). Relays prefer the registry's
+   chain to gossip (10.8), so an earlier signed file (from before an operator or a node was removed) must never replace
+   a later one. A base file that does not pass steps 1 to 5 itself is not compared.
 9. At least one listed node answers: the check connects to each node's URL in turn (10 s timeout each), sends `hello`
    and `challenge`, and checks the `proof` (6.2) (`no_answer` when none does).
 
@@ -1459,6 +1618,9 @@ running version `own`:
    kept through failures. The last `relay.json` read stands unless GitHub has a newer release, and a `relay.json`
    read again replaces what GitHub said.
 
+A relay with no registry configured (a LAN or offline server) reads no `relay.json` and asks GitHub nothing: it has
+no hint.
+
 Versions other servers report (`impl`, 10.8 and 9.4) are shown and never give a hint, however many report one.
 
 How a relay tells its operators is up to it (the reference relay: its log, `relay status`, metrics, the `update` frame
@@ -1473,7 +1635,8 @@ of 9.3 and an optional webhook; see docs/RELAY.md). It never tells anyone else.
 2. The only place a country appears is `cc` in a receipt for a `stats` record whose author set `shareCountry`.
 3. Receipt times are slots: exact times of activity are never kept.
 4. A relay uses the connection address only in memory: to look up the country (in a country-only database) and to
-   rate-limit connections before a client has put anything, counting for a few minutes. It never writes it.
+   rate-limit connections before a client has put anything, counting for a few minutes, and to count what new keys
+   and records the address brings, for at most an hour (9.3). It never writes it.
 5. Relay logs hold counts, error codes, record kinds and network keys; never addresses or headers.
 6. Registered servers declare `noLogs: true` for everything in front of the relay too.
 7. Shun votes are for operators: a `shun` or `unshun` record goes from node to node, and from a node only to a client
@@ -1555,6 +1718,8 @@ of 9.3 and an optional webhook; see docs/RELAY.md). It never tells anyone else.
 | POP cities in `announce` and `stats` | 512 |
 | Traffic entries | 256 |
 | `stats` `cust`, `up` | 128, 16 |
+| `rates.ix.members`: exchanges, networks on each, players on each (`ix2`) | 16, 48, 64 |
+| Co-founders of one exchange (`cofound`, the co-founder's game checks) | 2 |
 | Signers, operators, nodes | 16 |
 | Box ciphertext (3.5), tag included | 17 to 2048 bytes |
 | Keys proved by one client session (`auth`) | 4 |

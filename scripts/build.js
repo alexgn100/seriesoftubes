@@ -46,7 +46,7 @@ fs.writeFileSync(path.join(OUT, 'federation', 'relay.json'), JSON.stringify(rela
 function relayFeed() {
   const sec = require(path.join(ROOT, 'package.json')).relaySecurity;
   if (sec !== undefined && (typeof sec !== 'string' || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(sec))) die(`package.json relaySecurity '${sec}' is not a version x.y.z`);
-  const m = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').match(new RegExp(`^## \\[${VERSION.replace(/[.+]/g, '\\$&')}\\] — (\\d{4}-\\d{2}-\\d{2})`, 'm'));
+  const m = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').match(new RegExp(`^## \\[${VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\] — (\\d{4}-\\d{2}-\\d{2})`, 'm'));
   const f = { v: 1, version: VERSION, released: m ? m[1] : BUILD_DATE, security: sec === VERSION,
     notes: `https://github.com/fjaeckel/seriesoftubes/releases/tag/v${VERSION}` };
   if (sec) f.minSafe = sec;
@@ -64,6 +64,8 @@ if (!html.includes(PH)) die('release-notes placeholder missing from the page');
 const story = execFileSync(process.execPath, [path.join(__dirname, 'release-notes.js'), VERSION, '--story'], { encoding: 'utf8' }), PS = '/*__RELEASE_STORY__*/[]';
 if (!html.includes(PS)) die('release-story placeholder missing from the page');
 fs.writeFileSync(page, html.replace(PH, () => notes.replace(/</g, '\\u003c')).replace(PS, () => story.replace(/</g, '\\u003c')));
+// Last change to the page: its Content Security Policy, with the hashes of its finished inline scripts.
+fs.writeFileSync(page, require('./lib/csp').withCsp(fs.readFileSync(page, 'utf8')));
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify({ version: VERSION, date: BUILD_DATE, notes: JSON.parse(notes), story: JSON.parse(story) }, null, 2) + '\n');
 
 // Nothing may ship half-stamped.

@@ -111,7 +111,7 @@ test('n opens the NOC dashboard, and n followed by a letter opens one of its tab
   key('c'); assert.equal(tab(), 'conn', 'n c: Connections');
   key('n'); assert.ok(open(), 'n does not close it, so n c can switch tabs without a flash');
   key('u'); assert.equal(tab(), 'cust');
-  for (const [l, t] of [['o', 'overview'], ['t', 'traffic'], ['r', 'infra'], ['l', 'lease'], ['c', 'conn']]) { key('n'); key(l); assert.equal(tab(), t, 'n ' + l); }
+  for (const [l, t] of [['o', 'overview'], ['t', 'traffic'], ['r', 'routers'], ['k', 'links'], ['l', 'lease'], ['c', 'conn']]) { key('n'); key(l); assert.equal(tab(), t, 'n ' + l); }
   key('o'); assert.equal(tab(), 'conn', 'a letter on its own does nothing');
   key('n'); key('Shift'); key('T'); assert.equal(tab(), 'traffic', 'Shift on the way does not cancel it');
   key('n'); ev('keyLead=Date.now()-KEY_LEAD-1'); key('c'); assert.equal(tab(), 'traffic', 'too late: the letter stands alone');
@@ -130,7 +130,7 @@ test('? shows every keyboard shortcut and closes again; Help links to it on a co
   key('?');
   assert.equal(ev("$('modal').className"), 'keys', '? opens the list');
   const txt = doc.getElementById('modalCard').textContent;
-  for (const s of ['Keyboard shortcuts', 'Move around the map', 'Space', 'Pause or play', 'Find a city', 'Previous or next of your POPs', 'Next open offer, soonest to expire first', 'Zoom the map out or in', 'NOC dashboard', 'Connections', 'Leased lines', 'Esc', 'Show this list'])
+  for (const s of ['Keyboard shortcuts', 'Move around the map', 'Space', 'Pause or play', 'Find anything', 'Previous or next of your POPs', 'Next open offer, soonest to expire first', 'Zoom the map out or in', 'NOC dashboard', 'Connections', 'Leased lines', 'Esc', 'Show this list'])
     assert.ok(txt.includes(s), s);
   for (const k of ['←', '↑', '↓', '→', 'w', 'a', 's', 'd', '[', ']', '$', '-', '=', '/', '?', '0', '4', 'n', 'o', 'u', 'c', 't', 'r', 'l']) assert.ok([...doc.querySelectorAll('#modalCard .kbd')].some(e => e.textContent === k), k);
   key('?', null, { repeat: true }); assert.equal(ev("$('modal').hidden"), false, 'holding ? does not flicker it');

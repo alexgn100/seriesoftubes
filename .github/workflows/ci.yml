@@ -133,6 +133,16 @@ jobs:
         if: steps.has.outputs.relay == 'true'
         working-directory: relay
         run: go vet ./...
+      # Every platform the release ships builds here too, so a platform-specific API cannot fail only at release time.
+      - name: Builds for every release platform
+        if: steps.has.outputs.relay == 'true'
+        working-directory: relay
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          for t in linux/arm windows/amd64 freebsd/amd64 openbsd/amd64 netbsd/amd64 darwin/arm64; do
+            GOOS=${t%/*} GOARCH=${t#*/} go build -o /dev/null ./cmd/relay || { echo "::error::build failed for $t"; exit 1; }
+          done
       - name: go test -race
         if: steps.has.outputs.relay == 'true'
         working-directory: relay
@@ -176,6 +186,7 @@ jobs:
         name: Server files in this pull request
         run: |
           set -euo pipefail
+          set -f   # file names come from the pull request: split them, never glob them
           files=$(git diff --name-only --diff-filter=d HEAD^1 HEAD -- federation/servers/)
           bad=0
           for f in $files; do
@@ -207,9 +218,10 @@ jobs:
           GOFLAGS: -mod=readonly
         run: |
           set -uo pipefail
+          set -f
           (cd "$RUNNER_TEMP/base/relay" && go build -o "$RUNNER_TEMP/relay" ./cmd/relay) || exit 1
           # The relay's output quotes the files, which come from the pull request: never read it as workflow commands.
-          stop="stop-$RANDOM$RANDOM$RANDOM"
+          stop="stop-$(openssl rand -hex 16)"
           failed=0
           { echo "## Registry check"; echo; } >> "$GITHUB_STEP_SUMMARY"
           for f in $FILES; do

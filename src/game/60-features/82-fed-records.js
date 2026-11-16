@@ -3,16 +3,31 @@
    failing step gives the error code. Checkers return an error code or null. */
 const FdBF='bad_field',FdMF='missing_field';
 const fedBidi=s=>/[‪-‮⁦-⁩]/.test(s),fedLen=s=>{let n=0;for(const _ of s)n++;return n;};
-const FdK=v=>fedBin(v,32)?null:'bad_key',FdSig=v=>fedBin(v,64)?null:'bad_sig',FdId=v=>fedBin(v,32)?null:FdBF;
+const FdK=v=>{const u=fedBin(v,32);return u&&!fedWeakKey(u)?null:'bad_key';},FdBox=v=>fedBin(v,32)?null:'bad_key',FdSig=v=>fedBin(v,64)?null:'bad_sig',FdId=v=>fedBin(v,32)?null:FdBF;
 const FdText=(lo,hi)=>v=>{if(typeof v!=='string'||fedBidi(v))return FdBF;const n=fedLen(v);return n>=lo&&n<=hi?null:FdBF;};
 const FdName=v=>FdText(1,40)(v)||(/[^ ]/.test(v)?null:FdBF);
 /* A player-typed name as the game keeps it (NET, deals, consortiums): markup characters swapped for look-alikes, so a
    name is plain text in every place the game shows network names, escaped there or not. Sinks escape as well. */
 const FED_SAFE={'<':'‹','>':'›','&':'＆','"':'”',"'":'’','`':'‘'};
-const fedSafeName=v=>String(v).replace(/[<>&"'`]/g,c=>FED_SAFE[c]);
+// Invisible characters go too (format characters such as bidi marks and zero-width ones, fillers, odd line breaks),
+// so a name shows what it says, to players and to AI agents alike. Spaces of any width become a plain one.
+const FED_INVIS=/[\p{Cf}\p{Cc}\p{Zl}\p{Zp}\u034f\u115f\u1160\u17b4\u17b5\u2800\u3164\uffa0\ufe00-\ufe0d\u{e0100}-\u{e01ef}]/gu;
+const fedSafeText=v=>String(v).replace(FED_INVIS,'').replace(/\p{Zs}/gu,' ').replace(/[<>&"'`]/g,c=>FED_SAFE[c]);
+const fedSafeName=v=>{const s=fedSafeText(v);return /[^ ]/.test(s)?s:'AS?';};
+/* Names are not unique and anyone can type any: two names that read alike (case, accents, width, Cyrillic or Greek
+   letters that look Latin, 0/O, 1/l/I, rn/m) fold to the same text here, so the interface can say "same name as". */
+const FED_CONF={'а':'a','в':'b','е':'e','ё':'e','к':'k','м':'m','н':'h','о':'o','р':'p','с':'c','т':'t','у':'y','х':'x','ѕ':'s','і':'l','ї':'l','ј':'j','һ':'h','ԁ':'d','ԛ':'q','ԝ':'w','ӏ':'l','ɡ':'g','ı':'l',
+  'α':'a','β':'b','γ':'y','ε':'e','η':'n','ι':'l','κ':'k','ν':'v','ο':'o','ρ':'p','τ':'t','υ':'u','χ':'x','ω':'w','0':'o','1':'l','i':'l','|':'l','!':'l','5':'s','$':'s','@':'a'};
+const fedLook=v=>{const t=[...String(v).normalize('NFKD').replace(FED_INVIS,'').replace(/\p{M}/gu,'').toLowerCase()].map(c=>FED_CONF[c]||c).join('');
+  return t.replace(/rn/g,'m').replace(/vv/g,'w').replace(/[^\p{L}\p{N}]/gu,'');};
+// Of [[id, name]], the ids whose name reads like another id's.
+function fedLookDups(l){const m=new Map(),out=new Set();for(const [k,n] of l){const f=fedLook(n);if(!f)continue;const s=m.get(f)||new Set();s.add(k);m.set(f,s);}
+  for(const s of m.values())if(s.size>1)for(const k of s)out.add(k);return out;}
+// A short fingerprint of a network's key (24 bits, hex): next to the ASN, which alone can be ground out in hours.
+const fedFp=k=>{const u=fedBin(k,32);return u?[...u.subarray(0,3)].map(b=>b.toString(16).padStart(2,'0')).join(''):'';};
 const FdCity=v=>typeof v==='string'&&/^[a-z0-9]{2,8}$/.test(v)?null:FdBF,FdCC=v=>typeof v==='string'&&/^[A-Z]{2}$/.test(v)?null:FdBF;
 const FdInt=(lo,hi)=>v=>Number.isSafeInteger(v)&&v>=lo&&v<=hi?null:FdBF;
-const FdMbps=FdInt(0,1e9),FdMoney=FdInt(0,1e12),FdDays=FdInt(1,3650),FdBool=v=>typeof v==='boolean'?null:FdBF,FdOne=(...a)=>v=>a.includes(v)?null:FdBF;
+const FdMbps=FdInt(0,1e9),FdTraffic=FdInt(0,1e12),FdMoney=FdInt(0,1e12),FdDays=FdInt(1,3650),FdBool=v=>typeof v==='boolean'?null:FdBF,FdOne=(...a)=>v=>a.includes(v)?null:FdBF;
 // A node URL (§5): wss, a lower-case host name with a dot, or a local address (a LAN server), an optional port, a plain path.
 function FdUrl(v){if(typeof v!=='string'||v.length>200)return FdBF;const m=/^wss:\/\/([a-z0-9.-]+|\[[0-9a-f:]+\])(?::([1-9][0-9]{0,4}))?(\/[A-Za-z0-9._~\/-]*)?$/.exec(v);
   if(!m||m[2]&&+m[2]>65535)return FdBF;const h=m[1];
@@ -47,11 +62,16 @@ const FdObj=(fields,post)=>(v,c={})=>{if(!v||typeof v!=='object'||Array.isArray(
   return post?post(v,c):null;};
 const FdPorts=FdList(FdObj([['mbps',FdMbps],['monthly',FdMoney]]),{max:8,min:1,asc:1,by:x=>x.mbps});
 const FdAt=FdList(FdCity,{max:16,min:1,set:1});
-const FED_DEALS=['peering','transit','pni','swap','consortium','port','wave'],FED_AUTO=FdOne('auto','review','decline');
+const FED_DEALS=['peering','transit','pni','swap','consortium','port','wave','cofound'],FED_AUTO=FdOne('auto','review','decline');
 const FdLeg=FdObj([['a',FdCity],['b',FdCity],['mbps',FdMbps]]);
 // A wave route is written once, its cities in byte order (a < b), so a route has one spelling.
 const FdAB=v=>v.a<v.b?null:FdBF,FdRoute=FdObj([['a',FdCity],['b',FdCity]],FdAB),FdWaveG=FdOne(100,400,800,1600);
 const FdWave=FdObj([['routes',FdList(FdRoute,{max:32,min:1,set:1,by:x=>x.a+'|'+x.b})],['sizes',FdList(FdObj([['gbps',FdWaveG],['monthly',FdMoney]]),{max:4,min:1,asc:1,by:x=>x.gbps})],['term',FdDays]]);
+/* An exchange a player runs (rates.ix, §5.1); members (ix2, optional): per exchange in at, the computer-run networks on
+   it (Net ids, shaped like cities; unknown ones the game ignores) and how many players have a port there. */
+const FED_IX_NETS=48,FdIxMember=FdObj([['at',FdCity],['nets',FdList(FdCity,{max:FED_IX_NETS,set:1})],['players',FdInt(0,64)]]);
+const FdIx=FdObj([['ports',FdPorts],['join',FdOne('anyone','selective','approval')],['at',FdAt],['members',FdList(FdIxMember,{max:16,min:1,set:1,by:x=>x.at}),1]],
+  x=>!fedOwn(x,'members')||x.members.every(m=>x.at.includes(m.at))?null:FdBF);
 // founded (optional on priced deals): the buyer claims the newcomer price (§10.10).
 const FdFounded=['founded',FdInt(0,1e7),1],FED_CUST_MAX=128,FED_UP_MAX=16;
 const FED_TERMS={
@@ -61,7 +81,9 @@ const FED_TERMS={
   port:FdObj([['at',FdCity],['mbps',FdMbps],['monthly',FdMoney],['term',FdDays],FdFounded]),
   swap:FdObj([['give',FdLeg],['take',FdLeg],['term',FdDays]]),
   wave:FdObj([['a',FdCity],['b',FdCity],['gbps',FdWaveG],['monthly',FdMoney],['term',FdDays],FdFounded],FdAB),
-  consortium:FdObj([['name',FdName],['a',FdCity],['b',FdCity],['members',FdInt(2,16)],['share',FdMoney],['pairs',FdInt(1,16)]])};
+  consortium:FdObj([['name',FdName],['a',FdCity],['b',FdCity],['members',FdInt(2,16)],['share',FdMoney],['pairs',FdInt(1,16)]]),
+  // ix2: the author, who runs the exchange at at, offers share per mille of it for setup once and monthly a month.
+  cofound:FdObj([['at',FdCity],['share',FdInt(100,500)],['setup',FdMoney],['monthly',FdMoney],['term',FdDays]])};
 const FdNode=FdObj([['key',FdK],['url',FdUrl]]);
 // A box (§5.3): a 12-byte nonce and a ciphertext with its 16-byte tag, base64url. Only the deal's two parties open it.
 const FdBytes=(lo,hi)=>v=>{if(typeof v!=='string'||v.length>Math.ceil(hi*4/3))return FdBF;const u=fedUnb64(v);return u&&u.length>=lo&&u.length<=hi?null:FdBF;};
@@ -69,26 +91,26 @@ const FdEnc=FdObj([['n',FdBytes(12,12)],['c',FdBytes(17,2048)]]);
 // An offer in clear (§5.3): an open consortium project as it travels, or a sealed offer once opened (with its to).
 const FED_OFFER=FdObj([['to',(v,c)=>FdK(v)||(v===c.rec.key?FdBF:null),1],['deal',FdOne(...FED_DEALS)],
   ['basis',(v,c)=>c.o.deal==='consortium'?FdBF:FdId(v),1],['renews',FdId,1],['terms',(v,c)=>FED_TERMS[c.o.deal](v)]],
-  b=>!fedOwn(b,'to')&&b.deal!=='consortium'||!fedOwn(b,'basis')&&['peering','transit','pni','port','wave'].includes(b.deal)?FdMF:null);
+  b=>!fedOwn(b,'to')&&b.deal!=='consortium'||!fedOwn(b,'basis')&&['peering','transit','pni','port','wave','cofound'].includes(b.deal)?FdMF:null);
 // What a sealed decline holds once opened.
 const FED_REASON=FdObj([['reason',FdOne('declined','conditions','depeer','excluded','quiet')]]);
 // Bodies by kind (§5). c: {rec (the envelope), asn (the key's ASN, for announce)}.
 const FED_BODY={
-  announce:FdObj([['name',FdName],['asn',(v,c)=>v===c.asn?null:FdBF],['box',FdK],['home',FdCC],['day',FdInt(0,1e7)],
+  announce:FdObj([['name',FdName],['asn',(v,c)=>v===c.asn?null:FdBF],['box',FdBox],['home',FdCC],['day',FdInt(0,1e7)],
     ['founded',(v,c)=>FdInt(0,fedDiv(c.rec.t,FED_DAY))(v)],['pops',FdList(FdCity,{max:512,set:1})],
     ['ix',(v,c)=>FdList(FdCity,{max:512,set:1})(v)||(Array.isArray(c.o.pops)&&v.every(x=>c.o.pops.includes(x))?null:FdBF)],
     ['cust',FdInt(0,1e7)],['mix',FdObj([['content',FdInt(0,1000)],['eyeball',FdInt(0,1000)],['enterprise',FdInt(0,1000)]],m=>m.content+m.eyeball+m.enterprise===1000?null:FdBF)],
-    ['traffic',FdObj([['in',FdMbps],['out',FdMbps]])],['policy',FdOne('open','selective','restrictive')],
+    ['traffic',FdObj([['in',FdTraffic],['out',FdTraffic]])],['policy',FdOne('open','selective','restrictive')],
     ['cond',(v,c)=>c.o.policy!=='selective'?FdBF:FdObj([['minMbps',FdMbps],['maxRatio',FdInt(100,100000)],['minShared',FdInt(0,64)],['rpki',FdBool],['tier1',FdBool],['ai',FdBool]])(v),1],
     ['rates',FdObj([['transit',FdObj([['perGbps',FdMoney],['commit',FdList(FdObj([['mbps',FdMbps],['off',FdInt(0,900)]]),{max:8,asc:1,by:x=>x.mbps})],['term',FdDays]]),1],
-      ['pni',FdObj([['setup',FdMoney],['ports',FdPorts],['term',FdDays]]),1],['ix',FdObj([['ports',FdPorts],['join',FdOne('anyone','selective','approval')],['at',FdAt]]),1],['wave',FdWave,1]])],
-    // auto.wave is optional (announces from before wave deals); absent, wave requests are declined.
-    ['auto',FdObj(FED_DEALS.map(d=>[d,FED_AUTO,d==='wave'?1:0]))]],b=>b.policy==='selective'&&!fedOwn(b,'cond')?FdMF:null),
+      ['pni',FdObj([['setup',FdMoney],['ports',FdPorts],['term',FdDays]]),1],['ix',FdIx,1],['wave',FdWave,1]])],
+    // auto.wave is optional (announces from before wave deals), auto.cofound too (ix2); absent, those requests are declined.
+    ['auto',FdObj(FED_DEALS.map(d=>[d,FED_AUTO,d==='wave'||d==='cofound'?1:0]))]],b=>b.policy==='selective'&&!fedOwn(b,'cond')?FdMF:null),
   stats:FdObj([['mode',FdOne('normal','sandbox','open_gates','puzzle','scenario','weekly','architect')],
     ['pops',v=>{if(!v||typeof v!=='object'||Array.isArray(v))return FdBF;const ks=Object.keys(v);if(ks.length>512)return 'too_many';
       for(const k of ks){if(FdCity(k)||FdInt(1,1000)(v[k]))return FdBF;}return null;}],
     ['pies',FdInt(0,1e7),1],
-    ['traffic',(v,c)=>FdList(FdObj([['key',FdK],['in',FdMbps],['out',FdMbps]]),{max:256,set:1,by:x=>x.key})(v)||(v.some(x=>x.key===c.rec.key)?FdBF:null)],['total',FdMbps,1],
+    ['traffic',(v,c)=>FdList(FdObj([['key',FdK],['in',FdTraffic],['out',FdTraffic]]),{max:256,set:1,by:x=>x.key})(v)||(v.some(x=>x.key===c.rec.key)?FdBF:null)],['total',FdTraffic,1],
     // Transit customers and upstreams (other player networks, never the author): the cone board (§5.2).
     ['cust',(v,c)=>FdKeys(FED_CUST_MAX)(v)||(v.includes(c.rec.key)?FdBF:null),1],['up',(v,c)=>FdKeys(FED_UP_MAX)(v)||(v.includes(c.rec.key)?FdBF:null),1],
     ['tier1',FdBool],['tier2',FdBool,1],['ai',FdObj([['model',FdText(1,64)],['harness',FdText(1,64)]]),1],['shareCountry',FdBool]]),
@@ -149,12 +171,14 @@ async function fedCheck(x,now,o={}){let v=x;
 
 /* ---------- receipts and proofs (§6) ---------- */
 const FED_RCPT=FdObj([['rec',FdId],['server',FdId],['cc',FdCC,1]]);
+// No node signs a receipt before slot(rec.t) - skew, nor after rec.t + the kind's maximum age (§6.1).
+const fedRcptTimeOk=(t,rec)=>{const age=FED_KIND[rec.kind][1];return t>=fedSlot(rec.t)-FED_SKEW&&(!age||t<=rec.t+age);};
 /* A node's receipt for a record (already checked, with its id) received by `server`, whose node keys are `nodes`.
    Gives null when valid, else the error code. */
 async function fedRcptErr(rc,rec,rid,server,nodes,now){let e=fedValues(rc)||fedEnv(rc,{receipt:1});if(e)return e;
   if(fedSize(fedCanon(rc))>1024)return 'too_big';
   if((e=FED_RCPT(rc.body)))return e;
-  if(rc.t%FED_SLOT||rc.body.rec!==rid||rc.body.server!==server)return FdBF;
+  if(rc.t%FED_SLOT||rc.body.rec!==rid||rc.body.server!==server||!fedRcptTimeOk(rc.t,rec))return FdBF;
   if(fedOwn(rc.body,'cc')&&!(rec.kind==='stats'&&rec.body.shareCountry===true))return FdBF;
   if(!nodes.includes(rc.key))return 'not_node';
   if(await fedSigsOk(rc))return 'bad_sig';
@@ -166,10 +190,14 @@ async function fedProofErr(p,nonce,server,node,now){const B='bad_challenge';
   if(await fedSigsOk(p))return 'bad_sig';
   return p.body.nonce!==nonce||Math.abs(p.t-now)>300?B:null;}
 /* A client proving a key to one node of one server (§9.3 auth): the signed text has m:'auth' and no kind, so it is
-   never a record, and it names the node and server, so it is good for no other. */
-const fedAuthText=(key,node,server,t)=>fedCanon({m:'auth',key,node,server,t});
-async function fedAuthMake(seed,node,server,t){const k=await fedSigner(seed);return {m:'auth',key:k.pub,t,sig:await fedSignText(seed,fedAuthText(k.pub,node,server,t))};}
-// How a node answers an auth frame: null (taken) or the error code, in the spec's order.
-async function fedAuthErr(a,node,server,now){if(FdK(a.key))return 'bad_key';if(FdSig(a.sig)||!Number.isSafeInteger(a.t))return 'bad_sig';
-  if(!await fedVerify(a.key,a.sig,fedUtf8(fedAuthText(a.key,node,server,a.t))))return 'bad_sig';
+   never a record, and it names the node and server, so it is good for no other. Bound (the welcome listed bind and
+   gave a nonce): it also names that nonce and the URL dialled, so a server cannot pass it on to another's node. */
+const fedAuthText=(key,node,server,t,nonce,url)=>fedCanon(nonce?{m:'auth',key,node,nonce,server,t,url}:{m:'auth',key,node,server,t});
+async function fedAuthMake(seed,node,server,t,nonce,url){const k=await fedSigner(seed),a={m:'auth',key:k.pub,t,sig:await fedSignText(seed,fedAuthText(k.pub,node,server,t,nonce,url))};
+  if(nonce)a.url=url;return a;}
+/* How a node answers an auth frame: null (taken) or the error code, in the spec's order. nonce: the one its welcome
+   gave this session; urls: its own. A bound auth (with url) naming another URL is bad_sig, like one for another node. */
+async function fedAuthErr(a,node,server,now,nonce,urls){if(FdK(a.key))return 'bad_key';if(FdSig(a.sig)||!Number.isSafeInteger(a.t))return 'bad_sig';
+  const bound=a.url!==undefined;if(bound&&(!nonce||typeof a.url!=='string'||!(urls||[]).includes(a.url)))return 'bad_sig';
+  if(!await fedVerify(a.key,a.sig,fedUtf8(bound?fedAuthText(a.key,node,server,a.t,nonce,a.url):fedAuthText(a.key,node,server,a.t))))return 'bad_sig';
   return a.t>now+FED_SKEW?'too_new':a.t<now-FED_SKEW?'too_old':null;}

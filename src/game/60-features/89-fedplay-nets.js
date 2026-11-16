@@ -13,7 +13,7 @@ const FEDP_MAX=48,FEDP_SH=0.012,FEDP_SH_ALL=0.12,FEDP_TICK=3600000,FEDP_UP=['lvl
   FEDP_COL=['#8E7DBE','#2E86AB','#E07A5F','#3D9970','#B565A7','#F2A541','#5B8E7D','#C44536','#4F6D7A','#9C6644'],
   FEDP_ST=['active','fading','dark'];
 // Runtime only: what is applied to NETS (h, ids, base shares), the newest announces by key, the timer.
-const FEDN={h:'',ids:[],base:null,ann:new Map(),cur:Promise.resolve(),pend:null,t:null,on:false,q:Promise.resolve(),rt:null,pin:new Set(),ex:null};
+const FEDN={h:'',ids:[],base:null,ann:new Map(),left:new Set(),cur:Promise.resolve(),pend:null,t:null,on:false,q:Promise.resolve(),rt:null,pin:new Set(),ex:null};
 // A player network's id in NET: stable for a key, letters and digits only.
 const fedNetId=k=>'fp'+String(k).slice(0,12).replace(/[-_]/g,'x');
 const fedNetOf=k=>{const n=NET[fedNetId(k)];return n&&n.fed===k?n:null;};
@@ -22,9 +22,10 @@ const fedBot=n=>n&&n.ai?'🤖 ':'';
 const fedNetsHash=l=>l.length+':'+hstr(JSON.stringify(l));
 // The network type its traffic mix suggests: content, eyeballs, or a carrier in between.
 const fedNetType=m=>m[0]>=500?'cdn':m[1]>=500?'eye':'t2';
-/* Demand towards a player network: grows with its traffic (log scale), at most FEDP_SH, times its quiet factor. Shares
-   come out of every other network's share, so a city still asks for the same total. */
-const fedNetShare=n=>n.st==='dark'?0:Math.min(FEDP_SH,0.002+0.002*Math.log10(1+n.tr/1000))*n.q/1000;
+/* Demand towards a player network: grows with its traffic (log scale), at most FEDP_SH, times its quiet factor, and
+   more while you peer with it directly (on-net growth, b per mille, 89-fedplay-suggest.js). Shares come out of every
+   other network's share, so a city still asks for the same total. */
+const fedNetShare=n=>n.st==='dark'?0:Math.min(FEDP_SH,0.002+0.002*Math.log10(1+n.tr/1000))*(1+(n.b||0)/1000)*n.q/1000;
 
 /* ---------- applying the snapshot to NETS and the tables built from it ---------- */
 function fedNetsSync(){const s=S&&S.fedn&&Array.isArray(S.fedn.nets)?S.fedn:null,h=s?s.h:'';if(h!==FEDN.h)fedNetsApply(s?s.nets:[],h);}
@@ -44,7 +45,7 @@ function fedNetsApply(list,h){
     // Not Tier 1 itself: in the cone of two founding Tier 1s (players start on computer-run transit), as rule N3 asks.
     const up=n.t1?[]:[FEDP_UP[hstr(n.k)%4],FEDP_UP[(hstr(n.k)+1+hstr(n.k+'u')%3)%4]];
     const N={id,name:n.name,asn:n.asn,type:fedNetType(n.mix),pol:'fed',share:sh.get(id)*k,col:FEDP_COL[hstr(n.k)%FEDP_COL.length],
-      pops:[],ix:[],fpops:n.pops,fix:n.ix,fmix:n.mix,ftr:n.tr,blurb:'',up,fed:n.k,fst:n.st,fq:n.q,fpol:n.pol,ai:!!n.ai,home:n.home};
+      pops:[],ix:[],fpops:n.pops,fix:n.ix,fmix:n.mix,ftr:n.tr,blurb:'',up,fed:n.k,fst:n.st,fq:n.q,fpol:n.pol,ai:!!n.ai,home:n.home,fb:n.b||0,fxm:n.x||{}};
     NETS.push(N);NET_IDS.push(id);NET[id]=N;NSH[id]=N.share;NSH_KRX[id]=N.share;
     CONE[id]=[id];CONE_S[id]=new Set([id]);DOWN[id]=[];ANC[id]=up.slice();
     for(const u of up){CONE[u]=CONE[u].concat(id);CONE_S[u].add(id);DOWN[u]=DOWN[u].concat(id);}
@@ -58,7 +59,9 @@ function fedNetsApply(list,h){
 function fedNetSnap(o,shun,st){const b=o.rec.body,q=shun?0:Math.round(o.quiet.factor/50)*50,state=shun?'dark':o.quiet.state==='forgotten'?'dark':o.quiet.state;
   const cs=v=>[...new Set(v.filter(c=>own(CITY,c)&&!CITY[c].off))].slice(0,512);
   return {k:o.key,name:fedSafeName(b.name),asn:b.asn,home:b.home,pops:cs(b.pops),ix:cs(b.ix),mix:[b.mix.content,b.mix.eyeball,b.mix.enterprise],
-    tr:Math.min(2e9,b.traffic.in+b.traffic.out),cust:b.cust,pol:b.policy,q,st:state,ai:!!(st&&st.ai),t1:!!(st&&st.tier1),bid:o.id,at:o.rec.t};}
+    tr:Math.min(2e9,b.traffic.in+b.traffic.out),cust:b.cust,pol:b.policy,q,st:state,ai:!!(st&&st.ai),t1:!!(st&&st.tier1),bid:o.id,at:o.rec.t,...fedIxX(fedIxSnap(b))};}
+// The members of the exchanges it runs (ix2, 89-fedplay-ix.js), kept only when there are any.
+const fedIxX=x=>Object.keys(x).length?{x}:{};
 // Checks a snapshot from a save (sanitize): anything malformed is dropped, the hash is made again.
 function fednClean(v){if(!v||typeof v!=='object'||!Array.isArray(v.nets))return null;const out=[],seen=new Set();
   const int=(x,lo,hi)=>Number.isSafeInteger(x)&&x>=lo&&x<=hi;
@@ -66,7 +69,7 @@ function fednClean(v){if(!v||typeof v!=='object'||!Array.isArray(v.nets))return 
     seen.add(n.k);const cs=l=>[...new Set(l.filter(c=>typeof c==='string'&&own(CITY,c)))].slice(0,512);
     out.push({k:n.k,name:fedSafeName(n.name),asn:n.asn,home:typeof n.home==='string'&&!FdCC(n.home)?n.home:'ZZ',pops:cs(n.pops),ix:cs(n.ix),mix:n.mix.slice(),tr:int(n.tr,0,2e9)?n.tr:0,
       cust:int(n.cust,0,1e7)?n.cust:0,pol:['open','selective','restrictive'].includes(n.pol)?n.pol:'open',q:int(n.q,0,1000)?n.q:0,st:FEDP_ST.includes(n.st)?n.st:'dark',
-      ai:n.ai===true,t1:n.t1===true,bid:FdId(n.bid)?'':n.bid,at:int(n.at,0,1e11)?n.at:0});}
+      ai:n.ai===true,t1:n.t1===true,bid:FdId(n.bid)?'':n.bid,at:int(n.at,0,1e11)?n.at:0,b:int(n.b,0,FEDO_MAX)?n.b:0,...fedIxX(fedIxSnapClean(n.x))});}
   return {h:fedNetsHash(out),nets:out};}
 /* What the servers say of other networks' newest stats (§9.5 nets): Map key -> {ai, tier1, traffic} (who is AI, who
    is Tier 1, what they report about traffic with this network). Asked for the networks in the snapshot and the deals
@@ -82,7 +85,7 @@ function fedPlayRefresh(){if(FEDN.pend)return FEDN.pend;
   const p=FEDN.pend=FEDN.cur.then(()=>{FEDN.pend=null;return fedPlayRun();}).catch(e=>console.error('[tubes] federation gameplay',e));FEDN.cur=p;return p;}
 async function fedPlayRun(){const s=S;if(!s||!s.fed||!s.fed.key||!fedEligible(s))return;
   const now=fedNow(),all=await fedNetworks(now),X=await fedExcl(),stats=await fedPlayStats(),srvs=X.by.size?await fedServers():[];if(S!==s||!s.fed)return;
-  const me=s.fed.key.pub,muted=new Set(s.fed.muted);FEDN.ann=new Map(all.map(n=>[n.key,n]));fedExclKeep(X,srvs);
+  const me=s.fed.key.pub,muted=new Set(s.fed.muted);FEDN.ann=new Map(all.map(n=>[n.key,n]));FEDN.left=all.left||new Set();fedExclKeep(X,srvs);
   /* Listed by any joined server: dark (no demand, hidden) unless a deal with it still runs; that goes on, and ends
      only once the exclusion is confirmed (fedDealsTick). */
   const live=new Set(s.fed.deals.filter(d=>d.st!=='over').map(d=>d.key)),shun=new Set([...X.keys].filter(k=>X.ok.has(k)||!live.has(k)));
@@ -94,6 +97,8 @@ async function fedPlayRun(){const s=S;if(!s||!s.fed||!s.fed.key||!fedEligible(s)
   const myIx=new Set(fedMyIx()),near=n=>n.st!=='dark'&&n.ix.some(c=>myIx.has(c));
   const list=all.filter(n=>n.key!==me&&!muted.has(n.key)).map(n=>fedNetSnap(n,shun.has(n.key),stats.get(n.key)))
     .sort((a,b)=>keep.has(b.k)-keep.has(a.k)||near(b)-near(a)||(a.st==='dark')-(b.st==='dark')||b.tr-a.tr||fedByStr(a.k,b.k)).slice(0,FEDP_MAX);
+  // On-net growth from the direct deals running now: part of the snapshot, so routing reads it from the save.
+  const on=fedOnNet(s,now);for(const n of list)n.b=on.get(n.k)||0;
   const h=fedNetsHash(list);let ch=false;
   // A joined save has its terms (the defaults) from its first look on, not only once it announced.
   if(!s.fedp){fedP(s);ch=true;}

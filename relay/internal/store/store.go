@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io/fs"
 	"iter"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -48,6 +49,7 @@ type Entry struct {
 	n    int32    // the line's length, without the newline
 	rc   int32    // the receipts' length (the line is {"rcpt":R,"rec":C,"slot":N})
 	gone bool     // removed; still in the ordered lists until they are compacted
+	ix2  bool     // it carries ix2 fields (fed.Ix2): sent only to sessions that take them
 	x    *held    // what is kept in memory besides: nil for most entries
 }
 
@@ -66,6 +68,12 @@ func (e *Entry) To() string {
 	}
 	return e.deal.to
 }
+
+// Size is the length of the record's line.
+func (e *Entry) Size() int { return int(e.n) }
+
+// Ix2 reports whether the record carries ix2 fields (fed.Ix2).
+func (e *Entry) Ix2() bool { return e.ix2 }
 
 // Offer is the offer an accept or decline answers ("" for other kinds).
 func (e *Entry) Offer() string {
@@ -156,6 +164,7 @@ type Store struct {
 	open   map[int64]*os.File
 	recent []*Entry // entries whose line was kept in memory when stored, oldest first
 	recN   int      // bytes of those lines
+	bytes  int64    // bytes of the lines of every entry kept (what the files hold once compacted)
 	lock   *os.File // the data folder's lock, held while open
 	Loaded int      // lines read on open
 	Bad    int      // lines that did not check on open
@@ -226,6 +235,15 @@ func open(dir string, onLoad func(e *Entry, rec *fed.Record, rcpts []map[string]
 	return s, nil
 }
 
+// i32 narrows a day, a line length or an offset within a line for an Entry. Days are checked where they come in (days,
+// Put) and a line is at most maxLine bytes, so out of range here is a bug: it stops loudly instead of wrapping around.
+func i32(n int64) int32 {
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		panic(fmt.Sprintf("store: %d does not fit an int32", n))
+	}
+	return int32(n)
+}
+
 func (s *Store) path(day int64) string {
 	return filepath.Join(s.dir, logFolder, strconv.FormatInt(day, 10)+".jsonl")
 }
@@ -241,8 +259,9 @@ func (s *Store) days() ([]int64, error) {
 		if !ok {
 			continue
 		}
+		// Days are kept as int32 (entries stay small); a file named outside that range is not one of ours.
 		d, err := strconv.ParseInt(name, 10, 64)
-		if err == nil {
+		if err == nil && d >= 0 && d <= math.MaxInt32 {
 			out = append(out, d)
 		}
 	}
@@ -304,7 +323,8 @@ func (s *Store) load(day int64) error {
 			rcpts = s.Rcpts(e)
 		}
 		want, rc := encodeLine(e.rec(), rec, encodeRcpts(rcpts), e.Slot)
-		e.day, e.n, e.rc = int32(day), int32(len(want)), int32(rc)
+		s.setLen(e, len(want))
+		e.day, e.rc = i32(day), i32(int64(rc))
 		e.setMem(nil)
 		if bytes.Equal(want, b) {
 			e.off = at
@@ -374,7 +394,7 @@ func (s *Store) insert(rec *fed.Record, rcpts []map[string]any, slot, day int64)
 		kl = &keyList{key: rec.Key}
 		s.byKey[rec.Key] = kl
 	}
-	e := &Entry{ID: rec.ID, Key: kl.key, Kind: kind, T: rec.T, Slot: slot, Seq: s.seq, day: int32(day), off: -1}
+	e := &Entry{ID: rec.ID, Key: kl.key, Kind: kind, T: rec.T, Slot: slot, Seq: s.seq, day: i32(day), off: -1, ix2: fed.Ix2(rec)}
 	switch kind {
 	case "offer", "accept", "decline":
 		p := &parties{}
@@ -400,6 +420,9 @@ func (s *Store) insert(rec *fed.Record, rcpts []map[string]any, slot, day int64)
 
 // Put stores a checked record with its receipts, received on real day `day`.
 func (s *Store) Put(rec *fed.Record, rcpts []map[string]any, slot, day int64) (string, *Entry, error) {
+	if day < 0 || day > math.MaxInt32 {
+		return "", nil, fmt.Errorf("store: day %d out of range", day)
+	}
 	res, e := s.insert(rec, rcpts, slot, day)
 	if res == Dup {
 		return res, e, nil
@@ -414,7 +437,8 @@ func (s *Store) Put(rec *fed.Record, rcpts []map[string]any, slot, day int64) (s
 		slot = e.Slot
 	}
 	line, rc := encodeLine(e.rec(), rec, rj, slot)
-	e.day, e.off, e.n, e.rc = int32(max(e.day64(), day)), -1, int32(len(line)), int32(rc)
+	s.setLen(e, len(line))
+	e.day, e.off, e.rc = i32(max(e.day64(), day)), -1, i32(int64(rc))
 	e.setMem(line)
 	if s.dir == "" {
 		return res, e, nil
@@ -654,6 +678,18 @@ func (s *Store) Len() int { return len(s.byID) }
 // Count is the number of records of one kind.
 func (s *Store) Count(kind string) int { return s.count[kind] }
 
+// setLen sets an entry's line length, keeping Bytes in step.
+func (s *Store) setLen(e *Entry, n int) {
+	s.bytes += int64(n) - int64(e.n)
+	e.n = i32(int64(n))
+}
+
+// Bytes is the length of every kept record's line: what the files hold once compacted.
+func (s *Store) Bytes() int64 { return s.bytes }
+
+// HasKey reports whether any record by an author is kept.
+func (s *Store) HasKey(key string) bool { return s.byKey[key] != nil }
+
 // Kind returns the entries of one kind, in storage order.
 func (s *Store) Kind(k string) iter.Seq[*Entry] {
 	return func(yield func(*Entry) bool) {
@@ -743,6 +779,7 @@ func (s *Store) Remove(ids []string) {
 			continue
 		}
 		delete(s.byID, id)
+		s.bytes -= int64(e.n)
 		if s.count[e.Kind]--; s.count[e.Kind] <= 0 {
 			delete(s.count, e.Kind)
 		}

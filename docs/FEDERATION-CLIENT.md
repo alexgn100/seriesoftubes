@@ -51,12 +51,43 @@ not a normal game. Queued records are kept only with the key that signed them.
 Helpers: `fedNewState()`, `fedMode(s)` (`normal`, `sandbox`, `open_gates`, `puzzle`, `architect`, `scenario`,
 `weekly`), `fedEligible(s)`, `fedHasPriv(f)`.
 
+Node URLs a server tells the game about (a server's other nodes to fail over to in `fedLearn`, a server only heard of
+through gossip, offered by `fedJoinUrl(s)` on its Join button) are dialled only when public (`fedPublicUrl`): no
+private, loopback, link-local or `.local` address. `fedHeardOk(u, local)` allows them when the player is on a local
+server already (`fedOnLocal()`, or the joined URL itself for failover): a LAN party. A URL the player typed or was
+invited to is never filtered.
+
+A welcome only claims a server. Until a node of that server passed the check (its key at the dialled URL in the
+catalog's node list, and a fresh proof), the game takes nothing from the connection but answers to its own requests
+(the challenge, the auths) and an operator's update notice after a proved operator key; it attributes nothing to the
+claimed server (status, error log, excluded lists, gossip paths); and it fails over only to the nodes the catalog lists
+with the joined URL, never to the claimed server's (`fedNodesSet`). A node at an address the catalog lists must claim
+that address's server. A claim that fails (`not_node`, `bad_challenge`) is forgotten with whatever the connection set
+under it (`fedUnclaim`).
+
+An error code from a node is a short code (`[a-z_]{1,32}`, else it is read as `bad_frame`), and the interface shows only
+the codes this game knows (`FED_CODES`); any other is shown as an unknown error, never as the node's text.
+
+Each connection may ask at most `FED.T.sigMax` signature checks (30 000) of the tab per `FED.T.sigWin` seconds (60),
+counted from what a `recs` or `catalog` frame holds before any of it is checked (`fedSigCost`: a record's signatures,
+its receipts, a registry entry's whole chain). A frame over the budget is not looked at and the node is dropped `slow`
+until the window is over; a subscription page is taken whole or not at all, so its cursor never skips one.
+
+Names are not unique, and an ASN alone can be ground out with a few hours of key making. Every network and server name
+and server description the interface shows goes through `fedSafeName`/`fedSafeText` (markup swapped for look-alikes,
+invisible characters dropped; server names and descriptions already in `fedSum` and again when the catalog is read).
+Where who is who matters (the boards, the looking glass, the deals sheets) the ASN comes with `fedFp(key)`, the first
+24 bits of the network's key in hex. Names that read alike (`fedLook`: case, accents, width, Cyrillic and Greek
+look-alikes, 0/O, 1/l/I, rn/m, spacing) are marked "same name as another network" (`fedLookDups`), and a server only
+heard of whose name reads like another known server's is marked "same name as …".
+
 ## Exports and imports
 
 | Function | What it does |
 | --- | --- |
 | `fedPublic(s)`, `fedPublicText(t)` | A copy of a save without `key.priv` and `out` (used by `exportSave()`, `exportSlot()`, the transfer sheet and link `xferText()`, and the agent's `state` tool) |
 | `fedDetach(s)` | Used by `parseSave()` on everything that is not a move file: the save arrives off and keyless; joining makes a new identity |
+| `fedArrive(s)` | Used by `parseSave()` on a move file: the identity (key, queue, deals) comes over, but the save arrives off with no servers whatever the file says; it gives the file's servers (checked), which the import prompt names so the player can join them again by hand |
 | `fedExportMove()` | "Move to another device": the one file with the key and the queue, named `…-move-PRIVATE.json`, wrapper `move: true`. Action `fedMoveExport`. The interface must show its warning first |
 
 ## Actions
@@ -237,8 +268,10 @@ IndexedDB, frame parsing, and the game routing once when the snapshot changes), 
 
 ## Browser storage (IndexedDB `sot-fed`, shared by every slot)
 
-Stores `ann` (other networks' newest announce and `heard`, at most 5000, the longest silent dropped first once a tenth
-over, counted without reading the store each time, forgotten after 180 days), `kv` (`registry`, `gossip`, `ranks` (the last answer per joined URL, network and slice, at most 48), `facets:<URL>`, `nets:<URL>`, `untrusted` (servers caught, for 24 hours), `excl:<joined URL>` (`{at, srv, keys, me, reasons}`), `hide:<server>`,
+Stores `ann` (other networks' newest announce, `heard`, `fs` (first heard here) and `fd` (the `founded` it first said: an
+announce saying another is not kept), at most 5000 once a tenth over, counted without reading the store each time,
+forgotten after 180 days; what goes first: keys heard for less than a day, the newest first, then the longest silent;
+never a key the open game deals with, has a review request from, pinned or muted (`FED.hooks.keep`)), `kv` (`registry`, `gossip`, `ranks` (the last answer per joined URL, network and slice, at most 48), `facets:<URL>`, `nets:<URL>`, `untrusted` (servers caught, for 24 hours), `excl:<joined URL>` (`{at, srv, keys, me, reasons}`), `hide:<server>`,
 `cursor:<node>#<network key>` (cursors are per network: what a sub gives depends on the key proved), `dpend#<network
 key>` (sealed deal records waiting for their sender's announce, at most 256, 30 days), and on an operator's device only
 `votes` until expired and `vcursors` (per `<node>#<network key>`), `reports` and `rcursors`; without an operator key they are
@@ -364,14 +397,26 @@ the 14-day "join another server" suggestion (from `fedStatus().since`).
 
 - `S.fed.deals` holds at most 256 deals (`fedDealsCap`, on load and in `fedDealAdd`): waiting and running deals always
   stay, ended ones only as room is left, the newest first.
-- A deal is renewed once: each deal keeps `renews` (the id of the deal it renews, or null); `fedRenewal(f, id)` finds a
-  waiting or running renewal. The buyer cannot book a second (`dup`, and Renew is hidden, offered to buyers only); the
-  seller declines a second renewal offer (`conditions`).
+- A deal is renewed once, and only by the network it is with: each deal keeps `renews` (the id of the deal it renews
+  with the same network, or null); `fedRenewal(f, id, key)` finds a waiting or running renewal. The buyer cannot book a
+  second (`dup`, and Renew is hidden, offered to buyers only); the seller declines a second renewal offer, or one naming
+  a deal it has with someone else (`conditions`).
+- A deal keeps `heard` (when its network was last heard) and `box` (its box key): it ends as quiet only once that
+  network is itself dark (37 days silent), never because its announce left this browser's store, and its decline can
+  still be sealed (`fedDealBox`).
+- Transit sold: a buyer may commit to at most ten times the card's biggest tier (`fedTransitMax`; more is declined even
+  under review), and the seller counts at most twice the commit at each city of what the buyer reports (`fedRepMax`);
+  saves holding more are repaired on load. Co-founding terms must use the listed shares and terms.
 - A renewal starts when the renewed deal ends, or when it binds if later (§10.10), on both paths: automatic (`fedDeal`)
   and reviewed (`fedRenStart`, for the accept received and the accept given), so the two never bill together. A wave
   renewal on the same route, no bigger, takes over the room of the wave it renews (`fedWaveRen`).
-- The review queue (`S.fedp.rq`) holds 32 offers. When full, the oldest leaves with a `decline` (`declined`), so its
-  requester is not left waiting, and the new one waits: a flood of offers cannot keep new ones out.
+- The review queue (`S.fedp.rq`) holds 32 offers, at most 4 per requester (`fedRqRoom`): a fifth lets that requester's
+  oldest go, and a full queue lets go the oldest offer of the requester with the most, each with a `decline`
+  (`declined`) so no one is left waiting. One network's flood cannot push out the others' requests.
+- Open consortium projects (`S.fedp.cons`, 24): at most 2 open per author (a third lets its oldest go); a full list
+  lets go an ended project, else the oldest open one of the author with the most. Projects this network signed stay.
+- The shared route leak (`fedLeaker`): candidates are active networks known here for 30 days that joined at least 30
+  days before; the hash is salted with the set of candidates, so no key can be made to win a given day.
 - A consortium project shows and costs at least `fedConsShare(a, b, pairs)` in this game, whatever share its author
   wrote (a share of 0 is not a free cable).
 
@@ -381,8 +426,8 @@ the 14-day "join another server" suggestion (from `fedStatus().since`).
   sold or bought) and `tier2` to every stats body; the cone board counts an edge both sides list.
 - **Newcomer price**: `fedOffer` passes its terms through `fedNewTerms`: while this save joined less than 30 days ago
   (`S.fed.joined`, as the announce's `founded`) and the seller did not, the terms carry `founded` and 25% off every
-  price. The seller's game checks the same rule (`fedDeal`) and that `founded` is what the buyer's announce says
-  (`fedTheirMiss`, `miss_newcomer`). Deal rows say "newcomer price".
+  price. The seller's game checks the same rule (`fedDeal`) and that `founded` is what the buyer's announce says and not
+  more than a day after this browser first heard the buyer (`fedTheirMiss`, `miss_newcomer`). Deal rows say "newcomer price".
 - **Mentor dividend** (`fedMentorTick`, from the hourly look, with the `nets` answers' `tier2`, `pops`, `cust`, `slot`):
   newcomers with a running deal that started while they were new and this network was not, less than 60 days ago.
   Kept in `S.fedp.ment` (`[{k, n, m: seen|pops|t2|cust, v, t, cap?}]`, at most 512) and `S.fedp.heard` (`[{k, d: [UTC
@@ -404,6 +449,30 @@ A deal of kind `wave` (§5.3, §10.10) sells one managed wave from the seller's 
 
 Both sides book the monthly price in `fedMoney` (`R.cost.fed` / `R.rev.fed`). The buyer's sheet names what is missing:
 `ends` (POPs at both ends), `gear` (routers that take that wave size); the seller's accept fails with `room`.
+
+## Exchanges players run (`60-features/89-fedplay-ix.js`)
+
+An exchange you founded (`S.myIx`) counts players too: every running `port` or `cofound` deal you sell there is a
+player member. Members need no new state: they are read from `S.fed.deals`. Feature `ix2` (§9.3) carries who is on an
+exchange (`rates.ix.members`) and co-founding (`auto.cofound`, deal `cofound`, §5.3).
+
+| Name | What it does |
+| --- | --- |
+| `fedIx2(s)` | Every joined server listed `ix2` in its last `welcome` (`FED.ix2`, memory only, per node URL). Only then do `fedRatesOut` and `fedAnnBody` add `members` and `auto.cofound`, and `fedOffer` makes co-founding offers. The game lists `ix2` in its own `hello` |
+| `fedIxPl(c)` | The player members of your exchange at `c` (one per player). The day loop's member look waits `fedIxNext(c, days)`: `days / (1 + 0.25 × players)`, at most 8 players counted, never under a day. Players take no computer member slot |
+| `fedIxMembersOut(at)` | `rates.ix.members`: per exchange sold on, its computer-run members (at most 48) and the player count. `fedAnnBody` cuts the longest lists first to stay under 16000 bytes |
+| `fedIxSnap(b)` / `fedIxSnapClean(x)` | A player's members in the snapshot (`S.fedn.nets[].x = {city: {n: [ids], p}}`, `fxm` on its `NET` entry): the exits of a bought port or co-founding reach those networks (`fedDealExits`), routing reads them from the save |
+| `fedCofoundPrice(c, share)` | A co-founder's share (per mille) of `MYIX_COST` once and of the fabric's monthly cost. `fedCofoundFair` is what a co-founder's game accepts: at most that share of founding and of the biggest fabric |
+| `fedCofoundFee(d)` | A co-founder's share of member fees a month: the founder counts its own members, the co-founder the founder's newest announce. `fedMoney` books the monthly share and the fee share on each side, `fedDealGo` the setup |
+| `fedIxList(nets)` | Exchanges players run, from the networks known (the sheet's `FU.nets`): founder, city, players, cheapest port. Rows in the Multimode sheet and the looking glass (`fedIxListHtml`), a button opens the founder's sheet with the port request first (`fpNet {key, at, deal}`, `UI.fpFocus`) |
+| `fedSuggestPorts()` | In "Worth peering with" (`89-fedplay-suggest.js`): a port on a player's exchange where it reaches two or more players this network reaches over transit, with the combined saving (`fedTransitSaved`) |
+| `fedFoundHints()` | Cities with your POP, no exchange (founding allowed: `foundIxWhy`), none run by a player, and two or more other players with POPs: the Multimode sheet's nudge to found one (`foundIx`) |
+| `fedIxMineHtml(c)` | Your exchange's panel: player members (🤖 for AI players), co-founders (at most two) and players with a POP there to invite |
+
+Co-founding goes from the founder to the player: `fedOffer(key, 'cofound', {at, share, term})` on the player's
+announce (it must list `auto.cofound`). Missing: `myix`, `cfpop` (a POP there on both sides), `ixsell` (sell ports
+first), `ix2`, `cofull`; the co-founder's game declines or refuses an accept on `noix` (the founder's announce sells no
+ports there), `fair` and `cash`. There is no renewal: the founder invites again.
 
 ## Live states
 

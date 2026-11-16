@@ -173,11 +173,17 @@ func Check(name string, files map[string][]byte, base []byte, now int64, challen
 	if u := localURL(e); u != "" {
 		return fail(6, fed.LocalURL, u)
 	}
+	if f := nameSafe(e); f != nil {
+		return f
+	}
 	if f := nameTaken(name, e, files); f != nil {
 		return f
 	}
 	if base != nil {
 		if f := stampsKept(files[name], base); f != nil {
+			return f
+		}
+		if f := noRollback(name, e, base, now); f != nil {
 			return f
 		}
 	}
@@ -233,6 +239,22 @@ func localURL(e *Entry) string {
 	return ""
 }
 
+// nameSafe is the first part of step 7: a registry server name uses ASCII letters, digits, single
+// spaces and - . ' & ! + _ : , ( ) / only, so no listed name can pass for another with look-alike
+// characters (Cyrillic or Greek letters, fullwidth forms, two spaces for one).
+func nameSafe(e *Entry) *Failure {
+	n := e.Name()
+	ok := n != "" && n[0] != ' ' && n[len(n)-1] != ' ' && !strings.Contains(n, "  ")
+	for i := 0; ok && i < len(n); i++ {
+		c := n[i]
+		ok = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte(" -.'&!+_:,()/", c) >= 0
+	}
+	if !ok {
+		return fail(7, fed.BadName, "not a safe registry name")
+	}
+	return nil
+}
+
 func nameTaken(name string, e *Entry, files map[string][]byte) *Failure {
 	mine := lowerASCII(e.Name())
 	for other, data := range files {
@@ -268,6 +290,30 @@ func stampsKept(data, base []byte) *Failure {
 		if xok != yok || xn != yn {
 			return fail(8, fed.BadField, f+" changed")
 		}
+	}
+	return nil
+}
+
+// noRollback is the rest of step 8: a file may only move a server forward. Relays prefer the
+// registry's chain to gossip, so an earlier signed file of the same server (from before an operator
+// or a node was removed) must not replace a later one: the base file's chain is a prefix of the new
+// chain (bad_chain), and the new server record is the base's or has a greater t (too_old).
+// A base file that does not parse is not compared (it is broken on the base branch already).
+func noRollback(name string, e *Entry, base []byte, now int64) *Failure {
+	b, f := Parse(name, base, now)
+	if f != nil {
+		return nil
+	}
+	if b.ID != e.ID || len(b.Chain) > len(e.Chain) {
+		return fail(8, fed.BadChain, "the chain on the base branch is longer or another")
+	}
+	for i, r := range b.Chain {
+		if e.Chain[i].ID != r.ID {
+			return fail(8, fed.BadChain, "the chain does not extend the one on the base branch")
+		}
+	}
+	if e.Server.ID != b.Server.ID && e.Server.T <= b.Server.T {
+		return fail(8, fed.TooOld, "the server record is not newer than the one on the base branch")
 	}
 	return nil
 }
@@ -359,7 +405,7 @@ func KeepStamps(file, existing []byte) ([]byte, error) {
 	if code != "" || om == nil {
 		return nil, fmt.Errorf("existing registry file: not a JSON object (%s)", code)
 	}
-	if nm["genesis"] == nil || !bytes.Equal(canon.Encode(nm["genesis"]), canon.Encode(om["genesis"])) {
+	if nm["genesis"] == nil || om["genesis"] == nil || !bytes.Equal(canon.Encode(nm["genesis"]), canon.Encode(om["genesis"])) {
 		return nil, fmt.Errorf("the existing registry file is for another server")
 	}
 	for _, f := range []string{"listed", "answered"} {

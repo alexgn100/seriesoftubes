@@ -25,11 +25,11 @@ test('a hostile player name never becomes markup: snapshot, NOC log, toasts, lis
   const id = p.ev(`fedNetId(${JSON.stringify(key('mallory').pub)})`);
   p.ev('compute()');
   for (const name of [p.ev('S.fedn.nets[0].name'), p.ev(`NET['${id}'].name`)]) assert.doesNotMatch(name, /[<>"'&]/, 'stored as plain text');
-  // Where a name could still arrive raw (any path that skips the snapshot), the sinks escape it: "no longer Tier 1".
+  // A raw name (any path that skips the snapshot) never reaches "no longer Tier 1": player networks do not count for it.
   p.ev(`NET['${id}'].name=${JSON.stringify(HOSTILE)};S.transit=[];S.pni=t1Need().map(n=>({id:'t'+n.id,net:n.id,city:'fra',tier:1,n:1,ready:0}));
     R.reachable=Object.fromEntries(NETS.map(n=>[n.id,n.id!=='${id}']))`);
   const why = p.ev('t1Why()');
-  assert.match(why, /&lt;img/, 'escaped in the reason');
+  assert.doesNotMatch(why, /img|onerror/, 'player networks are not in the reason');
   p.ev(`toast(tr('day_tick.you_are_no_longer_tier_1',{why:t1Why()}),'bad')`);
   assert.equal(injected(p), 0, 'toast');
   p.ev(`UI.left='noc';UI.leftOpen=true;renderAll()`);
@@ -66,7 +66,7 @@ test('an imported save cannot smuggle markup or broken numbers in its player net
   assert.doesNotMatch(name, /[<>]/);
   assert.equal(asnV, 0);
   assert.equal(rep, 0);
-  assert.equal(keys, 'ai,asn,deal,end,id,key,name,on,renews,rep,role,st,start,terms,why', 'only the fields a deal has');
+  assert.equal(keys, 'ai,asn,box,deal,end,heard,id,key,name,on,renews,rep,role,st,start,terms,why', 'only the fields a deal has');
   assert.ok(out.proto);
   assert.doesNotMatch(out.net, /[<>]/);
   assert.equal(out.tr, 0);
@@ -223,4 +223,53 @@ test('the MCP server\'s export_save never carries the multiplayer private key or
   assert.deepEqual(s.fed.out, []);
   assert.equal(s.fed.op, undefined);
   assert.equal(ev('S.fed.key.priv'), k.seed, 'the running game keeps its key');
+});
+
+test('only receipts of registry servers and the connected one set a board slot, and none dates a record before its time', async () => {
+  const { ev } = load({ crypto: true });
+  const t = NOW - 100, st = rec('alice', 'stats', t, { mode: 'normal', pops: { fra: 1 }, traffic: [], tier1: false, shareCountry: false });
+  const id = b64(sha(require('./helpers/fed').canon(st)));
+  const R = (node, server, at) => rec(node, 'receipt', at, { rec: id, server });
+  const fake = b64(sha('a server made up in gossip')), here = b64(sha('the server we are on'));
+  const srvs = [{ id: PL.id, source: 'registry', nodes: [{ key: key('node1').pub }] }, { id: fake, source: 'gossip', nodes: [{ key: key('node9').pub }] }];
+  const place = (rcpts) => ev(`(async()=>{const c=await fedCheck(${JSON.stringify(st)},${NOW});
+    return fedPlace({srv:${JSON.stringify(here)},nodeKey:${JSON.stringify(key('node5').pub)}},c,${JSON.stringify(rcpts)},${NOW},${JSON.stringify(srvs)});})()`);
+  const slot = t - (t % 300);
+  assert.equal((await place([R('node1', PL.id, slot)])).slot, slot, 'a registry server\'s receipt counts');
+  assert.equal((await place([R('node5', here, slot)])).slot, slot, 'so does the connected server\'s');
+  assert.equal((await place([R('node9', fake, slot - 300), R('node1', PL.id, slot)])).slot, slot, 'a gossip-only server\'s does not');
+  assert.equal((await place([R('node1', PL.id, slot - 8 * DAY), R('node1', PL.id, slot)])).slot, slot, 'a receipt 8 days before its record does not');
+});
+
+test('a game binds its auth to the node\'s nonce and the URL it dialled where the node offers it, and not elsewhere', async () => {
+  const nonce = b64(sha('a welcome nonce'));
+  const auths = async (o) => {
+    const p = fedPage(), n = p.net.node(URL1, o);
+    n.nonce = o.nonce;
+    await joinGame(p);
+    assert.ok(await until(async () => (p.net.advance(500), await settle(5), n.auths.length > 0)), 'the game proved its key');
+    return { p, n, a: n.auths[0] };
+  };
+  const { p, n, a } = await auths({ feats: ['state', 'bind'], nonce });
+  assert.equal(a.url, URL1, 'the URL dialled');
+  const check = (nc, urls) => p.ev(`fedAuthErr(${JSON.stringify(a)},${JSON.stringify(n.key.pub)},${JSON.stringify(PL.id)},${p.net.now()},${JSON.stringify(nc)},${JSON.stringify(urls)})`);
+  assert.equal(await check(nonce, [URL1]), null, 'good for this session of this node');
+  assert.equal(await check(nonce, ['wss://other.example.net/fed']), 'bad_sig', 'relayed to another node');
+  assert.equal(await check(b64(sha('another session')), [URL1]), 'bad_sig', 'replayed on another session');
+  assert.equal((await auths({ feats: ['state'], nonce })).a.url, undefined, 'a node that does not list bind gets the older form');
+});
+
+test('a sealed deal whose plain text has a __proto__ member is not opened: nothing can be inherited past the checks', async () => {
+  const p = fedPage();
+  await joinGame(p);
+  await settle();
+  const bob = key('bob').pub;
+  await p.ev(`fedPut('ann','${bob}',{rec:${JSON.stringify(ann('bob'))},id:'x',heard:${NOW},srv:[]})`);
+  const open = (extra) => p.ev(`(async()=>{const me=S.fed.key.pub,plain=JSON.parse(${JSON.stringify(JSON.stringify({ deal: 'peering', basis: 'A'.repeat(43), terms: { at: ['fra'], via: 'ix' } }).slice(0, -1))}+${JSON.stringify(extra)}+'}');
+    const env={v:1,kind:'offer',key:me,t:${NOW},body:{to:'${bob}'}},enc=await fedSeal(S.fed.key.priv,me,'${bob}',await fedBoxOf('${bob}'),env,plain);
+    const o=await fedOpenRec(S.fed,await fedSignRec(S.fed.key.priv,'offer',{to:'${bob}',enc},${NOW}));return JSON.stringify(o?{renews:o.body.renews||null,own:Object.keys(o.body).sort()}:null);})()`).then(JSON.parse);
+  assert.deepEqual(await open(''), { renews: null, own: ['basis', 'deal', 'terms', 'to'] }, 'the same offer without it opens');
+  assert.equal(await open(`,"__proto__":{"renews":"${'B'.repeat(43)}"}`), null);
+  assert.equal(await open(',"constructor":1'), null);
+  assert.deepEqual(p.errors, []);
 });

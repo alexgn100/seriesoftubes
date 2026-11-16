@@ -75,8 +75,11 @@ your own with `relay status` and the [metrics](#monitoring-with-prometheus)):
   free disk is plenty for most servers.
 - **Traffic.** Records in, receipts and the pieces of leaderboards players look at out (never whole boards). A hundred
   active players are a few hundred MB a day at most; the terabyte a typical VPS includes is far more than you need.
-  The limits that bound it: 5000 open connections, 20 messages per second each, 30 new connections per address per
-  5 minutes (all in [the config](RELAY.md#the-config-file)).
+  The limits that bound it: 5000 open connections, 20 messages per second each, 256 open and 120 new at once per
+  address (all in [the config](RELAY.md#limits-per-address-many-players-or-agents-behind-one-address)), and hourly
+  budgets of new networks and record bytes per connection, address and other server, with a high-water mark past
+  which only known networks may put ([`budgets`](RELAY.md#the-config-file)). If you run the relay with a memory limit,
+  set `GOMEMLIMIT` too: the relay stops taking new networks at 4/5 of it.
 - **Time.** An hour to set up, a few minutes a month: updates and an eye on the logs.
 
 ## Getting the relay
@@ -122,9 +125,14 @@ downloaded with `curl` as above is not. (Or: `xattr -d com.apple.quarantine rela
 | `ghcr.io/fjaeckel/seriesoftubes-relay:X.Y` | To each new patch release of X.Y (fixes only) |
 | `ghcr.io/fjaeckel/seriesoftubes-relay:latest` | To each new release (pre-releases never) |
 
+Each published image carries GitHub's signed build provenance, also stored in the registry beside it: `gh attestation
+verify oci://ghcr.io/fjaeckel/seriesoftubes-relay:X.Y.Z -R fjaeckel/seriesoftubes` checks it was built by this
+repository's workflow.
+
 The image is built `FROM scratch`: the relay, CA certificates and nothing else (no shell), running as an unprivileged
-user (uid 65532) with its data in `/data`. Inside it, `relay init` listens on `0.0.0.0:8080` and serves metrics on
-`0.0.0.0:9100` for the Docker network (`RELAY_LISTEN`, `RELAY_METRICS`, `RELAY_METRICS_PUBLIC` in the image). It runs
+user (uid 65532) with its data in `/data`. Inside it, `relay init` listens on `0.0.0.0:8080` (`RELAY_LISTEN` in the
+image); metrics are off unless your Compose file sets `RELAY_METRICS` (and `RELAY_METRICS_PUBLIC`), as
+`relay/docker-compose.yml` does for the Compose network ([Monitoring](#monitoring-with-prometheus)). It runs
 [`relay up`](RELAY.md#relay-up) by default: on a data folder that already holds a server that is `relay serve`; on an
 empty one it sets the server up from `RELAY_URL`, `RELAY_NAME` and the like first.
 
@@ -187,7 +195,10 @@ docker compose cp relay:/data/operator.key ./operator.key
 ```
 
 Move that file off the server (a password manager, a USB stick in a drawer) and delete the copy there. Through a
-remote context (below) the command copies it straight to your own computer.
+remote context (below) the command copies it straight to your own computer. Once it is safe, remove it from the
+server too, `docker compose run --rm toolbox rm /data/operator.key` (the relay's image has no shell): the relay never needs it to run or restart, and a key
+that is not on the server cannot be stolen from it. See [operator actions without the key on the
+server](#operator-actions-without-the-key-on-the-server) for when you need it.
 
 **From your own computer, over SSH.** Docker can run everything on the server from a checkout on your machine: the
 build context is sent over SSH and built on the server, and the Compose file uses only named volumes and inline
@@ -225,8 +236,9 @@ docker compose run --rm toolbox                 # edits /data/config.json
 docker compose kill -s HUP relay                # most settings; listen, metrics, TLS: docker compose restart relay
 ```
 
-**Backups:** `docker compose exec relay /relay backup /data/backup.tar.gz`, then
-`docker compose cp relay:/data/backup.tar.gz ./` and `docker compose run --rm toolbox rm /data/backup.tar.gz`.
+**Backups:** `docker compose exec relay /relay backup /data/backups/backup.tar.gz`, then
+`docker compose cp relay:/data/backups/backup.tar.gz ./` and `docker compose run --rm toolbox rm /data/backups/backup.tar.gz`.
+(`backups/` in the data folder is made when needed and, like any `.tar.gz` there, left out of later backups.)
 
 **Updating:**
 
@@ -235,9 +247,11 @@ cd seriesoftubes && git pull
 cd relay && docker compose up -d --build
 ```
 
-A checkout build reports its version as `dev` (and so gets no update notices); set `RELAY_VERSION` in `.env` to the
-release you checked out (`git checkout vX.Y.Z`) to have it reported. Or run a published release instead of building:
-set `RELAY_IMAGE=ghcr.io/fjaeckel/seriesoftubes-relay:X.Y.Z` and `docker compose pull && docker compose up -d`.
+A checkout build reports its version as `dev` (and so gets no update notices) and is tagged
+`ghcr.io/fjaeckel/seriesoftubes-relay:dev` locally; set `RELAY_VERSION` in `.env` to the release you checked out
+(`git checkout vX.Y.Z`) to have it reported and tagged so. Or run a published release instead of building: set
+`RELAY_VERSION=X.Y.Z` and `docker compose pull && docker compose up -d`. Only `RELAY_VERSION=latest` follows every
+release by itself; a pinned version moves when you change it (Dependabot does the same for this repository's files).
 
 **A second node of an existing server** (yours or a co-operator's, on another machine): in that machine's `.env`,
 uncomment `RELAY_JOIN` under "Advanced" and set it to the server identity; nothing else (`RELAY_NAME` and the rest of
@@ -306,12 +320,13 @@ sudo install -d -o 65532 -g 65532 -m 0700 relay-data   # the relay runs as uid 6
 # Series of Tubes relay behind Caddy. docs/HOSTING.md, path A.
 services:
   relay:
-    image: ghcr.io/fjaeckel/seriesoftubes-relay:latest   # or pin a release: :X.Y.Z
+    image: ghcr.io/fjaeckel/seriesoftubes-relay:X.Y.Z   # the release to run (:X.Y takes its fixes, :latest every release)
     restart: unless-stopped
     volumes:
       - ./relay-data:/data
     networks: [tubes]
-    # No ports: only Caddy reaches the relay (8080), and only the Docker network reaches its metrics (9100).
+    # No ports: only Caddy reaches the relay (8080). Metrics are off; for a Prometheus on this Docker network add
+    # environment: {RELAY_METRICS: "0.0.0.0:9100", RELAY_METRICS_PUBLIC: "true"} before the first start.
 
   caddy:
     image: caddy:2
@@ -352,7 +367,14 @@ explains each step):
 ```sh
 docker compose run --rm relay init --url wss://relay.example.net/fed --trusted-proxies 172.30.0.0/24
 docker compose run --rm relay genesis --name "Packet Lunch" --sync open --langs en --desc "Small, friendly, always on."
-sudo cp relay-data/operator.key ~/operator.key.backup && sudo chown "$USER" ~/operator.key.backup
+```
+
+Then copy `operator.key` to **your own computer** and delete it from the server (a copy beside the data folder is no
+backup: it goes when the server goes, and anyone who gets in finds it). On your computer:
+
+```sh
+(umask 077; ssh you@relay.example.net 'sudo cat ~/tubes/relay-data/operator.key' > operator.key)
+ssh you@relay.example.net 'sudo rm ~/tubes/relay-data/operator.key'   # once the copy is safe
 ```
 
 `--trusted-proxies` makes the relay believe the `X-Forwarded-For` header from Caddy's network. Without it every player
@@ -416,7 +438,7 @@ mv /certs/.fullchain.pem.new /certs/fullchain.pem
 # Series of Tubes relay serving TLS itself, certificates from certbot. docs/HOSTING.md, path A2.
 services:
   relay:
-    image: ghcr.io/fjaeckel/seriesoftubes-relay:latest   # or pin a release: :X.Y.Z
+    image: ghcr.io/fjaeckel/seriesoftubes-relay:X.Y.Z   # the release to run (:X.Y takes its fixes, :latest every release)
     restart: unless-stopped
     ports:
       - "443:8443"
@@ -459,9 +481,15 @@ certbot remembers the hook for every renewal of this certificate.
 docker compose run --rm relay init --url wss://relay.example.net/fed --listen 0.0.0.0:8443 \
   --tls-cert /certs/fullchain.pem --tls-key /certs/privkey.pem
 docker compose run --rm relay genesis --name "Packet Lunch" --sync open --langs en
-sudo cp relay-data/operator.key ~/operator.key.backup && sudo chown "$USER" ~/operator.key.backup
 docker compose up -d
 docker compose logs relay       # "TLS certificate loaded" with the expiry date, then "relay serving"
+```
+
+Copy `operator.key` to **your own computer**, then delete it from the server; on your computer:
+
+```sh
+(umask 077; ssh you@relay.example.net 'sudo cat ~/tubes/relay-data/operator.key' > operator.key)
+ssh you@relay.example.net 'sudo rm ~/tubes/relay-data/operator.key'   # once the copy is safe
 ```
 
 No proxy here, so `trustedProxies` stays loopback and the relay sees players' addresses directly (see
@@ -496,7 +524,13 @@ sudo install -d -o relay -g relay -m 0700 /var/lib/relay
 ```sh
 sudo -u relay RELAY_DATA=/var/lib/relay relay init --url wss://relay.example.net/fed
 sudo -u relay RELAY_DATA=/var/lib/relay relay genesis --name "Packet Lunch" --sync open --langs en
-sudo cp /var/lib/relay/operator.key ~/operator.key.backup && sudo chown "$USER" ~/operator.key.backup
+```
+
+Copy `operator.key` to **your own computer** and delete it from the server once the copy is safe; on your computer:
+
+```sh
+(umask 077; ssh you@relay.example.net 'sudo cat /var/lib/relay/operator.key' > operator.key)
+ssh you@relay.example.net 'sudo rm /var/lib/relay/operator.key'
 ```
 
 The relay listens on `127.0.0.1:8080`, only for the proxy on the same machine.
@@ -659,7 +693,9 @@ explains what it made.
 - `operator.key`: **your** key. It is the control of the server: whoever holds it can change the server's
   operators, nodes, name and policy, and vote in shuns in its name. There is no password reset and no one to ask.
   **Copy it somewhere safe and offline now** (a password manager, a USB stick in a drawer). Backups leave it out on
-  purpose. To use the same key on several machines, pass `--operator-key FILE` to `init`.
+  purpose. To use the same key on several machines, pass `--operator-key FILE` to `init`. Then **delete it from the
+  server**: the relay never reads it to run or restart (`relay up` included), only operator actions do ([below](#operator-actions-without-the-key-on-the-server)).
+
 - `config.json`: the settings. The ones that matter first:
 
 | Setting | What to put |
@@ -683,6 +719,16 @@ To make this machine a second node of an existing server instead, see
 
 **3. Start it** (`relay serve`, the systemd unit, or `docker compose up -d`) and look at **`relay status`**: server and
 node, operators, open sessions, records held, disk use and the version.
+
+### Operator actions without the key on the server
+
+Changing operators, nodes or the server's name and policy takes your signature. With the key off the server:
+
+- **From the game**: import the key in Multimode's operator panel; it signs there and sends the signature to your node.
+- **From your own computer**: `relay ops sign ID --via wss://relay.example.net/fed --data FOLDER`, where `FOLDER`
+  holds your `operator.key`; it fetches the pending record from the node, signs it locally and sends back the signature.
+- **On the server, for a moment**: copy the key back (`docker compose cp ./operator.key relay:/data/operator.key`, or
+  `scp`), run `relay ops propose …`, `relay ops server …` or `relay ops sign …`, and delete it again.
 
 ### Test it with the game
 
@@ -723,7 +769,9 @@ one goes down. [RELAY.md, adding a second operator](RELAY.md#adding-a-second-ope
 
 **Backups**: `relay backup /path/backup.tar.gz` writes a consistent copy of records, config and node key while the relay
 runs (mode 0600). With Docker, write it into the data folder and copy it out:
-`docker compose exec relay /relay backup /data/backup.tar.gz && sudo mv relay-data/backup.tar.gz ~/`. Keep backups
+`docker compose exec relay /relay backup /data/backups/backup.tar.gz && sudo mv relay-data/backups/backup.tar.gz ~/`
+(the data folder's `backups/` is made when needed, and it and any `.tar.gz` in the folder are left out of later
+backups). Keep backups
 off the machine. `operator.key` is not in them: you saved it at the first run.
 
 **Restoring** on a new machine: install the relay, unpack the backup into an empty data folder owned by the relay's
@@ -749,10 +797,14 @@ A relay never runs on a data folder written by a newer relay: to go back a versi
 
 The relay serves Prometheus metrics at `/metrics` when `metrics` is set: counts and versions only, never an address, a
 key or a name ([RELAY.md, metrics](RELAY.md#metrics)). On a machine of its own, keep it on loopback
-(`"metrics": "127.0.0.1:9100"`) and run Prometheus there, or reach it through an SSH tunnel. In a container the image
-listens on `0.0.0.0:9100` with `"metricsPublic": true`, so a Prometheus **on the same Docker network** can scrape
-`http://relay:9100/metrics`. Keep port 9100 off the internet: don't publish it in `compose.yaml`, or firewall it to your
-monitoring host. Without `metricsPublic` the relay refuses any address but localhost, and with it, it warns at start.
+(`"metrics": "127.0.0.1:9100"`) and run Prometheus there, or reach it through an SSH tunnel. In a container metrics are
+off unless the Compose file sets `RELAY_METRICS: 0.0.0.0:9100` and `RELAY_METRICS_PUBLIC: "true"` before the first
+start (`relay/docker-compose.yml` does), so a Prometheus **on the same Docker network** can scrape
+`http://relay:9100/metrics`. Keep port 9100 off the internet: don't publish it in `compose.yaml`, and if a Prometheus
+on the host needs it, publish it on loopback only (`"127.0.0.1:9100:9100"`). **Docker's published ports bypass
+`ufw`** and most host firewalls (Docker writes its own iptables rules ahead of them), so `"9100:9100"` is open to the
+whole internet whatever `ufw status` says. Without `metricsPublic` the relay refuses any address but localhost, and
+with it, it warns at start.
 
 A scrape job for your `prometheus.yml`:
 
@@ -857,7 +909,10 @@ process, per server and node, using the `server` and `node` labels above.
 
 Change the thresholds to suit your machine. Other series worth a graph: `relay_clients` and `relay_node_sessions`
 (open connections), `relay_records_in_total` by `kind`, `relay_records`, `relay_refused_total` by `code`,
-`relay_syncs_total`, `relay_rank_answers_total` by `cache` (hit or miss), `relay_build_info` and
+`relay_budget_refused_total` by `budget` (which growth budget refused records or live states), `relay_high_water` (1
+while only known networks may put), `relay_live_evicted`,
+`relay_syncs_total`, `relay_auth_total` by `form` (`legacy`: games still proving keys the older way, see `legacyAuth`
+in docs/RELAY.md), `relay_rank_answers_total` by `cache` (hit or miss), `relay_build_info` and
 `relay_latest_version_info`.
 
 ## Logs and privacy: your duties
@@ -900,7 +955,9 @@ relay lan                      # or: relay lan --name "The LAN Before Time" --po
 The first time, it makes a data folder `relay-lan` (kept apart from any other relay's; `--data` to choose), founds a
 standalone server named after the `--name` flag, and makes a **self-signed certificate** covering this machine's mDNS
 name (`yourmachine.local`), `localhost` and its LAN addresses (private IPv4 such as `192.168.1.20`, and IPv6 unique
-local addresses). It listens on port 8443 on every interface and prints what the players need:
+local addresses). It listens on port 8443 on every interface, answers only devices on loopback, private, link-local and
+carrier-grade NAT addresses (a connection from the internet, over a public IPv4 or a global IPv6 address, is closed at
+once) and prints what the players need:
 
 ```
 The LAN Before Time is ready for a LAN party on port 8443.
@@ -916,7 +973,8 @@ On each device, once:
 ```
 
 Allow incoming connections when the system asks (macOS: "Accept incoming network connections?"; Windows: allow on
-**private** networks; Linux with a firewall: `sudo ufw allow 8443/tcp`). Ctrl-C stops it. Next time, `relay lan` reuses
+**private** networks only; Linux with a firewall: allow the party's network only, such as
+`sudo ufw allow from 192.168.0.0/16 to any port 8443 proto tcp`, not the port for everyone). Ctrl-C stops it. Next time, `relay lan` reuses
 the server and the certificate (while it still covers the machine's addresses and is valid for another week), so
 devices that accepted it before join straight away. A new address (another network, another DHCP lease) means a new
 certificate and one more click per device.
@@ -963,6 +1021,10 @@ up the name, so this needs DNS (or the internet) at the party.
 - The certificate and keys stay in the data folder (`lan-cert.pem`, `lan-key.pem`, `node.key`, `operator.key`); delete
   the folder to start afresh. Players' saves keep the server, and reconnect at the next party at the same address.
 - The day-to-day commands work as for any relay, given the LAN folder: `relay status --data relay-lan`.
+- **On Windows** the file modes the relay sets (keys readable by you only) do nothing; what protects the keys is the
+  folder's permissions. Keep the data folder under your user profile (run `relay lan` from a folder in
+  `C:\Users\you\…`, or give `--data` such a path), which only you and administrators can read, not in `C:\relay` or
+  on a shared drive, which other users of the machine usually can. The relay warns at start when it is not.
 
 ## Troubleshooting
 

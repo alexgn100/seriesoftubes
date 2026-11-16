@@ -104,10 +104,13 @@ function dealKey(me, peer, peerBox, kind) {
 }
 const boxAad = env => { const { sig, ...r } = env; const { enc, ...body } = r.body; return canon({ ...r, body }); };
 const vnonce = label => b64(sha('tubes-fed.1 vector nonce ' + label).subarray(0, 12));
-function sealEnc(me, peer, peerBox, env, plain, n) {
+// The sealed plaintext: canonical JSON padded with spaces to the next multiple of 256 bytes, at most 2032 (3.5).
+// unpadded: as games before padding sealed it (openers read both).
+const padded = (plain) => { const b = Buffer.from(canon(plain), 'utf8'), n = Math.min(Math.ceil(b.length / 256) * 256, 2032); return b.length >= n ? b : Buffer.concat([b, Buffer.alloc(n - b.length, 0x20)]); };
+function sealEnc(me, peer, peerBox, env, plain, n, unpadded) {
   const c = crypto.createCipheriv('aes-256-gcm', dealKey(me, peer, peerBox, env.kind), Buffer.from(n, 'base64url'));
   c.setAAD(Buffer.from(boxAad(env), 'utf8'));
-  return { n, c: b64(Buffer.concat([c.update(Buffer.from(canon(plain), 'utf8')), c.final(), c.getAuthTag()])) };
+  return { n, c: b64(Buffer.concat([c.update(unpadded ? Buffer.from(canon(plain), 'utf8') : padded(plain)), c.final(), c.getAuthTag()])) };
 }
 // A sealed offer or decline from author to the network named to: clear holds what stays in clear (to, and offer for a
 // decline), plain what is sealed. The nonce comes from a label, so the files never change.
@@ -333,7 +336,11 @@ const SID = rid(genesis);
   bad('stats-traffic-duplicate', 'The same network twice in traffic.', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: pub('bob'), in: 1, out: 1 }, { key: pub('bob'), in: 2, out: 2 }] }), 'duplicate');
   bad('stats-traffic-self', 'Traffic with one\'s own key.', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: pub('alice'), in: 1, out: 1 }] }), 'bad_field');
   bad('stats-traffic-bad-key', 'A traffic entry whose key is not a key.', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: 'bob', in: 1, out: 1 }] }), 'bad_key');
-  bad('stats-mbps-over', 'Traffic over 1000000000 Mbps.', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: pub('bob'), in: 1000000001, out: 1 }] }), 'bad_field');
+  ok('stats-traffic-past-pbps', 'Traffic is Traffic, up to 10^12 Mbps: past 1 Pbps is accepted (games send at most 10^9 for now).', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: pub('bob'), in: 1000000000000, out: 1000000000000 }] }));
+  bad('stats-mbps-over', 'Traffic over 1000000000000 Mbps.', rec('stats', 'alice', T, { ...statsMin(), traffic: [{ key: pub('bob'), in: 1000000000001, out: 1 }] }), 'bad_field');
+  ok('announce-traffic-past-pbps', 'An announce\'s traffic is Traffic too: 10^12 Mbps each way is accepted.', rec('announce', 'alice', T, { ...announceBody(), traffic: { in: 1000000000000, out: 1000000000000 } }));
+  bad('announce-traffic-over', 'An announce\'s traffic over 1000000000000 Mbps.', rec('announce', 'alice', T, { ...announceBody(), traffic: { in: 1000000000001, out: 0 } }), 'bad_field');
+  bad('announce-cond-mbps-over', 'cond.minMbps stays Mbps (at most 10^9): only reported traffic is Traffic.', rec('announce', 'alice', T, { ...announceBody(), cond: { ...announceBody().cond, minMbps: 1000000001 } }), 'bad_field');
   bad('announce-pops-duplicate', 'A city twice in pops.', rec('announce', 'alice', T, { ...announceBody(), pops: ['fra', 'ams', 'fra'] }), 'duplicate');
 
   // --- body schema ---
@@ -405,7 +412,8 @@ const SID = rid(genesis);
 
   // --- stats: total (the network's whole traffic, optional) ---
   ok('stats-total', 'stats with total, the network\'s whole traffic in Mbps (optional; absent counts as 0).', rec('stats', 'alice', T, { ...statsMin(), total: 48000 }));
-  bad('stats-total-over', 'total over 1000000000 Mbps.', rec('stats', 'alice', T, { ...statsMin(), total: 1000000001 }), 'bad_field');
+  ok('stats-total-past-pbps', 'total is Traffic: 10^12 Mbps (1 Ebps) is accepted.', rec('stats', 'alice', T, { ...statsMin(), total: 1000000000000 }));
+  bad('stats-total-over', 'total over 1000000000000 Mbps.', rec('stats', 'alice', T, { ...statsMin(), total: 1000000000001 }), 'bad_field');
 
   // --- waves: a rate card (rates.wave), auto.wave (optional) and wave offers ---
   const WAVE = { routes: [{ a: 'ams', b: 'fra' }, { a: 'fra', b: 'lon' }], sizes: [{ gbps: 100, monthly: 900 }, { gbps: 400, monthly: 2400 }], term: 90 };
@@ -429,7 +437,7 @@ const SID = rid(genesis);
   ok('stats-cone', 'stats listing its transit customers (cust) and upstreams (up), and tier2.', rec('stats', 'alice', T, { ...statsMin(), cust: [pub('bob'), pub('carol')].sort(byStr), up: [pub('dave')], tier1: false, tier2: true }));
   ok('stats-biggest', 'The largest stats a game can send fits the 40960-byte limit: 512 POP cities, 256 traffic entries at the maximum, 128 customers, 16 upstreams, an AI setup.',
     rec('stats', 'alice', T, { ...statsMin(), pops: Object.fromEntries(Array.from({ length: 512 }, (_, i) => ['c' + String(i).padStart(7, '0'), 1000])),
-      traffic: keysN('t', 256).map(key => ({ key, in: 1000000000, out: 1000000000 })), total: 1000000000, pies: 10000000, cust: keysN('c', 128), up: keysN('u', 16),
+      traffic: keysN('t', 256).map(key => ({ key, in: 1000000000000, out: 1000000000000 })), total: 1000000000000, pies: 10000000, cust: keysN('c', 128), up: keysN('u', 16),
       tier2: true, ai: { model: 'm'.repeat(64), harness: 'h'.repeat(64) } }));
   bad('stats-cust-129', '129 transit customers (limit 128).', rec('stats', 'alice', T, { ...statsMin(), cust: keysN('c', 129) }), 'too_many');
   bad('stats-up-17', '17 upstreams (limit 16).', rec('stats', 'alice', T, { ...statsMin(), up: keysN('u', 17) }), 'too_many');
@@ -466,6 +474,34 @@ const SID = rid(genesis);
   badState('state-own-traffic', 'A live state is checked like stats: traffic with its own key is bad_field.', rec('state', 'alice', NOW, { ...statsMin(), traffic: [{ key: pub('alice'), in: 1, out: 1 }] }), 'bad_field');
   badState('state-stats-kind', 'Where a state is expected, a stats record is the wrong kind.', rec('stats', 'alice', T, statsMin()), 'bad_kind');
   bad('state-not-a-record', 'A live state is not a record: put (or anywhere a record is expected) refuses its kind.', live, 'bad_kind');
+
+  // --- players' exchanges (ix2): rates.ix.members and auto.cofound (both optional) ---
+  const IXM = { at: 'fra', nets: ['cog', 'ntt', 'tly'], players: 2 };
+  const annIx = (members, auto = 'review') => { const b = announceBody(); b.rates.ix = { ...b.rates.ix, members }; if (auto !== null) b.auto.cofound = auto; return b; };
+  ok('announce-ix-members', 'An exchange\'s members (ix2): per city in rates.ix.at, the computer-run networks on it (Net ids) and how many players have a port; auto.cofound set.', rec('announce', 'alice', T, annIx([IXM])));
+  ok('announce-ix-members-empty', 'An exchange nobody joined yet: nets may be empty, players 0. auto.cofound is optional (absent: co-founding offers are declined).', rec('announce', 'alice', T, annIx([{ at: 'fra', nets: [], players: 0 }], null)));
+  ok('announce-ix-members-48', 'At most 48 networks per exchange; unknown ids of the right shape are not refused (the game ignores them).', rec('announce', 'alice', T, annIx([{ ...IXM, nets: Array.from({ length: 48 }, (_, i) => 'n' + String(i).padStart(2, '0')) }])));
+  bad('announce-ix-members-49', '49 networks on one exchange (limit 48).', rec('announce', 'alice', T, annIx([{ ...IXM, nets: Array.from({ length: 49 }, (_, i) => 'n' + String(i).padStart(2, '0')) }])), 'too_many');
+  bad('announce-ix-members-not-at', 'Members only for the exchanges it sells ports on: every at is in rates.ix.at.', rec('announce', 'alice', T, annIx([{ ...IXM, at: 'ams' }])), 'bad_field');
+  bad('announce-ix-members-city-twice', 'One entry per exchange.', rec('announce', 'alice', T, annIx([IXM, { ...IXM, nets: [] }])), 'duplicate');
+  bad('announce-ix-members-empty-list', 'members, when present, names at least one exchange.', rec('announce', 'alice', T, annIx([])), 'bad_field');
+  bad('announce-ix-members-net-shape', 'A Net is shaped like a City: 2 to 8 lower-case letters and digits.', rec('announce', 'alice', T, annIx([{ ...IXM, nets: ['Cogentle'] }])), 'bad_field');
+  bad('announce-ix-members-net-twice', 'A network once per exchange.', rec('announce', 'alice', T, annIx([{ ...IXM, nets: ['cog', 'cog'] }])), 'duplicate');
+  bad('announce-ix-members-players', 'players is Count(64).', rec('announce', 'alice', T, annIx([{ ...IXM, players: 65 }])), 'bad_field');
+  bad('announce-ix-members-extra', 'Nothing else in a members entry.', rec('announce', 'alice', T, annIx([{ ...IXM, fee: 1500 }])), 'unknown_field');
+  bad('announce-auto-cofound', 'auto.cofound is auto, review or decline.', rec('announce', 'alice', T, annIx([IXM], 'maybe')), 'bad_field');
+  // Weak keys (3.1): small-order points and y >= 2^255 - 19. With the identity as key, R = identity and S = 0 pass a
+  // plain Ed25519 verification for any message, so anyone could sign as it.
+  {
+    const id = Buffer.alloc(32); id[0] = 1;
+    const forged = Buffer.alloc(64); forged[0] = 1;
+    bad('key-small-order', 'The key is the identity point (order 1); the signature (R = identity, S = 0) would verify for any message.', { ...st, key: b64(id), sig: b64(forged) }, 'bad_key');
+    const o8 = Buffer.from('c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a', 'hex'); o8[31] |= 0x80;
+    bad('key-order-8', 'A point of order 8 (with its sign bit set): small order, refused.', { ...st, key: b64(o8) }, 'bad_key');
+    const p1 = Buffer.alloc(32, 0xff); p1[0] = 0xee; p1[31] = 0x7f;
+    bad('key-y-over-p', 'y = 2^255 - 19 + 1: not below the field prime, a non-canonical encoding of y = 1.', { ...st, key: b64(p1) }, 'bad_key');
+    ok('announce-box-zero', 'The weak-key rule is for Ed25519 keys: a box (X25519) is checked for its format only, so 32 zero bytes pass here (sealing to it fails).', rec('announce', 'alice', T, { ...announceBody(), box: b64(Buffer.alloc(32)) }));
+  }
 }
 
 // ======================================================================================
@@ -488,7 +524,8 @@ const SID = rid(genesis);
     'Sealing an offer from alice to bob. shared = X25519(alice\'s box private key, bob\'s box). key = HKDF-SHA256(shared, ' +
     'salt = the 32 raw bytes of each of the two Ed25519 keys, the one whose Key text sorts first (byte order) first, info = ' +
     '"tubes-fed v1 offer" (the record kind), 32 bytes). aad = canonical JSON of the record without sig and without body.enc. ' +
-    'c = AES-256-GCM(key, nonce n, plaintext = canonical JSON of what is sealed, aad), the 16-byte tag appended. Gives enc.',
+    'c = AES-256-GCM(key, nonce n, plaintext = canonical JSON of what is sealed padded with spaces to the next multiple of 256 bytes ' +
+    '(at most 2032), aad), the 16-byte tag appended. Gives enc.',
     { seed: hex('alice'), peer: pub('bob'), peerBox: boxPub('bob'), envelope: env, plain, nonce: n },
     { aad: boxAad(env), key: dealKey('alice', pub('bob'), boxPub('bob'), 'offer').toString('hex'), enc: offer.body.enc });
   const open = (name, d, who, peer, record, expect) => put(A, name, d, { seed: hex(who), peer: pub(peer), peerBox: boxPub(peer), record }, expect);
@@ -523,6 +560,16 @@ const SID = rid(genesis);
   terms('terms-extra', 'Nothing but the fields of 5.3 in an opened offer.', 'bob', { to: pub('alice'), deal: 'pni', basis: rid(ann), terms: { at: 'fra', mbps: 10000, setup: 5000, monthly: 1500, term: 180 }, note: 'hi' }, { ok: false, error: 'unknown_field' });
   terms('decline-reason', 'An opened decline holds {reason} from the fixed list.', 'alice', { reason: 'depeer' }, ok, 'decline');
   terms('decline-free-text', 'decline reasons come from a fixed list; free text is refused even sealed.', 'alice', { reason: 'you smell' }, { ok: false, error: 'bad_field' }, 'decline');
+  // Co-founding (ix2): the founder (author) offers a share of its exchange at at, on the counterparty's announce.
+  const CF = { at: 'fra', share: 250, setup: 20000, monthly: 750, term: 180 };
+  terms('terms-cofound', 'alice, who runs the exchange in Frankfurt, offers bob a quarter of it: 250 per mille, 20000 once, 750 a month, 180 days. The basis is bob\'s announce (his auto.cofound).', 'alice', { to: pub('bob'), deal: 'cofound', basis: annB, terms: CF }, ok);
+  terms('terms-cofound-no-basis', 'A co-founding offer needs a basis: the counterparty\'s announce says whether it takes them.', 'alice', { to: pub('bob'), deal: 'cofound', terms: CF }, { ok: false, error: 'missing_field' });
+  terms('terms-cofound-share-low', 'share is 100 to 500 per mille.', 'alice', { to: pub('bob'), deal: 'cofound', basis: annB, terms: { ...CF, share: 99 } }, { ok: false, error: 'bad_field' });
+  terms('terms-cofound-share-high', 'A co-founder never gets more than half.', 'alice', { to: pub('bob'), deal: 'cofound', basis: annB, terms: { ...CF, share: 501 } }, { ok: false, error: 'bad_field' });
+  terms('terms-cofound-no-term', 'A co-founding runs a term like any priced deal.', 'alice', { to: pub('bob'), deal: 'cofound', basis: annB, terms: { at: 'fra', share: 250, setup: 20000, monthly: 750 } }, { ok: false, error: 'missing_field' });
+  { const envU = { v: 1, kind: 'offer', key: pub('alice'), t: T + 5, body: clear };
+    const old = rec('offer', 'alice', T + 5, { ...clear, enc: sealEnc('alice', pub('bob'), boxPub('bob'), envU, plain, vnonce('box offer unpadded'), true) });
+    open('open-unpadded', 'An offer sealed by an older game, without padding: openers read both (spaces after JSON are whitespace).', 'bob', 'alice', old, { ok: true, plain }); }
 }
 
 // ======================================================================================
@@ -556,6 +603,13 @@ const SID = rid(genesis);
   go('not-a-node', 'Signed by a key that is not one of the server\'s nodes.', st, R(st, { rec: rid(st), server: SID }, 'node3'), { ok: false, error: 'not_node' });
   go('bad-sig', 'Claims node1, signed by node2.', st, R(st, { rec: rid(st), server: SID }, 'node1', SLOT, 'node2'), { ok: false, error: 'bad_sig' });
   go('future', 'A receipt more than 600 s in the future.', st, R(st, { rec: rid(st), server: SID }, 'node1', T + 900), { ok: false, error: 'too_new' });
+  // A node takes a record only while rec.t <= now + 600 and within its kind's age, and signs at slot(now): so a receipt
+  // is never before slot(rec.t) - 600, nor after rec.t + the kind's maximum age.
+  go('before-record-edge', 'The record\'s author clock ran 600 s ahead of the node: slot(rec.t) - 600 is still fine.', st, R(st, { rec: rid(st), server: SID }, 'node1', SLOT - 600), { ok: true });
+  go('before-record', 'A receipt dated before its record could have reached any node (slot(rec.t) - 900): it would backdate the board slot.', st, R(st, { rec: rid(st), server: SID }, 'node1', SLOT - 900), { ok: false, error: 'bad_field' });
+  const stAged = rec('stats', 'bob', NOW - 777600, statsMin());
+  go('after-max-age-edge', 'A stats record at its maximum age (777600 s): a receipt at rec.t + 777600 or before is fine.', stAged, R(stAged, { rec: rid(stAged), server: SID }, 'node1', SLOT), { ok: true });
+  go('after-max-age', 'A receipt later than rec.t + 777600: no node would have taken the record then.', stAged, R(stAged, { rec: rid(stAged), server: SID }, 'node1', SLOT + 300), { ok: false, error: 'bad_field' });
 }
 
 // ======================================================================================
@@ -601,6 +655,17 @@ const SID = rid(genesis);
   go('other-signer', 'Claims alice, signed by mallory.', F('alice', NOW, {}, 'mallory'), { ok: false, error: 'bad_sig' });
   go('bad-key', 'key is not a Key.', F('alice', NOW, { key: 'alice' }), { ok: false, error: 'bad_key' });
   go('bad-sig-format', 'sig is not a Sig.', F('alice', NOW, { sig: 'AAAA' }), { ok: false, error: 'bad_sig' });
+  // Bound auth (bind): the node's welcome gave this session a nonce; the game signs {m, key, node, nonce, server, t, url}
+  // with url the URL it dialled, and sends url in the frame. Input nonce: the session's; urls: the node's own.
+  const N = b64(sha('tubes-fed.1 vector welcome nonce')), N2 = b64(sha('tubes-fed.1 vector other welcome nonce'));
+  const B = (who, t, nonce, url, over = {}) =>
+    ({ m: 'auth', id: 7, key: pub(who), t, url, sig: signText(who, canon({ m: 'auth', key: pub(who), node: pub('node1'), nonce, server: SID, t, url })), ...over });
+  const bound = (name, d, auth, expect, nonce = N) => put(A, name, d, { now: NOW, node: pub('node1'), server: SID, ...(nonce ? { nonce } : {}), urls: [URL1], auth }, expect);
+  bound('bound-valid', 'alice signs {m: "auth", key, node, nonce, server, t, url}: the nonce this session\'s welcome gave and the URL she dialled, one of the node\'s own.', B('alice', NOW - 5, N, URL1), { ok: true });
+  bound('bound-other-url', 'Signed for the URL of another server\'s node that passed the welcome on: not one of this node\'s URLs.', B('alice', NOW, N, URL2), { ok: false, error: 'bad_sig' });
+  bound('bound-other-nonce', 'Signed with the nonce of another session.', B('alice', NOW, N2, URL1), { ok: false, error: 'bad_sig' });
+  bound('bound-no-nonce', 'A bound auth on a session whose welcome gave no nonce.', B('alice', NOW, N, URL1), { ok: false, error: 'bad_sig' }, null);
+  bound('bound-stale', 'Bound or not, t within 600 s.', B('alice', NOW - 601, N, URL1), { ok: false, error: 'too_old' });
 }
 
 // ======================================================================================
@@ -725,6 +790,24 @@ const nodesOf = list => list.map(([n, url]) => ({ key: pub(n), url })).sort((a, 
     const sr = multi('server', 'erin', T - 5 * DAY, { server: id, head: id, name: 'LAN Before Time', nodes: [{ key: pub('node3'), url }], operators: [pub('erin')], sync: 'standalone', noLogs: true, langs: ['en'], desc: '' }, ['erin']);
     go(name, `A node named ${url.includes('.local') ? 'by an mDNS (.local) name' : 'by a private address'}: fine for an invite, refused by the registry.`, { [id + '.json']: { v: 1, genesis: g, chain: [], server: sr } }, id + '.json', { ok: false, error: 'local_url' });
   }
+  // No rollback (step 8): relays prefer the registry's chain to gossip, so an earlier signed file of the same server
+  // (from before an operator or a node was removed) must not replace a later one.
+  const atP2 = multi('server', 'anna', T - 15 * DAY, { ...server1.body, head: rid(P2), nodes: nodesOf([['node1', URL1]]) }, ['anna', 'ben']);
+  const fileP2 = { ...file1, chain: [P1, P2], server: atP2 };
+  go('rollback-chain', 'The base branch holds the chain up to P3; the change puts back an earlier signed file whose chain stops at P2 (valid on its own). The base file\'s chain must be a prefix of the new one.',
+    { [F1]: fileP2 }, F1, { ok: false, error: 'bad_chain' }, file1);
+  go('rollback-server', 'Same chain, but the server record is an earlier one (t older than the base file\'s): refused.',
+    { [F1]: { ...file1, server: multi('server', 'anna', T - 12 * DAY, { ...server1.body, desc: 'Small, friendly, sometimes on.' }, ['anna', 'ben']) } }, F1, { ok: false, error: 'too_old' }, file1);
+  go('rollback-server-same-t', 'Another server record with the same t as the base file\'s is not newer either.',
+    { [F1]: { ...file1, server: multi('server', 'anna', server1.t, { ...server1.body, desc: 'Small, friendly, never off.' }, ['anna', 'ben']) } }, F1, { ok: false, error: 'too_old' }, file1);
+  go('chain-extends', 'Moving forward passes: the base file stops at P2, the change adds P3 with a newer server record.',
+    { [F1]: file1 }, F1, { ok: true }, fileP2);
+  // Registry names use a safe set, so no listed name can pass for another with look-alike characters (11.2 step 7).
+  go('name-look-alike', 'A Cyrillic е (U+0435) in "Packet Lunch": it would look like the listed name. Registry names use ASCII letters, digits, single spaces and - . \' & ! + _ : , ( ) / only.',
+    { [F1]: file1, [F2]: { ...file2, server: srv2({ name: 'Packet Lunch'.replace('e', '\u0435') }) } }, F2, { ok: false, error: 'bad_name' });
+  go('name-fullwidth', 'Fullwidth letters (what NFKC would fold to ASCII) are outside the safe set.', { [F2]: { ...file2, server: srv2({ name: 'Ｈop Shop' }) } }, F2, { ok: false, error: 'bad_name' });
+  go('name-double-space', 'Two spaces in a row would look like one.', { [F2]: { ...file2, server: srv2({ name: 'Hop  Shop' }) } }, F2, { ok: false, error: 'bad_name' });
+  go('name-punctuation', 'Digits and the allowed punctuation are fine.', { [F2]: { ...file2, server: srv2({ name: "Hop & Shop (2): Fred's/Bo_b-1.0+!," }) } }, F2, { ok: true });
 }
 
 // ======================================================================================

@@ -40,7 +40,7 @@ function* dayPreRun(){
   if(S.scn&&S.scn.id==='redsea')S.stats.asiaRun=asiaG()>=RS_G?(S.stats.asiaRun||0)+1:0;
   if(S.ev.php===d)toast(tr('day_tick.the_internet_is_back_half_of'),'good');
   for(const k in S.peers){const [id,c]=k.split('@'),sn=snub(id,c);if(!sn)continue;delete S.peers[k];S.stats.depeered=(S.stats.depeered||0)+1;
-    {const v={net:esc(NET[id].name),ix:esc(ixName(c)),city:esc(CITY[ixCity(c)].name),why:esc(sn.why)};toast(ixNamesCity(c)?tr('day_tick.net_de_peered_you_at_ix',v):tr('day_tick.net_de_peered_you_at_ix_caef',v),'bad');}}
+    {const v={net:esc(NET[id].name),ix:esc(ixName(c)),city:esc(CITY[ixCity(c)].name),why:esc(sn.why)};toastT1(ixNamesCity(c)?tr('day_tick.net_de_peered_you_at_ix',v):tr('day_tick.net_de_peered_you_at_ix_caef',v),'bad');}}
   if(S.cnLic&&S.cnLic.state==='pending'&&d>=S.cnLic.ready){S.cnLic.state='ok';toast(tr('day_tick.license_granted_your_joint_venture'),'goal');sfx('coin');}
   // cable ships: home again, sent to waiting cuts (50-cable-ships.js)
   shipDay();
@@ -69,7 +69,7 @@ function* dayPost(d){
       (a.sla||(a.sla=[])).push(b.id);b.slaFor=a.start;S.cash-=SLA_PEN;b.mood=Math.max(0,b.mood-18);S.stats.sla=(S.stats.sla||0)+1;
       toast(tr('day_tick.sla_breach_name_the_attack_on',{name:esc(b.name),city:CITY[a.city].name,pen:fmt$(SLA_PEN)}),'bad');sfx('err');}}
   // businesses mood
-  const ids=linkIds(),frr=(coreFrr()&&S.links.some(l=>l.cut)?.5:1)*(rule('moods')==='patient'?.5:1);const bhT=new Set(ddosAll().filter(a=>a.bh).map(a=>a.tgt));let nb=0;TERR={S,gen:RW.gen,m:null};try{for(const b of S.biz.slice()){if(++nb%256===0)yield DAY_REST;if(eventTick(b,d)||capPendTick(b,d))continue;b.pm=b.mood;if(bhT.has(b.id))continue;const sf=bizSf(b,ids),reachOk=BIZ_T[b.type].l2||BIZ_T[b.type].fiber||R.reach>0.99||scnRule('local'),scrubOk=b.type!=='scrub'||(hasScrub()&&!scrubFar(b.city)),divOk=reqOk(b),lcX=lcBreach(b,d);
+  const ids=linkIds(),rOk=reachSolo()>0.99,frr=(coreFrr()&&S.links.some(l=>l.cut)?.5:1)*(rule('moods')==='patient'?.5:1);const bhT=new Set(ddosAll().filter(a=>a.bh).map(a=>a.tgt));let nb=0;TERR={S,gen:RW.gen,m:null};try{for(const b of S.biz.slice()){if(++nb%256===0)yield DAY_REST;if(eventTick(b,d)||capPendTick(b,d))continue;b.pm=b.mood;if(bhT.has(b.id))continue;const sf=bizSf(b,ids),reachOk=BIZ_T[b.type].l2||BIZ_T[b.type].fiber||rOk||scnRule('local'),scrubOk=b.type!=='scrub'||(hasScrub()&&!scrubFar(b.city)),divOk=reqOk(b),lcX=lcBreach(b,d);
     if(sf>=0.95&&reachOk&&scrubOk&&divOk)b.mood=Math.min(100,b.mood+2);
     else if(S.day-(b.since||0)<15){}
     else{const dm=frr*(Math.max(0,0.95-sf)*45+(!reachOk?3:0)+(!scrubOk?4:0)+(!divOk?3:0)+lcX);b.mood-=BIZ_T[b.type].orbit?Math.min(dm,PIE_PATIENCE):dm;
@@ -90,7 +90,8 @@ function* dayPost(d){
   for(const c in S.myIx){const m=S.myIx[c];if(d>=m.next&&m.members.length<myFab(c).max){
     const cands=NETS.filter(n=>n.type!=='t1'&&!m.members.includes(n.id)&&(n.pops.includes(c)||n.pops.some(p=>CITY[p].reg===CITY[c].reg)));
     if(cands.length){cands.sort((a,b)=>(a.pol==='open'?0:1)-(b.pol==='open'?0:1)||b.share-a.share);const n=Math.random()<.6?cands[0]:pick(cands);m.members.push(n.id);toast(tr('day_tick.net_joined_ix_another_member_paying',{net:esc(n.name),ix:esc(m.name),fee:fmt$(MYIX_FEE)}),'good');sfx('coin');}
-    m.next=d+8+Math.floor(Math.random()*10);}}
+    // Players with a port on it draw networks in sooner (89-fedplay-ix.js).
+    m.next=d+fedIxNext(c,8+Math.floor(Math.random()*10));}}
   loanTick(d);
   if(rule('money')==='infinite'&&S.cash<1e8)S.cash=1e9;
   // offers

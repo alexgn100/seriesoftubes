@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/fjaeckel/seriesoftubes/relay/internal/fed"
+	"github.com/fjaeckel/seriesoftubes/relay/internal/origin"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/store"
 	"github.com/fjaeckel/seriesoftubes/relay/internal/update"
 )
@@ -27,11 +28,41 @@ type Neighbour struct {
 
 // Limits bound what one connection or address may do.
 type Limits struct {
-	MaxClients    int `json:"maxClients"`    // open client connections
-	MaxNodes      int `json:"maxNodes"`      // open node sessions
-	ConnsPerAddr  int `json:"connsPerAddr"`  // new connections per address per window, before anything is put
-	AddrWindowSec int `json:"addrWindowSec"` // the window, seconds (kept in memory only)
-	MsgsPerSec    int `json:"msgsPerSec"`    // frames per connection per second (burst 4x)
+	MaxClients    int     `json:"maxClients"`              // open client connections
+	MaxNodes      int     `json:"maxNodes"`                // open node sessions
+	OpenPerAddr   int     `json:"openPerAddr"`             // connections open at once per address (IPv6: per /64; a /56 twice, a /48 four times)
+	ConnBurst     int     `json:"connBurst"`               // new connections per address at once (a token bucket, kept in memory only)
+	ConnsPerSec   float64 `json:"connsPerSec"`             // and how fast that refills, per second
+	ConnsPerAddr  int     `json:"connsPerAddr,omitempty"`  // older form: new connections per address per window (read into connBurst/connsPerSec)
+	AddrWindowSec int     `json:"addrWindowSec,omitempty"` // the older form's window, seconds
+	MsgsPerSec    int     `json:"msgsPerSec"`              // frames per connection per second (burst 4x)
+}
+
+// Old defaults of the older per-address limit: files written by older relays carry them, and they
+// mean "the default", not a choice to keep 30 connections per 5 minutes.
+const (
+	oldConnsPerAddr  = 30
+	oldAddrWindowSec = 300
+)
+
+// Budgets bound how fast others can make a node keep more: keys cost nothing to make, so what is
+// new (keys, record bytes, live-state keys) is counted per connection, per address and per other
+// server, by the hour, in memory only. Past a high-water mark only networks that have an announce
+// here may put. Players running many games from one address stay well inside them.
+type Budgets struct {
+	NewKeysPerConn  int   `json:"newKeysPerConn"`  // keys not seen before, per connection per hour
+	NewKeysPerAddr  int   `json:"newKeysPerAddr"`  // per address (an IPv6 /64) per hour
+	NewKeysPerPeer  int   `json:"newKeysPerPeer"`  // per other server syncing with this one, per hour
+	BytesPerConn    int64 `json:"bytesPerConn"`    // bytes of new records per connection per hour
+	BytesPerAddr    int64 `json:"bytesPerAddr"`    // per address per hour
+	BytesPerPeer    int64 `json:"bytesPerPeer"`    // per other server per hour
+	LiveKeysPerConn int   `json:"liveKeysPerConn"` // live-state keys without an announce, per connection per hour
+	LiveKeysPerAddr int   `json:"liveKeysPerAddr"` // per address per hour
+	LiveKeysPerPeer int   `json:"liveKeysPerPeer"` // per other server per hour
+	MaxRecords      int   `json:"maxRecords"`      // high-water mark: records kept
+	MaxStoreBytes   int64 `json:"maxStoreBytes"`   // high-water mark: bytes of records kept
+	MaxHeapBytes    int64 `json:"maxHeapBytes"`    // high-water mark: Go heap in use
+	MinFreeDisk     int64 `json:"minFreeDisk"`     // high-water mark: free space left on the data folder's disk
 }
 
 // Config is the config file.
@@ -55,8 +86,16 @@ type Config struct {
 	TrustedProxies []string    `json:"trustedProxies,omitempty"` // prefixes whose X-Forwarded-For is believed
 	Listed         bool        `json:"listed"`                   // the operators mean to be in the registry
 	NotifyURL      string      `json:"notifyURL,omitempty"`      // https:// URL POSTed once per new relay release; empty: off
-	Limits         Limits      `json:"limits"`
+	AllowedOrigins []string    `json:"allowedOrigins,omitempty"` // web pages besides the game's that may connect (https://example.org, https://*.example.org, or "*": any)
+	// LegacyAuth: whether a client's auth may be the older form, bound to no session nonce or URL
+	// (9.3). Unset: true, while older games are about; it will be switched off in a later release.
+	LegacyAuth *bool   `json:"legacyAuth,omitempty"`
+	Limits     Limits  `json:"limits"`
+	Budgets    Budgets `json:"budgets"`
 }
+
+// LegacyAuthOK says whether the older, unbound client auth is taken (legacyAuth, default true).
+func (c *Config) LegacyAuthOK() bool { return c.LegacyAuth == nil || *c.LegacyAuth }
 
 // DefaultRegistry is where the site publishes servers.json.
 const DefaultRegistry = "https://seriesoftub.es/federation/servers.json"
@@ -81,9 +120,42 @@ func (c *Config) fill() {
 	}
 	def(&l.MaxClients, 5000)
 	def(&l.MaxNodes, 64)
-	def(&l.ConnsPerAddr, 30)
-	def(&l.AddrWindowSec, 300)
+	if l.ConnBurst <= 0 && l.ConnsPerAddr > 0 && (l.ConnsPerAddr != oldConnsPerAddr || l.AddrWindowSec > 0 && l.AddrWindowSec != oldAddrWindowSec) {
+		// An operator's own older setting: the same number of connections at once, refilled over the window.
+		w := l.AddrWindowSec
+		if w <= 0 {
+			w = oldAddrWindowSec
+		}
+		l.ConnBurst = l.ConnsPerAddr
+		if !(l.ConnsPerSec > 0) {
+			l.ConnsPerSec = float64(l.ConnsPerAddr) / float64(w)
+		}
+	}
+	def(&l.OpenPerAddr, 256)
+	def(&l.ConnBurst, 120)
+	if !(l.ConnsPerSec > 0) {
+		l.ConnsPerSec = 1
+	}
 	def(&l.MsgsPerSec, 20)
+	b := &c.Budgets
+	def(&b.NewKeysPerConn, 64)
+	def(&b.NewKeysPerAddr, 1024)
+	def(&b.NewKeysPerPeer, 20000)
+	def(&b.LiveKeysPerConn, 16)
+	def(&b.LiveKeysPerAddr, 256)
+	def(&b.LiveKeysPerPeer, 5000)
+	def(&b.MaxRecords, 20_000_000)
+	def64 := func(p *int64, v int64) {
+		if *p <= 0 {
+			*p = v
+		}
+	}
+	def64(&b.BytesPerConn, 16<<20)
+	def64(&b.BytesPerAddr, 256<<20)
+	def64(&b.BytesPerPeer, 2<<30)
+	def64(&b.MaxStoreBytes, 32<<30)
+	def64(&b.MaxHeapBytes, 6<<30)
+	def64(&b.MinFreeDisk, 1<<30)
 	if c.TrustedProxies == nil {
 		c.TrustedProxies = []string{"127.0.0.0/8", "::1/128"}
 	}
@@ -198,6 +270,11 @@ func (c *Config) Check() error {
 	for _, p := range c.TrustedProxies {
 		if _, err := netip.ParsePrefix(p); err != nil {
 			return fmt.Errorf("trustedProxies: %w", err)
+		}
+	}
+	for _, o := range c.AllowedOrigins {
+		if !origin.Pattern(o) {
+			return fmt.Errorf("allowedOrigins: %q is not an origin (https://example.org, https://*.example.org or *)", o)
 		}
 	}
 	if c.NotifyURL != "" && !update.HTTPSURL(c.NotifyURL) {

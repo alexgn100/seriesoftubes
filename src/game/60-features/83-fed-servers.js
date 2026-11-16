@@ -55,6 +55,8 @@ async function fedRegEntry(j,now){
   const e=fedServerErr(s.rec,chain);if(e)return no(e);
   const b=s.rec.body;return {ok:true,id:g.id,name:b.name,sync:b.sync,noLogs:b.noLogs,ops:st.ops,nodes:st.nodes,srv:s.rec,srvId:s.id,chain};}
 const fedFold=s=>s.replace(/[A-Z]/g,c=>c.toLowerCase());
+// A registry server name (§11.2 step 7): a safe set, so no listed name can pass for another with look-alike letters.
+const FED_REGNAME=/^[A-Za-z0-9\-.'&!+_:,()\/]+( [A-Za-z0-9\-.'&!+_:,()\/]+)*$/;
 // A registry file's shape (§11.2 step 1, after size and JSON).
 function fedRegShape(j){if(!j||typeof j!=='object'||Array.isArray(j))return FdBF;
   for(const k of Object.keys(j))if(!FED_REGF.includes(k))return 'unknown_field';
@@ -72,9 +74,13 @@ async function fedRegCheck(files,name,base,now){const txt=files[name];if(fedSize
   if(name!==r.id+'.json')return 'id_mismatch';
   if(r.noLogs!==true)return 'no_logs';
   {const n=j.genesis&&j.genesis.body&&j.genesis.body.node,u=[n&&n.url,...j.chain.map(p=>p&&p.body&&p.body.url).filter(x=>x!==undefined),...(j.server.body.nodes||[]).map(x=>x&&x.url)];if(u.some(x=>!fedPublicUrl(x)))return 'local_url';}
+  if(!FED_REGNAME.test(r.name))return 'bad_name';
   for(const [n,t] of Object.entries(files)){if(n===name)continue;let o=null;try{o=JSON.parse(t);}catch(x){}
     const nm=o&&o.server&&o.server.body&&o.server.body.name;if(typeof nm==='string'&&fedFold(nm)===fedFold(r.name))return 'name_taken';}
-  if(base!=null){let b=null;try{b=JSON.parse(base);}catch(x){}if(b&&(b.listed!==j.listed||b.answered!==j.answered))return FdBF;}
+  if(base!=null){let b=null;try{b=JSON.parse(base);}catch(x){}if(b&&(b.listed!==j.listed||b.answered!==j.answered))return FdBF;
+    // No rollback (step 8): the base file's chain is a prefix of this one, and the server record is the same or newer.
+    const o=b&&!fedRegShape(b)?await fedRegEntry(b,now):null;
+    if(o&&o.ok){if(o.id!==r.id||!fedPre(r.chain.applied,o.chain.applied))return 'bad_chain';if(o.srvId!==r.srvId&&!(r.srv.t>o.srv.t))return 'too_old';}}
   return null;}
 // What the build publishes as servers.json (§11.3) from the same folder.
 async function fedServersJson(files,now){const servers=[];let asOf=0;
@@ -93,15 +99,24 @@ function fedGossipIn(e,self,now){const p=e.path,no=error=>({action:'refuse',erro
   return {action:'store',forward:self==null||p.length>=16?null:p.concat([self])};}
 const fedPathLess=(a,b)=>{if(a.length!==b.length)return a.length<b.length;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]<b[i];return false;};
 /* Merging the registry with gossip (§10.8), clients and relays alike. registry: [{id, server:{rid, t, name, nodes,
-   operators}}]; gossip: [{id, server, path, seen}]. Gives the servers sorted by id: {id, source, rid, name, nodes,
-   operators, seen, path}. The registry wins on records; gossip only adds when it was last seen and by which path. */
-function fedCatalogMerge(registry,gossip,now){const live=gossip.filter(g=>now<g.seen+FED_CARRY),out=new Map();
-  const best=list=>list.reduce((a,g)=>!a||g.seen>a.seen||g.seen===a.seen&&fedPathLess(g.path,a.path)?g:a,null);
+   operators, chain}}]; gossip: [{id, server, path, seen}] in the order they arrived (chain: the ids of the applied
+   operators records). Gives the servers sorted by id: {id, source, rid, name, nodes, operators, seen, path}. The
+   registry wins on records; gossip only adds when it was last seen and by which path. A chain only grows: the chain
+   held is the registry's, or for a gossip-only server the first entry's, then each later one that extends it. An entry
+   that forks from it never counts (a fork stays one as the chain grows, so one pass is enough), and the newest server
+   record at its final head gives the records. */
+const fedPre=(c,p)=>{c=c||[];p=p||[];return c.length>=p.length&&p.every((x,i)=>c[i]===x);};
+function fedCatalogMerge(registry,gossip,now){const out=new Map(),by=new Map(),reg=new Map(registry.map(r=>[r.id,r.server.chain||[]]));
+  // One pass over gossip: per server, the chain held, the newest server record at its head and the freshest entry.
+  for(const g of gossip){if(!(now<g.seen+FED_CARRY))continue;const c=g.server.chain||[];let o=by.get(g.id);
+    if(!o){const fixed=reg.has(g.id);o={cur:fixed?reg.get(g.id):c,fixed,s:null,b:null};by.set(g.id,o);}
+    if(!fedPre(c,o.cur)&&!fedPre(o.cur,c))continue;
+    if(!o.fixed&&c.length>o.cur.length){o.cur=c;o.s=null;}
+    if(c.length===o.cur.length&&(!o.s||g.server.t>o.s.t||g.server.t===o.s.t&&g.server.rid<o.s.rid))o.s=g.server;
+    if(!o.b||g.seen>o.b.seen||g.seen===o.b.seen&&fedPathLess(g.path,o.b.path))o.b=g;}
   const row=(id,source,s,b)=>({id,source,rid:s.rid,name:s.name,nodes:s.nodes,operators:s.operators,seen:b?b.seen:null,path:b?b.path:null});
-  for(const r of registry)out.set(r.id,row(r.id,'registry',r.server,best(live.filter(g=>g.id===r.id))));
-  for(const id of new Set(live.map(g=>g.id))){if(out.has(id))continue;const mine=live.filter(g=>g.id===id);
-    const s=mine.reduce((a,g)=>!a||g.server.t>a.t||g.server.t===a.t&&g.server.rid<a.rid?g.server:a,null);
-    out.set(id,row(id,'gossip',s,best(mine)));}
+  for(const r of registry){const o=by.get(r.id);out.set(r.id,row(r.id,'registry',r.server,o&&o.b));}
+  for(const [id,o] of by)if(!out.has(id))out.set(id,row(id,'gossip',o.s,o.b));
   return [...out.values()].sort((a,b)=>fedByStr(a.id,b.id));}
 
 /* ---------- sessions: versions, sync policies, frames ---------- */
@@ -136,7 +151,15 @@ function fedFrame(text,who,state,speaks){if(typeof text!=='string')return {error
   if(state==='new'&&f.m!=='hello')return {error:'not_ready'};if(state==='ready'&&f.m==='hello')return {error:'bad_frame'};
   for(const [k,ok] of Object.entries(FED_MSG[f.m]))if(!ok(f[k]))return {error:'bad_frame'};
   if(f.m==='hello'){if(f.role!=='client'&&f.role!=='node')return {error:'bad_frame'};if(speaks){const v=fedVersion(f.vers,speaks);if(v.error)return v;}}
+  // A node's error code is shown to players and kept in the error log: a short code, never free text.
+  if(f.m==='err'&&who==='node'&&!FED_CODE_RE.test(f.code))f.code='bad_frame';
   return {f};}
+const FED_CODE_RE=/^[a-z_]{1,32}$/;
+/* The error codes this game knows (§7.2, and the ones it makes itself for a connection): shown as they are; any other
+   code a node sends is shown as an unknown error (fedCodeKnown). */
+const FED_CODES=new Set(['bad_frame','too_big','bad_json','too_deep','bad_number','bad_string','bad_name','bad_value','bad_version','bad_kind','missing_field','unknown_field','bad_field','bad_key','bad_sig','too_many','duplicate','too_old','too_new','not_operator','not_node','no_majority','bad_chain','unknown_server','shunned','refused','not_found','unsupported','not_ready','policy','rate_limited','bad_challenge','id_mismatch','no_logs','local_url','name_taken','no_answer','stale_terms','bad_terms','no_terms','declined','internal',
+  'open','timeout','closed','silent','welcome','slow','auth','ranking','offline']);
+const fedCodeKnown=x=>FED_CODES.has(x);
 /* What a relay says it runs (§9.3 welcome impl, §10.8 an entry's impl): shown in the looking glass and never trusted
    for anything else, so a malformed one is just left out. */
 const FED_IMPL=/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,39}$/;

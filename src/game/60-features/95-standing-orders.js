@@ -53,7 +53,7 @@ function opsP(k,p){const P=OPSK[k].p[p],v=S.ops.p[k]&&S.ops.p[k][p];return v!==u
 function opsOpts(k,p){const cur=opsP(k,p),L=p==='prov'?['cheap','have',...NETS.filter(n=>n.price&&Object.keys(S.pops).some(c=>sellsAt(n,c))).map(n=>n.id)]
   :p==='model'?['next',...RG.map((r,i)=>i).filter(i=>rgOpen(i)).sort((a,b)=>RG[a].cls-RG[b].cls||RG[a].cap-RG[b].cap||a-b)]:OPSK[k].p[p].v.slice();
   if(!L.includes(cur))L.push(cur);return L;}
-const opsCaps=k=>OPSK[k].mo?OPS_CAPS_MO:OPS_CAPS;
+const opsCaps=k=>OPSK[k].caps||(OPSK[k].mo?OPS_CAPS_MO:OPS_CAPS);
 function opsCap(k){const c=S.ops.cap[k];return opsCaps(k).includes(c)?c:OPSK[k].cap||0;}
 const opsHere=(k,c)=>!(S.ops.skip[c]||[]).includes(k);
 const opsPops=k=>Object.keys(S.pops).filter(c=>opsHere(k,c));
@@ -76,7 +76,7 @@ function opsSanitize(s){const o=s.ops&&typeof s.ops==='object'&&!Array.isArray(s
   slAutoFrom(s,on.sales===true&&!!n.intern,ob(p.sales));if(s.autoRepair===true)n.on.repair=true;delete s.autoSales;delete s.autoRepair;
   s.ops=n;}
 // A log entry: {d, i: intern, r: [[kind, n, [where…]]], f: fat-finger index, c: its city, up: paid up front, mo: running costs added}.
-const opsWhereOk=w=>typeof w==='string'&&w.length<=48&&/^[a-z0-9~|]+( [+\w.×→⇧]+)?$/i.test(w)&&w.split(' ')[0].split('|').every(x=>isIx(x)||own(OPSK,x)||isNet(x));
+const opsWhereOk=w=>typeof w==='string'&&w.length<=48&&/^[a-z0-9~|]+( [+\w.×→⇧]+)?$/i.test(w)&&w.split(' ')[0].split('|').every(x=>isIx(x)||own(OPSK,x)||isNet(x)||own(CRUSTS,x));
 function opsLogOk(e){if(!e||typeof e!=='object'||!own(INTERNS,e.i))return null;const r0=Array.isArray(e.r)?e.r:[],r=r0.filter(x=>Array.isArray(x)&&own(OPS_SAY,x[0])&&Array.isArray(x[2])).map(x=>[x[0],int(x[1],1,1e6,1),x[2].filter(opsWhereOk).slice(0,3)]).slice(0,16);
   const f=Number.isInteger(e.f)&&OPS_FF[e.f]?e.f:undefined,up=int(e.up,0,1e12,0),mo=int(e.mo,-1e9,1e9,0);
   // A day that only signed or declined deals (the retired sales order) has nothing left to say.
@@ -102,7 +102,7 @@ function opsMood(){const O=S.ops,x=O.wk&&O.wk.w===Math.floor(S.day/7)?O.wk:null,
     annie:N_('ops.mood_annie'),kevin:N_('ops.mood_kevin'),tracy:N_('ops.mood_tracy')}[k],{name:opsName()});}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
 // Peering is always at an exchange, and a city's first exchange has the city's id ("lon" is LYNX): name the exchange (#228).
-function opsWhere(w,k){if(k==='peer'&&isIx(w)&&ixName(w))return ixName(w);const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
+function opsWhere(w,k){if(k==='peer'&&isIx(w)&&ixName(w))return ixName(w);if(k==='pie'&&own(CRUSTS,w))return tr(CRUSTS[w].n);const [a,x]=w.split(' '),nm=a.split('|').map(p=>own(OPSK,p)?tr(OPSK[p].t):isCity(p)?CITY[p].name:isNet(p)?NET[p].name:ixName(p)).join('–');return x?nm+' '+(isNet(x)?NET[x].name:x):nm;}
 function opsLine(e){const I=INTERNS[e.i],name=I?tr(I.s):'',parts=e.r.map(([k,n,w])=>trn(OPS_SAY[k],n,{where:w.map(x=>opsWhere(x,k)).join(', ')}));
   return (parts.length?tr('ops.l_line',{name,list:parts.join(', ')}):tr('ops.l_quiet',{name}))+opsPaid(e);}
 const opsMo$=v=>(v>0?'+':'')+fmt$(v);
@@ -142,13 +142,20 @@ function opsTransitOk(n,c){if(n.id==='cog'&&(scnRule('spat')||S.ev.depeer>S.day)
 const cheapestTransit=c=>NETS.filter(n=>sellsAt(n,c)&&opsTransitOk(n,c)).sort((a,b)=>transitPerG(a,c,premOnlyAt(a,c))-transitPerG(b,c,premOnlyAt(b,c)))[0];
 // 'cheap' and 'have' (Already connected) name no network: quote the cheapest seller (#249).
 const opsProv=c=>{const pv=opsP('transit','prov'),n=isNet(pv)?NET[pv]:null;return n&&sellsAt(n,c)&&opsTransitOk(n,c)?n:cheapestTransit(c);};
+// A busy POP's next step, as the intern takes it with "next model": swap to the next model up (unlocked, fits, and only
+// with a second router to carry the traffic or nothing there yet), and/or add a router (up to RMAX). pick is what
+// "auto" does when both are open: swap from four routers on, add before that. The NOC's Routers tab offers the same.
+function rtrNext(c){const p=S.pops[c],rt=p.routers||1,nx=mainRG(RG[p.rgen||0].cls+1),swap=nx>=0&&rgOpen(nx)&&!modelFits(c,nx)&&(rt>1||popIdle(c)),add=rt<RMAX;
+  return {nx,swap,add,pick:swap&&(rt>=4||!add)?'swap':add?'add':null};}
+// How busy the intern finds a POP: forwarding load with its look-ahead, or the share of router ports in use (u, from
+// portsAt()), whichever is higher. It works on POPs at or over its "at" setting.
+const rtrLoad=(c,u)=>Math.max((R.nodeLoad[c]||0)*opsAhead()/(R.nodeCap[c]||nodeCap(c)||1),u/Math.max(1,portsMax(c)));
 // The orders. Each takes the shift and does its jobs through the player's own actions. Most are generators: a yield
 // after a job is only a place where a long shift may let a frame through (opsRun()), nothing changes there.
 const OPS_RUN={
  *repair(X){purgeInc();for(const i of S.inc.slice())if(i.type!=='ddos'&&i.until>S.day&&i.cost>0&&!(i.slow&&i.rushed)&&X.can('repair',i.cost)&&X.pay('repair',()=>ACT.fixInc({id:i.id}))){X.did('repair');yield;}},
  // Ports in use are counted for every POP at once, after the model swaps: a router added or swapped here changes no other POP's count.
- *routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how'),m=opsP('routers','model'),fix=m!=='next',cs=opsPops('routers'),
-     load=(c,u)=>Math.max((R.nodeLoad[c]||0)*opsAhead()/(R.nodeCap[c]||nodeCap(c)||1),u/Math.max(1,portsMax(c)));
+ *routers(X){const at=opsP('routers','at')/100,how=opsP('routers','how'),m=opsP('routers','model'),fix=m!=='next',cs=opsPops('routers'),load=rtrLoad;
    // A chosen model: swap every POP still on a smaller one to it, the busiest first, while the budget lasts. Never a
    // step down, never a model that is not unlocked or does not fit, and only with a second router or no traffic there.
    if(fix&&rgOpen(m)){const pu=portsAt(cs);for(const c of cs.slice().sort((a,b)=>load(b,pu.get(b))-load(a,pu.get(a)))){const p=S.pops[c],g=p.rgen||0;
@@ -158,10 +165,10 @@ const OPS_RUN={
    const pu=portsAt(cs);
    for(const c of cs){const p=S.pops[c];if(p.rupDay===S.day)continue;
      const ld=load(c,pu.get(c));if(ld<at)continue;
-     const rt=p.routers||1,g=p.rgen||0,nx=mainRG(RG[g].cls+1);
+     const rt=p.routers||1,g=p.rgen||0,nr=rtrNext(c),nx=nr.nx;
      // A swap with one router is a maintenance window: the intern only swaps where a second router carries the traffic.
      // With a chosen model the swaps are the ones above; a busy POP only gets more routers.
-     const swap=!fix&&nx>=0&&rgOpen(nx)&&!modelFits(c,nx)&&(rt>1||popIdle(c)),add=rt<RMAX;
+     const swap=!fix&&nr.swap,add=nr.add;
      const doSwap=how==='swap'?swap:how==='add'?false:swap&&(rt>=4||!add);if(!doSwap&&(how==='swap'||!add))continue;
      const cost=doSwap?swapCost(c,nx):routerCost(g,rt);if(!X.can('routers',cost))continue;
      if(X.pay('routers',()=>doSwap?ACT.upRouter({city:c,g:nx}):ACT.addRouter({city:c})))X.did('routers',c+(doSwap?' ⇧'+RG[nx].pn:' +1'));yield;}},
@@ -226,10 +233,14 @@ const OPS_RUN={
        cap+=optG(o,l);X.did('optics',l.a+'|'+l.b);yield;}}},
  *optup(X){const at=opsP('optup','at')/100,goal=opsP('optup','sys'),swap=opsP('optup','swap');let ups=0,tries=0;
    const hot=l=>{const c=dfCap(l);return c>0&&((R.load&&R.load[l.id])||0)*opsAhead()>=c*at;},full=l=>freeCh(l)<=0,u=l=>((R.load&&R.load[l.id])||0)/Math.max(1,dfCap(l));
+   // Buyers the fiber cannot serve count as much as your own traffic (#347): waves for bigger optics, spectrum too for a
+   // bigger line system. The routes are worked out once a night; the line system swap still never darkens a fiber with
+   // a customer on it (opsDark()).
+   const rs=S.cm?cmRoutes():null,sold=rs&&cmSold(rs),press=(l,w)=>!!rs&&cmPress(l,rs,sold,w);
    const ls=S.links.filter(l=>l.kind==='df'&&!l.seat&&l.ready<=S.day&&!(l.eqDown>S.day)&&!(l.cut>S.day)).sort((a,b)=>u(b)-u(a));
    for(const l of ls){
      // The line system: one step at a time up to the chosen one, or the next one where the fiber is full and hot.
-     const want=goal==='next'?(full(l)&&hot(l)?sysNext(l):null):SYS_RANK[l.sys]<SYS_RANK[goal]?goal:null;
+     const want=goal==='next'?(full(l)&&(hot(l)||press(l,false))?sysNext(l):null):SYS_RANK[l.sys]<SYS_RANK[goal]?goal:null;
      if(want&&ups<OPTUP_MAX*(opsIs('kevin')?2:1)&&tries<OPTUP_TRY*(opsIs('kevin')?2:1)){const to=sysNext(l),cost=sysUpCost(l);
        if(to&&techOk('sys',to,DF_SYS[to].lvl)&&!(OPTUP_NO.get(l.id)>S.day)&&X.can('optup',cost)){tries++;const ok=yield* opsDark(l,X);if(!ok)OPTUP_NO.set(l.id,S.day+OPTUP_WAIT);
          if(ok){const s0=l.sys,top=goal==='next'?to:goal;
@@ -240,7 +251,7 @@ const OPS_RUN={
      // Optics: a full, hot fiber trades its smallest channels for the biggest optic that fits, one at a time. Hitless, and
      // the old optics go on the shelf as spares.
      if(!swap)continue;
-     for(let step=0;step<8&&full(l)&&hot(l);step++){const cnt={};for(const k of l.ch||[])cnt[k]=(cnt[k]||0)+1;
+     for(let step=0;step<8&&full(l)&&(hot(l)||press(l,true));step++){const cnt={};for(const k of l.ch||[])cnt[k]=(cnt[k]||0)+1;
        const lit=Object.keys(cnt).sort((a,b)=>optG(a,l)-optG(b,l)),o1=lit[0];if(!o1)break;
        const ports=(o,c)=>S.pops[c]?chPorts(o,c):0,room=(o2,c)=>!S.pops[c]||portsUsed(c)+ports(o2,c)-ports(o1,c)<=portsMax(c)+1e-9;
        // Asked with one small channel already out: a full fiber refuses any optic.

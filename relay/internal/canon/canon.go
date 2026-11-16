@@ -31,6 +31,13 @@ const MaxDepth = 8
 // Num is a JSON number as written, before the integer rule is applied.
 type Num string
 
+// loneMark ends a member name that held a lone surrogate escape in a loose tree. The text was valid
+// UTF-8, so no other name holds the byte 0xff.
+const loneMark = "\xff"
+
+// IsLoneName says whether a loose tree's member name held a lone surrogate escape.
+func IsLoneName(k string) bool { return strings.HasSuffix(k, loneMark) }
+
 // Lone is a string that held a lone surrogate escape; it is never a valid value.
 type Lone string
 
@@ -156,9 +163,10 @@ func Int(n Num) (int64, bool) {
 	return int64(f), true
 }
 
-// GoodName reports whether s matches ^[A-Za-z0-9_]{1,32}$.
+// GoodName reports whether s matches ^[A-Za-z0-9_]{1,32}$ and is none of __proto__, constructor
+// and prototype (2.1): names that a JavaScript reader could take for an object's prototype.
 func GoodName(s string) bool {
-	if len(s) < 1 || len(s) > 32 {
+	if len(s) < 1 || len(s) > 32 || s == "__proto__" || s == "constructor" || s == "prototype" {
 		return false
 	}
 	for i := 0; i < len(s); i++ {
@@ -317,7 +325,8 @@ func (p *parser) value() (any, bool) {
 			}
 			switch k := k.(type) {
 			case Lone:
-				m[string(k)] = v
+				// Kept apart from any other name, so a later member cannot hide it (IsLoneName).
+				m[string(k)+loneMark] = v
 			case string:
 				m[k] = v
 			}
@@ -468,7 +477,7 @@ func (p *parser) hex4() (rune, bool) {
 	if p.i+4 > len(p.b) {
 		return 0, false
 	}
-	n, err := strconv.ParseUint(string(p.b[p.i:p.i+4]), 16, 32)
+	n, err := strconv.ParseUint(string(p.b[p.i:p.i+4]), 16, 16) // four hex digits: at most 0xFFFF
 	if err != nil {
 		return 0, false
 	}

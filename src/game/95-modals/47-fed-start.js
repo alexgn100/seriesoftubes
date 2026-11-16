@@ -28,9 +28,11 @@ const fsTyped=()=>{const t=UI.fs?UI.fs.typed.trim():'';return t&&!FdUrl(t)?t:nul
 // A server's name for a toast: from the catalog (the session's own load of it first, when one runs), else the address.
 async function fsName(url){try{await (FED.live&&FED.live.cat);FS.srvs=await fedServers();}catch(e){}const s=fsOf(url);return s?esc(s.name):esc(url);}
 /* Nothing picked yet: the open registry server whose node answered the registry's liveness check most recently (then
-   by name), else any registry server the same way, else one only heard of through gossip. */
+   by name), else any registry server the same way, else (only servers heard of) the game's own first server (FED_FIRST). Never one only heard
+   of through gossip: whoever runs a server could otherwise make theirs the default for players with no registry yet. */
+const FED_FIRST='wss://s1.seriesoftub.es/fed';
 function fsDefault(L){const by=(a,b)=>(b.answered||0)-(a.answered||0)||a.name.localeCompare(b.name),reg=L.filter(s=>s.source==='registry'&&fsNode(s));
-  return fsNode(reg.filter(s=>s.sync==='open').sort(by)[0]||reg.sort(by)[0]||L.find(fsNode));}
+  return fsNode(reg.filter(s=>s.sync==='open').sort(by)[0]||reg.sort(by)[0])||(L.some(fsNode)?FED_FIRST:null);}
 // The rows: an address the catalog does not know (the invite first), the invited server, then registry servers by name.
 function fsRows(){const f=UI.fs,L=(FS.srvs||[]).filter(fsNode).sort((a,b)=>(a.source==='registry'?0:1)-(b.source==='registry'?0:1)||a.name.localeCompare(b.name)),inv=f.inv&&fsOf(f.inv);
   if(inv){L.splice(L.indexOf(inv),1);L.unshift(inv);}
@@ -43,7 +45,7 @@ const fsUsable=()=>!!UI.fs&&(!!fsTyped()||!!UI.fs.inv||!(FS.fetched&&FS.failed)&
 function fsCheck(said){const f=UI.fs;if(!f||FS.busy)return;
   if(f.on&&!fsUsable()){f.on=false;f.note=said?(FS.failed?'fail':'empty'):null;}
   else if(!f.on&&f.note&&fsOnline()&&fsTyped()){f.on=true;f.note=null;}}
-const fsRow=(r,on)=>`<button class="fs-srv${on?' on':''}" role="radio" aria-checked="${on}" data-url="${esc(r.url)}" data-act="fsPick" data-args="${esc(JSON.stringify({url:r.url}))}"><b>${r.s?esc(r.s.name):`<span class="mono">${esc(r.url)}</span>`}${r.url===UI.fs.inv?` <span class="fu-tag on">${tr('fedui.you_were_invited')}</span>`:''}</b><span class="meta">${r.s?fuPolicy(r.s):tr('fedui.policy_unknown')}</span></button>`;
+const fsRow=(r,on)=>`<button class="fs-srv${on?' on':''}" role="radio" aria-checked="${on}" data-url="${esc(r.url)}" data-act="fsPick" data-args="${esc(JSON.stringify({url:r.url}))}"><b>${r.s?esc(r.s.name):`<span class="mono">${esc(r.url)}</span>`}${r.s?fuSrvLook(r.s,FS.srvs||[]):''}${r.url===UI.fs.inv?` <span class="fu-tag on">${tr('fedui.you_were_invited')}</span>`:''}</b><span class="meta">${r.s?fuPolicy(r.s):tr('fedui.policy_unknown')}</span></button>`;
 function fsList(){const rows=fsRows(),sel=UI.fs.typed.trim()?null:UI.fs.url;
   return rows.length?`<div class="fs-list" role="radiogroup" aria-labelledby="fsLbl">${rows.map(r=>fsRow(r,r.url===sel)).join('')}</div>`:`<p class="meta">${FS.busy?tr('fedui.looking_for_servers'):tr('fedui.no_servers_known_yet')}</p>`;}
 const fsNote=f=>!fsOnline()?tr('fedui.multiplayer_needs_a_connection'):f.note==='fail'?tr('fedui.couldn_t_reach_the_server_list'):f.note==='empty'?tr('fedui.no_servers_listed_yet'):'';

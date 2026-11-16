@@ -4,7 +4,7 @@
    save is connected to can be reached; nothing here opens a socket of its own. Also the short log of recent errors the
    operator panel shows (memory only, never in a save). */
 const FED_ERRS_MAX=24;
-function fedErrLog(node,srv,why){const l=FED.errs||(FED.errs=[]);l.unshift({t:fedNow(),node:node||null,srv:srv||null,why:String(why||'')});if(l.length>FED_ERRS_MAX)l.length=FED_ERRS_MAX;}
+function fedErrLog(node,srv,why){const l=FED.errs||(FED.errs=[]);l.unshift({t:fedNow(),node:node||null,srv:srv||null,why:FED_CODE_RE.test(why)?why:'bad_frame'});if(l.length>FED_ERRS_MAX)l.length=FED_ERRS_MAX;}
 const fedErrs=srv=>(FED.errs||[]).filter(e=>!srv||e.srv===srv);
 // A ready connection to one of a server's nodes, or null.
 function fedConnTo(srv){const M=FED.live;if(!M)return null;for(const c of M.conns.values())if(c.srv===srv&&c.phase==='ready')return c;return null;}
@@ -36,7 +36,7 @@ async function fedHideOf(srv){const h=await fedHides(srv),b=h&&h.rec.body;
 async function fedOpHide(srv,key,list,on){if(FdK(key)||!['hide','names','refuse'].includes(list))return {error:'bad_field'};const b=await fedHideOf(srv);
   b[list]=b[list].filter(k=>k!==key);if(on)b[list].push(key);b[list].sort(fedByStr);
   const r=await fedOpSign('hide',b);if(!r)return {error:'no_key'};const x=await fedOpPut(srv,r);
-  if(x.ok)await fedPut('kv','hide:'+srv,{rec:r,id:await fedId(r)});return x;}
+  if(x.ok)await fedHidePut(srv,{rec:r,id:await fedId(r)});return x;}
 async function fedOpShun(srv,target,reason){if(FdK(target))return {error:'bad_field'};
   const body=reason?{server:srv,target,reason}:{server:srv,target};if(reason&&!['cheating','offensive_name','spam','abuse'].includes(reason))return {error:'bad_field'};
   const r=await fedOpSign(reason?'shun':'unshun',body);if(!r)return {error:'no_key'};const x=await fedOpPut(srv,r);

@@ -3,7 +3,7 @@
 // networks go dark with their deals ended; deals book money only in their own game. Fake nodes, a virtual clock.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fedPage, joinGame, settle, until, URL1, NOW, rec, rid, key, asn, box, sealRec, openRec } = require('./helpers/fed');
+const { advanceUntil, fedPage, joinGame, settle, until, URL1, NOW, rec, rid, key, asn, box, sealRec, openRec } = require('./helpers/fed');
 
 const DAY = 86400;
 // An announce of a fake player (name in the vectors' key list), with its POPs and exchanges and published terms.
@@ -232,7 +232,7 @@ test('a shunned network goes dark at once with a notice; a shared leak hits part
   const k = key('alice').pub;
   assert.equal(await p.ev(`fedRequest('${k}','peering',{via:'ix'})`), null);
   // A real day on which the federation's leak comes from Alice, as every game that knows both networks works it out.
-  const D = p.ev(`(()=>{const me=S.fed.key.pub;for(let d=20400;d<23000;d++)if(hstr('leak|'+d)%FEDP_LEAK===0&&hstr(d+'|${k}')<hstr(d+'|'+me))return d;return 0;})()`);
+  const D = p.ev(`(()=>{for(let d=20400;d<23000;d++)if(hstr('leak|'+d)%FEDP_LEAK===0&&fedLeaker(S,d)==='${k}')return d;return 0;})()`);
   assert.ok(D > 0);
   p.ev(`S.fedp.rpki=true;fedLeakCheck(S,${D * DAY + 100})`);
   assert.ok(p.ev("S.log.some(e=>/RPKI filters dropped it/.test(e.t))"), 'contained by filtering');
@@ -249,7 +249,7 @@ test('a shunned network goes dark at once with a notice; a shared leak hits part
   assert.deepEqual(p.errors, []);
 });
 
-test('an AI player joins once it has declared itself, and AI networks carry the robot badge', { skip: 'timing-dependent on slow CI machines; to be made deterministic (4.0.0)' }, async () => {
+test('an AI player joins once it has declared itself, and AI networks carry the robot badge', async () => {
   const p = fedPage({ agent: true });
   const n = p.net.node(URL1);
   n.feed = [{ rec: ann('alice'), rcpt: [] }];
@@ -260,8 +260,7 @@ test('an AI player joins once it has declared itself, and AI networks carry the 
   assert.equal(p.ev('S.fed.on'), true);
   assert.equal(p.ev("API_PLAYER_OWNS.apiFedJoin"), 1, 'never in the player\'s own tab');
   // Waits for Alice's network itself, not a fixed number of turns: CI machines are slower.
-  for (let i = 0; i < 200 && !p.ev('S.fedn&&S.fedn.nets.length'); i++) { p.net.advance(1500); await settle(30); }
-  assert.ok(p.ev('S.fedn&&S.fedn.nets.length'), "Alice's network arrived");
+  assert.ok(await advanceUntil(p, () => p.ev('!!(S.fedn&&S.fedn.nets.length)'), { step: 1500, max: 300000 }), "Alice's network arrived");
   // Alice's stats say she is an AI: her network shows with the robot badge.
   p.ev('S.fedn.nets[0].ai=true;S.fedn.h=fedNetsHash(S.fedn.nets);compute();UI.left=\'nets\';UI.leftOpen=true;renderAll()');
   assert.match(p.ev("$('leftBody').textContent"), /🤖 Ping Floyd/);

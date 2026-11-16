@@ -1,7 +1,8 @@
 /* HUD */
 #hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;pointer-events:none;z-index:5}
 #hud>*{pointer-events:auto}
-.chip{background:var(--paper);border:3px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:3px 11px;display:flex;flex-direction:column;justify-content:center;min-height:46px}
+/* Chips set their own text colour: some HUD chips are buttons, and an iPhone left the cash amount dark on a dark chip. */
+.chip{background:var(--paper);color:var(--ink);-webkit-appearance:none;appearance:none;border:3px solid var(--edge);border-radius:14px;box-shadow:3px 3px 0 var(--edge);padding:3px 11px;display:flex;flex-direction:column;justify-content:center;min-height:46px}
 .chip .lbl{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
 .chip .val{font-family:var(--display);font-weight:800;font-size:19px;line-height:1.05;white-space:nowrap}
 .chip .sub{font-size:11px;font-weight:800;white-space:nowrap}
@@ -10,16 +11,16 @@
 .brand .lbl{color:#FFE0EE}
 .tube{width:30px;height:30px;flex:none}
 .up{color:var(--ok)} .down{color:var(--bad)}
-.note{align-items:flex-start}.note .ndot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;background:var(--ink2);border:2px solid var(--ink)}
+.note{align-items:flex-start}.note .ndot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;background:var(--ink2);border:2px solid var(--edge)}
 .note.bad .ndot{background:var(--bad)}.note.good .ndot{background:var(--ok)}.note.goal .ndot{background:#FFD23F}
 .note .nbody{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-#hNoc{position:relative}#hNoc .badge{position:absolute;top:-8px;right:-8px;background:var(--me);color:#fff;border:2.5px solid var(--ink);border-radius:10px;font:900 11px Nunito,sans-serif;padding:0 6px;line-height:16px}
+#hNoc{position:relative}#hNoc .badge{position:absolute;top:-8px;right:-8px;background:var(--me);color:#fff;border:2.5px solid var(--edge);border-radius:10px;font:900 11px Nunito,sans-serif;padding:0 6px;line-height:16px}
 .speed{flex-direction:row;align-items:center;gap:4px;padding:4px 6px}
-.speed button{border:2.5px solid var(--ink);background:var(--paper);border-radius:9px;min-width:34px;height:32px;font-family:var(--display);font-weight:800;cursor:pointer;font-size:13px}
+.speed button{border:2.5px solid var(--edge);background:var(--paper);border-radius:9px;min-width:34px;height:32px;font-family:var(--display);font-weight:800;cursor:pointer;font-size:13px}
 .speed button.on{background:var(--sun)}
 .spacer{flex:1}
-.noc{cursor:pointer;border:3px solid var(--ink)}
-.hotk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:12px;border:2px solid var(--ink,#1E2640);font:900 11px Nunito,sans-serif;margin-right:8px;color:#fff;background:#FF4D5E}
+.noc{cursor:pointer;border:3px solid var(--edge)}
+.hotk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:12px;border:2px solid var(--edge,#1E2640);font:900 11px Nunito,sans-serif;margin-right:8px;color:#fff;background:#FF4D5E}
 .hotk.hk-ix{color:#1E2640;background:#FFD23F}
 .noc.hot{background:var(--bad);color:#fff;animation:throb 1s ease-in-out infinite}
 .noc.hot .lbl{color:#FFE1E4}
@@ -31,3 +32,18 @@
 
 /* Find a city: a square chip with just the magnifier. */
 #hud .chip.find{justify-content:center;align-items:center;padding:0;width:44px;min-width:44px;font-size:19px;cursor:pointer}
+/* Sound, How to play and the NOC's own window live in the menu, so the speed chip leaves room for Traffic and Rank.
+   A puzzle has no menu tiles: there the sound button stays. */
+.speed #muteBtn{display:none}body.pz .speed #muteBtn{display:block}
+/* The NOC dashboard is the one button in the speed chip that is not about time: it stands apart and wears the brand colour. */
+.speed .dashbtn{background:var(--me);color:#fff}
+@media (min-width:1501px){.speed .dashbtn{margin-left:5px}}
+/* A mouse gets an answer from everything it can press in the HUD and the panel tabs. */
+@media (hover:hover){
+  .speed button:not(.on):not(.dashbtn):hover,.tabs button:not(.on):hover,.x:hover{background:var(--sun)}
+  .speed .dashbtn:hover{filter:brightness(1.08)}
+  button.chip:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--edge)}
+}
+button.chip{cursor:pointer}
+/* A badge's toast is a door: one tap opens the wall of badges (ACT.badgesOpen). */
+.toast.btoast{pointer-events:auto;cursor:pointer}

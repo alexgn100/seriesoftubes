@@ -44,7 +44,8 @@ function fedOutClean(list,pub){let bytes=0;const out=[],one={};
 /* A deal with another player, as the save keeps it: self-contained, so it works with no other data. The gameplay
    builds them: {id (the offer's id), deal, key, name, asn, start, end (null: no end), terms (as offered, checked like
    an offer's), role (who pays: peer for peering and swaps, else buy or sell), st (wait, run, over), on, rep, why, ai,
-   renews (the id of the deal it renews, or null)}.
+   renews (the id of the deal it renews, or null), heard (when the other network was last heard, unix seconds; 0 not
+   known yet), box (its box key, so a decline can still be sealed for it once its announce left this browser)}.
    Only those fields are kept; a deal whose terms, role or state do not check is dropped (compute() reads its terms). */
 const FED_DEAL_ST=['wait','run','over'];
 /* At most FED_DEALS_MAX deals: waiting and running ones always stay (they bill and route), ended ones only as room is
@@ -63,7 +64,8 @@ function fedDealClean(d){if(!d||typeof d!=='object'||Array.isArray(d)||FdId(d.id
   if(peer?role!=='peer':role!=='buy'&&role!=='sell')return null;if(!FED_DEAL_ST.includes(st)||st==='run'&&start===null)return null;
   return {id:d.id,deal:d.deal,key:d.key,name:typeof d.name==='string'&&!FdName(d.name.slice(0,40))?fedSafeName(d.name.slice(0,40)):'AS?',
     asn:Number.isSafeInteger(d.asn)&&d.asn>=0&&d.asn<=4294967295?d.asn:0,start,end,terms:JSON.parse(fedCanon(T)),role,st,
-    on:d.on===true&&st==='run',rep:Number.isSafeInteger(d.rep)&&d.rep>=0&&d.rep<=2e9?d.rep:0,why:typeof d.why==='string'?d.why.slice(0,16):'',ai:d.ai===true,renews:FdId(d.renews)?null:d.renews};}
+    on:d.on===true&&st==='run',rep:Number.isSafeInteger(d.rep)&&d.rep>=0&&d.rep<=2e9?d.rep:0,why:typeof d.why==='string'?d.why.slice(0,16):'',ai:d.ai===true,renews:FdId(d.renews)?null:d.renews,
+    heard:t(d.heard)||0,box:FdBox(d.box)?null:d.box};}
 
 /* ---------- shared saves and bug reports never carry a way to act as the network ---------- */
 // The save with its private key, its queued records and any operator key taken out (a copy; s is untouched).
@@ -73,6 +75,15 @@ function fedPublic(s){if(!s||!s.fed||typeof s.fed!=='object')return s;const f={.
 function fedPublicText(t){if(typeof t!=='string'||t.indexOf('"fed":{')<0)return t;try{return JSON.stringify(fedPublic(JSON.parse(t)));}catch(e){return t;}}
 // An imported save that is not a move file: detached from its network (joining makes a new identity).
 function fedDetach(s){if(s&&s.fed&&typeof s.fed==='object'){const p=fedPublic(s).fed;p.on=false;s.fed=p;}return s;}
+/* A move file: the identity comes over (key, queue, deals), never a connection. Whatever servers and switch the file
+   says, the network arrives offline with no servers, and the player joins again from Multimode; the file's servers are
+   only shown (fedArrive gives them), since anyone can write a file that says move. */
+function fedArrive(s){const f=s&&s.fed;if(!f||typeof f!=='object'||Array.isArray(f))return [];
+  const was=Array.isArray(f.servers)?[...new Set(f.servers.filter(u=>!FdUrl(u)))].slice(0,FED_MAX_SERVERS):[];f.on=false;f.servers=[];return was;}
+// A node URL as the player can judge it: its host, and the server's name when the registry lists it there.
+function fedUrlName(u){let h='?';try{h=new URL(u).host;}catch(e){}
+  const s=typeof FU==='object'&&FU&&Array.isArray(FU.srvs)?FU.srvs.find(x=>x.source==='registry'&&(x.nodes||[]).some(n=>n.url===u)):null;
+  return s&&typeof s.name==='string'?`${s.name} (${h})`:h;}
 const fedMoveName=nm=>saveFileName(nm).replace(/\.json$/,'-move-PRIVATE.json');
 // "Move to another device": the one export that keeps the key (and the queue), behind the UI's warning.
 function fedExportMove(){if(!S||pzOn()||!S.fed)return false;save(true);
@@ -100,6 +111,14 @@ function fedStatsBody(s=S){const pops={};for(const c of Object.keys(s.pops)){con
   return FED.hooks.stats?FED.hooks.stats(b)||b:b;}
 
 /* ---------- joining and leaving ---------- */
+/* Node URLs a server told this game about (gossip, a server's own list of nodes to fail over to) are only dialled when
+   public: no server may make the browser dial into the player's own network or machine. A local address is fine when
+   the player chose a local server themselves (a LAN party): there, local addresses are the point. A URL the player
+   typed or was invited to is theirs, and never filtered. */
+const fedOnLocal=(f=S&&S.fed)=>!!f&&Array.isArray(f.servers)&&f.servers.some(u=>!FdUrl(u)&&!fedPublicUrl(u));
+const fedHeardOk=(u,local)=>!FdUrl(u)&&(fedPublicUrl(u)||!!local);
+// The node to join a catalog server at: the registry's first (public by construction), else the first one allowed.
+function fedJoinUrl(s){const L=(s&&Array.isArray(s.nodes)?s.nodes:[]).map(n=>n&&n.url);return s&&s.source==='registry'?L[0]:L.find(u=>fedHeardOk(u,fedOnLocal()));}
 // Why this save cannot join now, or null: 'mode' (not a normal game), 'crypto' (no WebCrypto Ed25519), 'url', 'full'.
 async function fedJoinWhy(url){if(!fedEligible())return 'mode';if(FdUrl(url))return 'url';
   if(S.fed&&!S.fed.servers.includes(url)&&S.fed.servers.length>=FED_MAX_SERVERS)return 'full';
@@ -109,7 +128,9 @@ async function fedJoinWhy(url){if(!fedEligible())return 'mode';if(FdUrl(url))ret
 async function fedJoin(url){const why=await fedJoinWhy(url);if(why)return why;const s=S;
   if(!s.fed)s.fed=fedNewState();const f=s.fed;
   if(!fedHasPriv(f)){const k=await fedNewKey();if(S!==s)return 'mode';f.key=k;f.out=[];f.deals=[];f.joined=0;}
-  if(!f.servers.includes(url))f.servers.push(url);f.on=true;if(!f.joined)f.joined=fedDiv(fedNow(),FED_DAY);
+  if(!f.servers.includes(url))f.servers.push(url);f.on=true;
+  // The day joined is the founded every announce says, and it never changes (§5.1): a save that announced without one keeps that.
+  if(!f.joined&&!(s.fedp&&s.fedp.annAt))f.joined=fedDiv(fedNow(),FED_DAY);
   fedSaved();fedWake();return null;}
 // Leaves one server (or all with no url). Multiplayer is off once no server is left; the identity stays in the save.
 function fedLeave(url){const f=S&&S.fed;if(!f)return;const pub=f.key?f.key.pub:'';
