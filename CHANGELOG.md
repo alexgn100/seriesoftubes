@@ -9,6 +9,26 @@ All notable changes to this project are documented here. The project follows
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 - Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
 
+## [4.7.1] — 2026-11-17
+
+- Weekly puzzles that tell you to avoid a city now avoid one that is really in the way: a cable hub the cheap route crosses the sea from, so keeping out of it takes other landings. This week's puzzle, which named Seoul for cities in South-East Asia, is replaced, and a plain full mesh can no longer earn three stars (#419).
+
+## [4.7.0] — 2026-11-17
+
+- A normal game can start with a challenge, picked on the title screen: in Outcast mode the public exchanges will not sell you a port, so you found exchanges of your own in cities that have none and peer over PNIs. Challenge games are played alone, without Multimode.
+- The windows of the NOC screen can be moved and resized: drag a window's title bar, pull an edge or a corner, or use the arrow keys on its grip (with Shift they resize it). Windows never overlap or leave the screen: one dropped on another sends it below and the rest close up, and the charts redraw to fit. The layout is kept in this browser, and Reset layout in the top bar puts every window back. On a narrow screen the windows stack as before.
+- "Move to another path" now shows where a circuit's bottlenecks are: the spans and POP routers with less headroom than the customer wants, tightest first, on today's path and on each alternative, with a button that opens the link or the POP.
+- Pie Control's Dishes tab has a dish optimizer: it suggests what to change on the ground, one line at a time, each saying why it is there, with its cost, a rough payback and a mark on the globe. It adds antennas to busy dishes, builds dishes (opening a POP if that pays best) where cities are out of reach so orbit customers there can sign, and suggests moving or taking down idle dishes no customer lands on, asking before it does.
+- Auto-TE can also spread L2 circuits across paths, with a new toggle in Routing & DDoS that starts off. It follows your spill rules and leaves pinned paths fixed.
+- In Multimode, the game now tells you when other players you have not peered with cost you service. Unhappy customers name it, the Reach chip and your AS panel show your reach with players included, and the NOC warns before customers start leaving, with a button to the players to peer with (#414).
+- A customer's path that shows exactly its latency budget (say 42.2 ms of 42.2 ms) now meets it: latencies are compared the way they are shown, to a tenth of a millisecond (#423).
+
+## [4.6.0] — 2026-11-16
+
+- You can hire an optical engineering team from Big League on: a department of its own, from $1.2M to $7M a year in three sizes, that plans and builds your fiber and subsea routes. Once hired they take over the intern's optical work (optics, line systems, handing back waves), move leased waves that run hot up a size, and every Wednesday plan routes from what the Lambda Bazaar's buyers want plus the leased waves you would no longer need. They either ask before building or build on their own within a yearly budget, and bigger teams run more projects at once. Now and then they get something wrong: a fat-fingered config darkens a fiber for a day, a build slips, or a build costs more.
+- The intern can grow the exchanges you founded: a new standing order upgrades an exchange's fabric when its traffic outgrows your headroom, or when every seat is taken and a network is waiting to join. It has its own monthly budget and shows up in Ops once you run an exchange.
+- A section you unfold in a POP's panel now stays unfolded when you move to another POP, so adding a peering port to POP after POP is one click each instead of three. It covers the exchange, PNI, cache, power and other sections, an exchange's port controls ("Get a port", or "Change" once you are in it) and the routers' "Change"; the exchange section also stays open in a POP with no exchange yet, where you can found your own; fold one again and the next POP goes back to what it would have shown. A POP without that section keeps your choice for the next one that has it, and this browser remembers it for next time.
+
 ## [4.5.0] — 2026-11-16
 
 - The NOC dashboard has a DDoS tab: every attack under way with its RTBH, scrubbing and hack-back buttons, your totals, and a history of past attacks with their size, target and how they ended. Attacks your network shrugs off, and Auto-RTBH pulling the plug, no longer pop up (they are in the NOC's notifications and the new tab); an attack that hurts still does, and its button opens the tab.

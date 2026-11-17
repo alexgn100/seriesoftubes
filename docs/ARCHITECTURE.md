@@ -39,7 +39,7 @@ hoisted across files, and top-level statements run in path order. Find code by n
 | `90-actions/` | The `ACT` map, one file per area (`const ACT` in `10-interface.js`, `Object.assign(ACT,…)` in the rest), and their helpers |
 | `91-save.js`, `92-audio.js` | Save, export and import; sound effects |
 | `93-ui/` | DOM helpers (`$`, `btn`, `morph`), the phone tab bar, install pitch, HUD, left panel, city and link panels, decommissioning |
-| `94-dashboard/` | Scenario and level progress, where to meet a network, customers and connections overviews, cities with no POP yet, lease swaps, the NOC dashboard (its DDoS tab, `59-ddos.js`: live attacks with the NOC card's buttons, totals and `S.ddosLog`) and its own window for a second display (`90-noc-window.js`: this page at `?noc=<slot>`, a read-only copy of `S` and `R` over a BroadcastChannel, clicks sent back to the game; `91-noc-wall.js`: its wallboard), the bank, hints |
+| `94-dashboard/` | Scenario and level progress, where to meet a network, customers and connections overviews, cities with no POP yet, lease swaps, the NOC dashboard (its DDoS tab, `59-ddos.js`: live attacks with the NOC card's buttons, totals and `S.ddosLog`) and its own window for a second display (`90-noc-window.js`: this page at `?noc=<slot>`, a read-only copy of `S` and `R` over a BroadcastChannel, clicks sent back to the game; `91-noc-wall.js`: its wallboard; `93-noc-windows.js`: the wallboard's panels as windows to move and resize, a layout kept in `localStorage`), the bank, hints |
 | `95-modals/` | Toasts, notifications, modals, title screen, what's new, help, the link and own-cable modals |
 | `96-map/` | The canvas: resize, land and clouds, settings, level of detail, link geometry, how each tube looks, the WebGL map (the default, 2D as fallback: context, background, tubes, and the sprite atlas cities, labels and markers are drawn from, in 2D too), `draw()`, the world layer, cities, input and click delegation |
 | `99-loop.js` | `frame()` and `boot()` |
@@ -174,6 +174,15 @@ The day:
    that budget: `tiers()` in `29-route-core.js`); RouteScript rules (`teRules()`) can prefer, avoid, cap, drain
    or blackhole.
 5. Layer-2 customers (L2VPN, SD-WAN, waves) are carved out of link capacity first.
+   The optional **Auto-TE for L2 circuits** switch (`S.te.l2`, off for new and existing saves)
+   lets unpinned circuits spill across residual paths before IP traffic is routed. It needs the
+   main Auto-TE controller and a supported backbone. `29-l2-te.js` applies spill thresholds,
+   latency tiers, router capacity, and circuit latency budgets; ordinary detours use the core's
+   metric reach, while latency tiers use their explicit extra-latency budget, as IP TE does.
+   Live pins and routes through orbit keep their existing allocation. Actual circuit paths and
+   shares are reported in `R.l2route`, their split count in `R.l2split`, and moved bandwidth in
+   `R.teMoved` along with IP detours. TE route records are marked so scenic routing does not
+   reuse partial TE allocations when the option is turned off.
 6. Totals costs (`R.cost`) and revenue (`R.rev`) per month.
 
 It runs every day and after every action, so it is built for big networks: the graph works on city
