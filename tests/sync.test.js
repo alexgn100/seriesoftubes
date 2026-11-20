@@ -311,6 +311,12 @@ test('nothing syncs while a day is in flight; the push goes up when the day land
     a.ev('RW.job=null;rwDayDone()');
     await new Promise((r) => setTimeout(r, 300));
     assert.equal((await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j.rev, before, 'the loaded copy is not pushed back');
+    // A routing that is not a day (Multimode's snapshot of other networks, 4.9) leaves S whole: the push does not wait.
+    a.ev('for(let i=0;i<2;i++)dayTick();RW.job={seq:3,state:S,off:true}');
+    await a.ev('cloudPush()');
+    assert.equal(a.ev('UI.clDue'), null);
+    assert.equal((await s.call('GET', '/api/save', undefined, a.ev('CL.t'))).j.rev, before + 1, 'it went up at once');
+    a.ev('RW.job=null');
     assert.deepEqual(a.errors, []);
   } finally { await s.close(); }
 });

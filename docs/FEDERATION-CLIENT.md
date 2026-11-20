@@ -266,6 +266,20 @@ After the change, the same phone profile: the backlog keeps the page busy 1.7 s 
 IndexedDB, frame parsing, and the game routing once when the snapshot changes), and the spot check has no task over
 50 ms (page time 0.1 s instead of 1.0 s).
 
+Catching up after time offline (`node scripts/fed-perf.js`, same profile, 2850 records) also did three things on the
+page that grew with the save: the snapshot was rebuilt about once a second while pages poured in, each time routing the
+whole game on the page; and every record touched IndexedDB in transactions of its own. Now:
+
+- **One rebuild per catch-up.** A sub page with `more` behind it pushes the rebuild back (`fedPlaySoon`): it runs
+  `FEDP_CALM` (3 s) after the last page, at most `FEDP_HOLD` (20 s) after the first.
+- **Routed in the route worker.** The rebuild calls `afterOff()` (see ARCHITECTURE.md, Routing in a worker).
+- **One transaction per page.** `fedRecsRun` keeps a page inside `fedAnnBatch`: the networks it names are read in one
+  transaction, the `ann` store is read and written through memory meanwhile (`FEDDB.ab`: `fedGet`, `fedPut`, `fedDel`
+  and `fedAll` see it), and what changed is written back in one.
+
+The backlog went from 5.7 s to 2.5 s of page time, its longest task from 0.8 s to 0.4 s, and it is kept in 3.5 s instead
+of 9.2 s.
+
 ## Browser storage (IndexedDB `sot-fed`, shared by every slot)
 
 Stores `ann` (other networks' newest announce, `heard`, `fs` (first heard here) and `fd` (the `founded` it first said: an
@@ -474,12 +488,23 @@ announce (it must list `auto.cofound`). Missing: `myix`, `cfpop` (a POP there on
 first), `ix2`, `cofull`; the co-founder's game declines or refuses an accept on `noix` (the founder's announce sells no
 ports there), `fair` and `cash`. There is no renewal: the founder invites again.
 
-## Live states
+## A player's network on a small map, live (`95-modals/49-fed-netmap.js`, `60-features/89-fedplay-live.js`)
 
-While a joined save is open and the tab is visible, `fedStateTick` (every `FED.T.state`, 10 s) signs the current
-`fedStatsBody()` as a `state` (§5.11) and sends it in a `state` frame to every ready connection whose node lists `state`
-in `feats`, when the body changed since the last one that node took, or `FED.T.stateKeep` (180 s) went by; never twice
-within `FED.T.stateMin` (5 s). Nothing is queued or saved: a state that is not taken (offline, hidden, `rate_limited`)
-is simply replaced by the next. Signing runs on the page (the worker holds no key): one canonical text and one Ed25519
-signature per state sent; `FED.stCost` counts states signed (`n`), the milliseconds they took (`ms`) and those spent on
-ticks that sent nothing (`idle`).
+A network's card (looking glass, leaderboards) opens on a small map of that network alone, read-only. Where it is
+comes from its newest announce (§5.1): its POPs, pink where you have one too and teal elsewhere (IX: at the exchange,
+★: runs it), its wave routes dashed, with a legend of the counts. The map pans, zooms (wheel, pinch, ± buttons, ⤢ back
+to the whole network) and picks a POP on a tap: what is there (the exchange it runs, its cheapest port and members, the
+waves from there, whether you are there too). Links between its POPs, customers and incidents are not in any record.
+
+What it does now comes from its live state (§5.11): a `rankwhy` on the board of now for traffic (§9.5) answers with it
+and with the states of the players it lists, each checked in the federation worker (`fedLiveRun`, op `live`). Asked
+every 15 s while the card is open and the page visible; nothing is kept but a short line of its total in memory. A
+network not live shows the traffic of its last announce. Traffic with other players shows as a total, each of them
+behind a button.
+
+| Name | What it does |
+| --- | --- |
+| `fedLiveOf(key)` | The live state of a network and its partners, from the first joined server that lists `state`, or null |
+| `fnmOf(key)` / `fnmHtml(key)` | What the map shows, from `FU.nets`; the canvas, the legend, the POP picked and the live section |
+| `fnmDraw()` | After each render of the card (`fuRender`): wires the canvas once, paints, starts the live asks (`fnmLiveTick`) |
+| `fnmLoop` / `fnmKick()` | One rAF loop, at most 30 frames a second, only while something moves (a pan, a zoom, POPs pulsing with live traffic); it stops by itself once the canvas leaves the page |

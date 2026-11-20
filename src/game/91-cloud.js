@@ -26,6 +26,7 @@ function clHash(s){const {cam,uiSpeed,sv,log,...r}=s;const t=JSON.stringify(r);l
 const clDirty=()=>clLocal()&&clHash(S)!==CL.h;
 // While a day is in flight (RW.job: its routing in the worker, or resting between its steps) S is half a day, never saved
 // and so never pushed: like the save, the push is due and goes up when the day lands (clDayDone(), from rwDayDone()).
+// A routing that is not a day (RW.job.off, multiplayer's) leaves S whole: like the save, the push does not wait for it.
 // Only if there is still something to send (a cloud copy loaded meanwhile is not), or the player chose to keep this device.
 const clDayDone=()=>{const d=UI.clDue;UI.clDue=null;if(d&&CL&&!UI.clConf&&(d.base!==undefined||clDirty()))cloudPush(d.base);};
 // The cloud copy arrives packed (#176): compare it as it would load.
@@ -79,7 +80,7 @@ function cloudAdopt(s,rev,at,fresh){const local=clLocal();UI.clDue=null;if(!adop
   toast(local?tr('save.loaded_from_the_cloud_name_carries',{name:esc(S.name),date:dateStr(S.day)}):tr('save.welcome_back_name_loaded_from_the',{name:esc(S.name)}),'good');
   CL.rev=rev;CL.at=typeof at==='string'?at:'';CL.h=clHash(S);clKeep();} // after the toast, which lands in the network's log
 // base: the revision this push replaces; a newer one in the cloud is refused unless the player chose to overwrite it.
-async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;if(RW.job){UI.clDue={base};return;}UI.clBusy=true;const h=clHash(S);let r;
+async function cloudPush(base){if(!CL||UI.clBusy||!clLocal())return;if(RW.job&&!RW.job.off){UI.clDue={base};return;}UI.clBusy=true;const h=clHash(S);let r;
   try{r=await clApi('PUT','/save',{base:base===undefined?CL.rev:base,save:fedPublic(packSave(S))});}catch(e){r={st:0,j:{}};}UI.clBusy=false;if(!CL)return;
   if(r.st===200){CL.rev=r.j.rev|0;CL.at=String(r.j.at||'');CL.h=h;UI.clErr='';clKeep();return;}
   if(r.st===401)return clLost();if(r.st===409)return cloudConflict(r.j);UI.clErr=clMsg(r.st,r.j);}

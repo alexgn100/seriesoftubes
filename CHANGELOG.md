@@ -9,6 +9,24 @@ All notable changes to this project are documented here. The project follows
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 - Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
 
+## [4.9.0] — 2026-11-20
+
+- New Autarky challenge mode: no leased waves, IRUs or fabric circuits, so every route is glass you dig or lay yourself, or a consortium seat you buy at a capacity conference (#408).
+- A dark fiber no longer goes dark when you take out optics its managed waves need: the game now says how much you sold on it and keeps enough lit for your own traffic too (#440).
+- A vendor demo router that takes 3.2T ports can now upgrade the ports you already have to 3.2T, instead of making you leave an exchange and join again; the fastest waves show up the same way (#435).
+- Coming back online with a big network in Multimode no longer makes the game crawl while it catches up: the catch-up now holds the page for less than half as long, and other players' networks are worked into your routing once it is done instead of every second along the way, off the main thread.
+
+## [4.8.0] — 2026-11-18
+
+- A Cable broker that drops all transit and peers with every Tier 1 now becomes Tier 1, as any network does, and sees the Road to Tier 1 once it is a Glass Baron (#420).
+- The optical engineering team and the Lambda Bazaar's To build list now count only the waves a new cable can carry: no 1.6T waves across a long ocean, so a cable halfway round the world no longer looks like it pays back in months (#424).
+- An orbit customer bigger than a full pie dish now lands what does not fit on the next dish within reach, instead of going short with nothing in Bottlenecks to fix it (#431).
+- When a country wants its data kept home, Bottlenecks now says so and offers a dish in that country, instead of saying that no dish nearby has room (#431).
+- Orbit customers no longer land on a pie dish whose POP is not connected yet (its fiber still being built) while a connected dish is in reach: their traffic had no way out (#431).
+- The "Change" of your first transit port and PNI, every "?" explanation and the link panels' sections and folds (traffic, routing metric, what you sell, the line system, the spares shelf) now stay as you left them when you move to the next POP or link, as the peering sections already do. Fold one again and the next stops showing it; a list's "+N more" and Decommission still start closed (#432).
+- In Multimode, Accept and Decline under "Waiting for your answer" now answer in place: the list no longer jumps to another player's sheet, and the answered request leaves it at once. Tap a requester's name to open its own sheet, with its AS number and key fingerprint (two networks can share an ASN), what it asks with Accept and Decline, a Back to the list where you were and a Next to the following network that waits (#433).
+- In Multimode, another player's card now has a map of their network you can zoom and tap: their POPs (in another colour where you are too), the exchanges they are at or run, their wave routes, and what is in each city. Their traffic shows live while the card is open, with the traffic they exchange with other players (#406).
+
 ## [4.7.1] — 2026-11-17
 
 - Weekly puzzles that tell you to avoid a city now avoid one that is really in the way: a cable hub the cheap route crosses the sea from, so keeping out of it takes other landings. This week's puzzle, which named Seoul for cities in South-East Asia, is replaced, and a plain full mesh can no longer earn three stars (#419).
