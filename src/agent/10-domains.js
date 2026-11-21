@@ -45,6 +45,7 @@ const API_DOMAINS={
   popTier:{kind:'enum',values:()=>POP_TIERS.slice()},
   // The specialist's offers: a seat on a consortium cable, the charter, a vendor demo.
   seatPairs:{kind:'enum',values:()=>SEAT_N.slice()},
+  hsGenKey:{kind:'enum',values:()=>Object.keys(HS_GEN)},
   callAmount:{kind:'enum',values:()=>CALL_AMTS.slice()},
   charterKey:{table:'CHARTERS',kind:'key'},
   // The link metric editor: a factor or an exact weight (metricMode, metricSet).
@@ -57,12 +58,12 @@ const API_DOMAINS={
   pzRouteMode:{kind:'enum',values:['normal','fast']},
   // The bulk PNI order takes one network or null for every network at every shared POP (ACT.pniAll).
   pniAllNet:{kind:'fn',ok:v=>v===null||(typeof v==='string'&&!!NET[v])},
-  dashTab:{kind:'enum',values:()=>DTABS.slice()},
+  dashTab:{kind:'enum',values:()=>{hsDtabSync();return DTABS.slice();}},
   dashSortKey:{kind:'enum',values:['name','asn','type','traffic','cost','lost']},
   leftTab:{kind:'enum',values:['goals','deals','noc','nets']},
   dealsFilter:{kind:'enum',values:['all','ready','work']},
   logKind:{kind:'enum',values:['all','bad','good','goal','info']},
-  leftFold:{kind:'enum',values:['done','badges','hot','slow','ports']},
+  leftFold:{kind:'enum',values:['done','badges','hot','slow','ports','hsal','hsmore','hsoff']},
   netFilter:{kind:'enum',values:['all','out']},
   pniFilter:{kind:'enum',values:['all','t','worth','pni']},
   listPage:{kind:'enum',values:['traffic','lease','conn','cust','nets','pni','pops','links','routers','ddos']},

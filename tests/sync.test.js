@@ -377,3 +377,25 @@ test('a Multimode network stays on its device, and nothing that can act as a net
     assert.deepEqual(a.errors, []);
   } finally { await s.close(); }
 });
+
+test('a Hyperscaler (5.0) moves between devices whole: its charter, regions and countries', async () => {
+  const s = await server();
+  try {
+    const a = device(s.base);
+    a.ev("ACT.start({});UI.tutLater=true;ACT.charter({k:'hyper'});S.cash=1e9;ACT.hsLaunch({cc:'DE'});ACT.buyTransit({city:S.home,net:'cog',tier:1});compute();for(let i=0;i<10;i++)dayTick();save(true)");
+    assert.equal(a.ev('charter()'), 'hyper');
+    await a.ev("cloudAuth('register','mira','password1')");
+    assert.equal(a.ev('CL.rev'), 1);
+    const b = device(s.base);
+    await b.ev("cloudAuth('login','mira','password1')");
+    assert.equal(b.ev('charter()'), 'hyper');
+    assert.equal(b.ev('S.day'), a.ev('S.day'));
+    // Exactly what reloading the network on A gives (a reload rebuilds a few working fields, as it always does), in any key order.
+    const sorted = "(o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(x=>[x,v[x]])):v))";
+    assert.equal(b.ev(`${sorted}(S.hs)`), a.ev(`${sorted}(migrate(JSON.parse(JSON.stringify(packSave(S)))).hs)`), 'regions, countries and the rest of the cloud arrive as a reload has them');
+    assert.ok(b.ev("Object.keys(S.hs.rg).includes(S.home)&&S.hs.cc.DE&&S.hs.cc.DE.home===S.home"), 'the home region and Germany, launched');
+    assert.equal(b.ev('clDirty()'), false);
+    assert.deepEqual(a.errors, []);
+    assert.deepEqual(b.errors, []);
+  } finally { await s.close(); }
+});

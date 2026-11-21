@@ -107,7 +107,7 @@ const REAL_NAMES = [
   // Tier 1s and carriers
   'AT&T', 'Bell Aliant', 'BICS', 'Cogent', 'GlobalConnect', 'GTT', 'Hurricane Electric', 'Level 3', 'Level3', 'Liquid', 'Liquid Intelligent Technologies', 'Lumen', 'Northwestel', 'NTT', 'Orange', 'PCCW', 'SaskTel', 'Seacom', 'Singtel', 'Sparkle', 'Tata', 'Tata Communications', 'Telia', 'Telxius', 'Tusass', 'Vodafone', 'Zayo',
   // content and clouds
-  'Akamai', 'Alibaba Cloud', 'Amazon', 'Amazon Web Services', 'AWS', 'Baidu', 'ByteDance', 'Cloudflare', 'Facebook', 'Fastly', 'Google', 'Mercado Libre', 'Meta', 'Microsoft', 'Netflix', 'OVH', 'OVHcloud', 'Scaleway', 'Tencent', 'TikTok', 'VK', 'VKontakte', 'Yandex',
+  'Akamai', 'Alibaba Cloud', 'Amazon', 'Amazon Web Services', 'AWS', 'Baidu', 'ByteDance', 'Disney', 'Disney+', 'Cloudflare', 'Facebook', 'Fastly', 'Google', 'Hulu', 'Mercado Libre', 'Meta', 'Microsoft', 'Netflix', 'OVH', 'OVHcloud', 'Scaleway', 'Tencent', 'TikTok', 'VK', 'VKontakte', 'Yandex',
   // eyeballs and incumbents
   ', ', 'A1', 'A1 Telekom Austria', 'Afghan Telecom', 'Africell', 'Airtel', 'AIS', 'Algérie Télécom', 'Altibox', 'Altice', 'America Movil', 'Andorra Telecom', 'Angola Cables', 'Antel', 'Areeba', 'ASTCA', 'ATH Kiribati', 'Aussie Broadband', 'AWCC', 'Azercell', 'Aztelekom', 'Batelco', 'Belize Telemedia', 'Bell', 'Bell Canada', 'Belong', 'Beltelecom', 'Bemobile', 'Bezeq International', 'BH Telecom', 'Bhutan Telecom', 'Bitė', 'Bouygues', 'Bouygues Telecom', 'Brisanet', 'BT', 'BTC', 'Cable & Wireless', 'Cable Bahamas', 'Cablenet', 'Celtiis', 'Cenpac', 'Comores Telecom', 'Congo Telecom', 'Crnogorski Telekom', 'CST', 'Cyta', 'Earthlink', 'Econet', 'EPTC', 'EriTel', 'FL1', 'Free', 'FSM Telecommunications Corporation', 'Gabon Telecom', 'Gamtel', 'GETESA', 'GO', 'Guyana Telephone & Telegraph', 'Hoi Internet', 'Hormuud', 'Hrvatski Telekom', 'Kazakhtelecom', 'Kcell', 'Kyrgyztelecom', 'L", ', 'Lao Telecom', 'Libyana', 'LTT', 'Magticom', 'Mattel', 'Mauritel', 'MCI', 'Melita', 'MobiCom', 'Moldtelecom', 'Monaco Telecom', 'MPT', 'Muni', 'Natcom', 'Ncell', 'Nepal Telecom', 'Niger Telecoms', 'O!', 'Ocean Link', 'Ogero', 'One Albania', 'Partner', 'SAFITEL', 'SBIN', 'SFR', 'Silknet', 'Slovak Telekom', 'SMART', 'Smart Axiata', 'Somtel', 'Speednet', 'Star JV', 'Sudani', 'Sudatel', 'Syrian Telecom', 'Syriatel', 'Tashi InfoComm', 'TashiCell', 'TCI', 'Team Telecom Armenia', 'Telecel', 'Telecom Liechtenstein', 'Telecom Vanuatu', 'Telekom Slovenije', 'Telenet San Marino', 'Telesur', 'Telia Lietuva', 'Timor Telecom', 'TNM', 'Togocom', 'Tojiktelecom', 'touch', 'Turkmentelecom', 'Tuvalu Telecommunications Corporation', 'Ucom', 'Unified National Networks', 'Unitel', 'Univision', 'UNN', 'Uztelecom', 'YemenNet', 'Zain',
   // exchanges and data centers
@@ -321,6 +321,213 @@ test('M6: a charter changes what you set out to do, never what things cost', () 
   }
   fail('M6', bad, 'the broker gets glass early, not cheaper; charters belong to Normal games only');
   assert.deepEqual(g.errors, []);
+});
+
+test('M7: a Hyperscaler sells cloud only, and its state lives only in its charter', () => {
+  const bad = [];
+  const g = load();
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e9;S.lvl=8;ACT.hsLaunch({cc:'DE'});ACT.buyTransit({city:S.home,net:'cog',tier:1});ACT.launchBB({city:S.home});compute()");
+  if (g.ev('!!S.pops[S.home].bb')) bad.push('a Hyperscaler sells home broadband');
+  g.ev("for(let i=0;i<60;i++){spawnOffer();dayTick();}");
+  const kinds = JSON.parse(g.ev("JSON.stringify([...new Set(S.offers.concat(S.biz).map(o=>o.type))])"));
+  if (kinds.some((k) => k !== 'cloud')) bad.push('a Hyperscaler is offered or signs classic kinds: ' + kinds.join(', '));
+  if (!g.ev("S.offers.concat(S.biz).every(o=>o.type!=='cloud'||o.p.every(id=>own(CLOUD_PRODUCTS,id)))")) bad.push('a tenant buys a product that is not in the catalogue');
+  if (g.ev("Object.keys(BIZ_T).includes('cloud')")) bad.push('the cloud kind is listed with the classic customer kinds');
+  const c = load();
+  c.ev("beginGame('Classic','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'global'});compute();for(let i=0;i<5;i++)dayTick()");
+  if (c.ev("'hs' in S||'hs' in R")) bad.push('a classic game carries Hyperscaler state');
+  assert.deepEqual(bad, []);
+  assert.deepEqual(g.errors, []);
+});
+
+test('M8: a Hyperscaler never sells transit to players and cannot buy a network; computer-run partners set the price ceiling', () => {
+  const bad = [];
+  const g = load();
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});fedP();compute()");
+  if (g.ev("!!S.fedp.rates.transit||S.fedp.auto.transit!=='decline'")) bad.push('its published terms sell transit');
+  g.ev("fedTermsApply({pol:'open',rates:{transit:{perGbps:1,commit:[],term:30}},auto:{transit:'auto'}})");
+  if (g.ev("!!S.fedp.rates.transit||S.fedp.auto.transit!=='decline'")) bad.push('saving terms turns transit on');
+  if (!g.ev("fedTheirAbsurd(S,{deal:'transit',terms:{mbps:1000,perGbps:1,term:30,at:['fra']}})")) bad.push('a transit request is not refused');
+  const t = g.ev("JSON.stringify({...S,fedp:{...S.fedp,rates:{transit:{perGbps:5,commit:[],term:30}},auto:{...S.fedp.auto,transit:'auto'}}})");
+  if (g.ev(`(()=>{const s=JSON.parse(${JSON.stringify(t)});migrate(s);return !!s.fedp.rates.transit||s.fedp.auto.transit!=='decline';})()`)) bad.push('a save with a transit card loads with it');
+  if (g.ev("FED_DEALS.join()") !== 'peering,transit,pni,swap,consortium,port,wave,cofound,edge,onramp') bad.push('a deal kind was added: check that none hands a network over');
+  if (g.ev("fedRatesClean({edge:{monthly:1e9,cap:2,term:90}}).edge.monthly") > g.ev('HSF_NPC_MO')) bad.push('a host may charge more for an edge node than a computer-run ISP');
+  fail('M8', bad, 'a cloud buys transit and reach from others, never sells transit, and players undercut the computer-run price');
+  assert.deepEqual(g.errors, []);
+});
+
+test('M9: a Hyperscaler\'s bulk classes never push interactive traffic aside', () => {
+  const bad = [];
+  const g = load();
+  const wave = (id, a, b, tier) => `S.links.push({id:'${id}',a:'${a}',b:'${b}',kind:'wave',tier:${tier},km:Math.round(kmBetween('${a}','${b}')),mo:1,cut:0,ready:0,trench:'${id}'});`;
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;" +
+    "for(const c of ['par','ams','lon'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=RG_TOP;for(const c of ['fra','par','lon'])ACT.buyTransit({city:c,net:'cog',tier:3});" +
+    "S.hs.rg.par={t:0,ready:0,mw:5};S.hs.rg.lon={t:0,ready:0,mw:5};S.hs.cc.DE={d:300,since:0};S.hs.cc.FR={d:500,since:0};S.hs.cc.GB={d:450,since:0};S.links=[];" +
+    wave('fp', 'fra', 'par', 1) + wave('pl', 'par', 'lon', 1) + wave('fa', 'fra', 'ams', 2) + wave('al', 'ams', 'lon', 1) +
+    "S.hs.jobs.push({id:'big',n:'Overfit and Sons',a:'fra',b:'lon',g:12800,tb:1e7,done:0,due:S.day+40,fee:1,start:S.day});S.hs.own.push({id:'mine',n:0,k:2,a:'par',b:'lon',g:6400,tb:1e7,done:0,mw:16,start:S.day,due:S.day+50});S.hs.lag['fra>par']=5000;");
+  const look = () => g.ev('JSON.stringify({cc:R.hs.cc,ten:R.hs.ten,door:R.hs.door,served:R.served,egT:R.egT,rev:R.rev.business})');
+  for (const te of [false, true]) for (const pp of ['', 'scenic', 'diverse']) {
+    g.ev(`S.te=${te ? "{on:true,l2:false,day:0,script:''}" : 'null'};S.core={lv:2,run:2,legacy:true};S.hs.pp={};${pp ? `S.hs.pp['fra|par']='${pp}';S.hs.pp['fra|lon']='${pp}';` : ''}compute()`);
+    const on = look(), bulk = g.ev('R.hs.btw');
+    g.ev('CX_BULK.length=0;compute()');
+    const off = look();
+    g.ev('CX_BULK.push(hsBulk);compute()');
+    if (on !== off) bad.push(`te ${te}, paths '${pp}': users or tenants got something else with bulk on`);
+    if (!(bulk > 0)) bad.push(`te ${te}, paths '${pp}': no bulk was carved at all`);
+    if (!g.ev('S.links.every(l=>R.load[l.id]<=capOf(l)+1e-6)')) bad.push(`te ${te}, paths '${pp}': a link carries more than it can`);
+  }
+  fail('M9', bad, 'bulk takes only what interactive traffic leaves (38-hyper-traffic.js)');
+  assert.deepEqual(g.errors, []);
+});
+
+test('M10: a Hyperscaler resells only its own glass, to carriers, cheaply, and never counts it toward levels or goals', () => {
+  const bad = [];
+  const g = load();
+  const df = (id, b, own) => `S.links.push({id:'${id}',a:'fra',b:'${b}',kind:'df',own:${own},sys:'roadm',ch:Array(2).fill('zr4'),km:Math.round(kmBetween('fra','${b}')*1.05),ready:0,day:0,cut:0,mo:100,trench:'${id}',pairs:1});`;
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;" +
+    "for(const c of ['par','ams'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=RG_TOP;ACT.buyTransit({city:'fra',net:'cog',tier:3});S.hs.cc.DE={d:300,since:0};S.links=[];" +
+    df('own1', 'par', true) + df('lease1', 'ams', false) + 'compute()');
+  const lv = g.ev('custLevel()'), gs = g.ev('JSON.stringify(goals().map(x=>!!x.ok()))');
+  for (let d = 0; d < 80; d++) {
+    g.ev(`S.hs.rs.o=[];hsrSpawn(S.day+${d})`);
+    for (const o of JSON.parse(g.ev('JSON.stringify(S.hs.rs.o)'))) {
+      if (o.l !== 'own1') bad.push(`an offer on fiber it did not build (${o.l})`);
+      const cap = g.ev("dfCap(S.links[0])");
+      g.ev(`ACT.hsrTake({id:'${o.id}'});compute()`);
+      if (o.k === 'w' && Math.abs(cap - o.g - g.ev('dfCap(S.links[0])')) > 1e-6) bad.push('a wave sold did not come off its own capacity');
+    }
+  }
+  if (!g.ev("S.biz.length")) bad.push('nothing sold at all');
+  if (!g.ev("S.biz.every(b=>(b.type==='dfpair'||b.type==='mwave')&&b.link==='own1'&&!BIZ_T[b.type].l2)")) bad.push('resale sold something other than a pair or a wave on its own fiber');
+  if (g.ev("hsrWhy({l:'lease1',k:'iru'})") === '') bad.push('leased fiber can be resold');
+  if (!(g.ev("hsrPrice(S.links[0],'w',100).mo/100") < g.ev("Math.min(...Object.values(CLOUD_TENANTS).map(K=>cloudRate(K.p)))") / 4)) bad.push('a wave earns as much as tenants');
+  g.ev('for(const b of S.biz)b.rate*=1e4;compute()');
+  if (g.ev('custLevel()') !== lv || g.ev('JSON.stringify(goals().map(x=>!!x.ok()))') !== gs) bad.push('resale counts toward levels or goals');
+  fail('M10', bad, 'spare glass is a side income (38-hyper-resale.js)');
+  assert.deepEqual(g.errors, []);
+});
+
+test('M11: rival clouds show every move before it lands, and a bid is always yours to win', () => {
+  const bad = [];
+  const g = load();
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;" +
+    "for(const c of ['par','nyc','sin'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=RG_TOP;ACT.buyTransit({city:'fra',net:'cog',tier:3});S.hs.rg.fra.t=2;S.offers=[];" +
+    // Rival clouds introduced (the director, 38-hyper-director.js, lets them in once they are).
+    "S.hs.dir.i.rv=0;compute()");
+  for (const c of ['fra', 'par', 'nyc', 'sin']) {
+    g.ev(`S.offers=[];for(const k of ['startup','ent','game'])S.offers.push(hsOffer(k,'${c}',10));hsRvDay(S.day)`);
+    for (const o of JSON.parse(g.ev('JSON.stringify(S.offers)'))) {
+      const x = JSON.parse(g.ev(`JSON.stringify(S.hs.rv.of['${o.id}'])`));
+      if (x.w < 0) continue;
+      if (!(x.d > g.ev('S.day'))) bad.push(`${c}: a bid decided the day it appeared`);
+      if (!g.ev(`bRisk(S.offers.find(o=>o.id==='${o.id}')).includes(${lit(g.ev(`hsRvN(${x.w})`))})`)) bad.push(`${c}: a bid is not shown under its offer`);
+      g.ev(`ACT.accept({id:'${o.id}'})`);
+      if (!g.ev(`S.biz.some(b=>b.id==='${o.id}')`)) bad.push(`${c}: a contested offer could not be signed`);
+    }
+  }
+  // Poached only after a warning, at least a few weeks ahead.
+  g.ev("for(const b of hsTen()){b.mood=30;b.te=S.day+40}S.log=[]");
+  let warned = 0;
+  for (let i = 0; i < 40; i++) {
+    g.ev('S.day++;hsRvDay(S.day)');
+    const gone = g.ev('JSON.stringify(Object.keys(S.hs.rv.pc))');
+    if (gone !== '[]' && !warned) bad.push('a tenant poached without a warning');
+    if (g.ev('Object.keys(S.hs.rv.wn).length') && !warned) warned = i + 1;
+  }
+  if (!warned || warned > 15) bad.push('unhappy tenants were not warned weeks before renewal: ' + warned);
+  if (g.ev('hsTen().length')) bad.push('unhappy tenants were never poached');
+  fail('M11', bad, 'rivals make choices matter, never feel random-unfair (38-hyper-rivals.js)');
+  assert.deepEqual(g.errors, []);
+});
+
+// Hyperscaler setups for M12 and M13: regions in Frankfurt, Paris, London, Amsterdam and Delhi (sizes seeded), users in
+// Europe, Britain, India and the US, waves between them of seeded tiers, then each region taken out in turn.
+function hsRules(seed) {
+  const g = load({ seed });
+  const wave = (id, a, b) => `S.links.push({id:'${id}',a:'${a}',b:'${b}',kind:'wave',tier:1+Math.floor(Math.random()*4),km:Math.round(kmBetween('${a}','${b}')),mo:1,cut:0,ready:0,trench:'${id}'});`;
+  g.ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;" +
+    "for(const c of ['par','lon','ams','del'])ACT.buildPop({city:c});for(const c in S.pops){S.pops[c].rgen=RG_TOP;const n=NETS.find(n=>n.price&&sellsAt(n,c));ACT.buyTransit({city:c,net:n.id,tier:3});}" +
+    "for(const c of ['fra','par','lon','ams','del'])S.hs.rg[c]={t:Math.floor(Math.random()*3),ready:0,mw:20};S.links=[];" +
+    wave('fp', 'fra', 'par') + wave('fl', 'fra', 'lon') + wave('pl', 'par', 'lon') + wave('fa', 'fra', 'ams') + wave('al', 'ams', 'lon') + wave('fd', 'fra', 'del') +
+    "for(const cc of ['DE','FR','NL','GB','IN','US','PL','IE'])S.hs.cc[cc]={d:50+Math.random()*900,since:0};S.hs.rep={fra:'lon',par:'ams',lon:'par',ams:'fra',del:'fra'};compute();hsDay(S.day)");
+  return g;
+}
+
+test('M12: a Hyperscaler\'s failover never invents capacity', () => {
+  const bad = [];
+  for (const seed of [3, 7, 11]) {
+    const g = hsRules(seed);
+    for (const c of ['fra', 'par', 'lon', 'ams', 'del']) {
+      g.ev(`S.hs.down={};S.hs.out={};S.hs.dx=null;hsRegionFail('${c}',2,'rule');compute()`);
+      const x = JSON.parse(g.ev(`JSON.stringify({fo:R.hs.fo['${c}'],homed:hsHomedAt('${c}').map(k=>[k,R.hs.cc[k].parts.filter(p=>p[3]).map(p=>p[3])]),rg:R.hs.rg,ten:S.biz.filter(b=>b.rg==='${c}').map(b=>R.hs.ten[b.id].r)})`));
+      for (const [k, rs] of x.homed) if (rs.some((r) => r !== x.fo)) bad.push(`seed ${seed}, ${c} down: ${k} served from ${rs} instead of the replica ${x.fo}`);
+      for (const r of x.ten) if (r && r !== x.fo) bad.push(`seed ${seed}, ${c} down: a tenant moved to ${r}`);
+      for (const [r, o] of Object.entries(x.rg)) if (o.load > o.g + 1e-6) bad.push(`seed ${seed}, ${c} down: ${r} serves ${o.load} with room for ${o.g}`);
+      if (!g.ev('S.links.every(l=>(R.load[l.id]||0)<=capOf(l)+1e-6)')) bad.push(`seed ${seed}, ${c} down: a link carries more than it can`);
+    }
+    assert.deepEqual(g.errors, []);
+    g.dom.window.close();
+  }
+  fail('M12', bad, 'a failed region\'s users go to its replica as far as it has room and the backbone carries them (38-hyper-failover.js)');
+});
+
+test('M13: residency never homes users outside their bloc', () => {
+  const bad = [];
+  for (const seed of [3, 7, 11]) {
+    const g = hsRules(seed);
+    for (const c of ['', 'fra', 'par', 'del']) {
+      g.ev(`S.hs.down={};S.hs.out={};${c ? `hsRegionFail('${c}',2,'rule');` : ''}compute()`);
+      const parts = JSON.parse(g.ev("JSON.stringify(Object.keys(R.hs.cc).flatMap(k=>R.hs.cc[k].parts.filter(p=>p[3]).map(p=>[k,p[3],hsResOk(k,p[3])])))"));
+      for (const [k, r, ok] of parts) if (!ok) bad.push(`seed ${seed}${c ? `, ${c} down` : ''}: ${k} homed in ${r}`);
+      if (g.ev("S.hs.cc.IN&&R.hs.cc.IN.parts.some(p=>p[3]&&CITY[p[3]].cc!=='IN')")) bad.push(`seed ${seed}: Indian users served abroad`);
+    }
+    g.ev("delete S.hs.rg.del;S.hs.down={};S.hs.out={};compute();const d=S.hs.cc.IN.d;for(let i=0;i<5;i++)dayTick();window.__d=[d,S.hs.cc.IN.d]");
+    const [d0, d1] = JSON.parse(g.ev('JSON.stringify(__d)'));
+    if (d0 !== d1) bad.push(`seed ${seed}: Indian users with no region at home grew or shrank (${d0} -> ${d1})`);
+    assert.deepEqual(g.errors, []);
+    g.dom.window.close();
+  }
+  fail('M13', bad, 'users of countries with residency laws are homed only in their country or bloc, and wait while there is none (38-hyper-residency.js)');
+});
+
+test('M14: zones never stand in for a region against metro-wide or legal trouble', () => {
+  const bad = [];
+  const R5 = ['fra', 'par', 'lon', 'ams', 'del'], GJ = (ev, x) => JSON.parse(ev(`JSON.stringify(${x})`));
+  for (const seed of [3, 7, 11]) {
+    const g = hsRules(seed);
+    // Every region gets two live zones; whole-region trouble is let in (the director's gates passed).
+    g.ev("S.day=Math.max(S.day,HS_DIR_BIG);Object.assign(S.hs.dir,{b:99,t:S.day,i:Object.fromEntries(Object.keys(HS_DIR_INTRO).map(k=>[k,0]))});" +
+      "for(const c of Object.keys(S.hs.rg))S.hs.az[c]=[{r:0,n:0},{r:0,n:1}];compute()");
+    for (const c of R5) {
+      const reset = "S.inc=[];S.hs.down={};S.hs.out={};S.hs.dx=null;S.hs.lag={};for(const p in S.pops)delete S.pops[p].down;S.hs.pw[" + lit(c) + "]=hsPwDef(" + lit(c) + ");delete S.hs.law.mor[" + lit(c) + "];compute();";
+      // A local failure: one zone out at most, the region live, no failover.
+      for (const type of ['crash', 'power', 'oops', 'cleaner']) {
+        const x = GJ(g.ev, `(()=>{${reset}S.pops[${lit(c)}].down=S.day+2;addInc({type:${lit(type)},ref:${lit(c)},until:S.day+2,msg:'m',cost:1});hsSoloSoft(S.inc[S.inc.length-1]);compute();return {live:hsLive(${lit(c)}),fo:R.hs.fo[${lit(c)}]||null,g:R.hs.rg[${lit(c)}].g,min:HS_T[S.hs.rg[${lit(c)}].t].g*(1+HS_AZ_G)*hsCut(${lit(c)})}})()`);
+        if (!x.live || x.fo) bad.push(`seed ${seed}, ${c}: a ${type} with zones took the region down`);
+        if (x.g < x.min - 1e-6) bad.push(`seed ${seed}, ${c}: a ${type} cost more than one zone (${x.g} < ${x.min})`);
+      }
+      // A region-wide failure: out, served from its replica only, backlog over the mark lost, zones or not.
+      const f = GJ(g.ev, `(()=>{${reset}S.hs.lag[${lit(c)}+'>'+hsRepOf(${lit(c)})]=HS_RISK*4;const l0=S.hs.flost;hsRegionFail(${lit(c)},2,'rule');compute();return {out:hsOut(${lit(c)}),fo:R.hs.fo[${lit(c)}],rep:hsRepOf(${lit(c)},Object.keys(S.hs.rg)),lost:S.hs.flost-l0,parts:hsHomedAt(${lit(c)}).flatMap(k=>R.hs.cc[k].parts.filter(p=>p[3]).map(p=>p[3]))}})()`);
+      if (!f.out) bad.push(`seed ${seed}, ${c}: zones kept a failed region up`);
+      if (f.parts.some((r) => r !== f.fo)) bad.push(`seed ${seed}, ${c}: users of a failed region with zones served from ${f.parts}`);
+      if (f.lost !== 1) bad.push(`seed ${seed}, ${c}: zones saved backlog lost at a region failure`);
+      // The metro's grid squeezed: every zone shares the cut; a trip takes the region; a moratorium allows no new zone.
+      const m = GJ(g.ev, `(()=>{${reset}S.hs.az[${lit(c)}]=[{r:0,n:0}];S.hs.pw[${lit(c)}].cap=hsTown(${lit(c)})+hsMwUsed(${lit(c)})*0.4;compute();const cut=hsCut(${lit(c)}),g=R.hs.rg[${lit(c)}].g,want=hsRgG(${lit(c)})*cut;
+        S.hs.dir.w={c:${lit(c)},d:S.day,k:'cut',ok:0};S.hs.dir.c=null;hsTripDay(S.day);const trip=S.hs.down[${lit(c)}]>S.day;
+        S.hs.law.mor[${lit(c)}]={a:S.day,f:S.day,u:S.day+100,m:0};ACT.hsZone({city:${lit(c)}});return {cut,g,want,trip,n:S.hs.az[${lit(c)}].length}})()`);
+      if (!(m.cut < 1) || Math.abs(m.g - m.want) > 1e-6) bad.push(`seed ${seed}, ${c}: a grid squeeze spared the zones (${m.g} vs ${m.want})`);
+      if (!m.trip) bad.push(`seed ${seed}, ${c}: a grid trip spared a region with zones`);
+      if (m.n !== 1) bad.push(`seed ${seed}, ${c}: a zone was built during a moratorium`);
+      g.ev(`S.hs.az[${lit(c)}]=[{r:0,n:0},{r:0,n:1}];` + reset);
+    }
+    // Residency and Chaos Kong do not care for zones either.
+    const parts = GJ(g.ev, "(()=>{S.inc=[];S.hs.down={};S.hs.out={};compute();return Object.keys(R.hs.cc).flatMap(k=>R.hs.cc[k].parts.filter(p=>p[3]).map(p=>[k,p[3],hsResOk(k,p[3])]))})()");
+    for (const [k, r, ok] of parts) if (!ok) bad.push(`seed ${seed}: with zones, ${k} homed in ${r}`);
+    if (!g.ev("(()=>{runNow(hsKongRun());return Object.keys(S.hs.down).length===1})()")) bad.push(`seed ${seed}: Chaos Kong spared a region with zones`);
+    assert.deepEqual(g.errors, []);
+    g.dom.window.close();
+  }
+  fail('M14', bad, 'zones protect you from a bad day, regions from a bad year: a zone takes only one building\'s trouble (38-hyper-zones.js)');
 });
 
 // ---------- Content ----------

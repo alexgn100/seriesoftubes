@@ -45,10 +45,12 @@ const OPS=[
 const OPSK=Object.fromEntries(OPS.map(o=>[o.k,o])),OPS_POP=OPS.filter(o=>o.pop).map(o=>o.k);
 // Optical orders move to the optical team once there is one (96-optical-team.js); some only the team runs.
 const opsTeam=k=>!!OPSK[k].team&&optxOn(),opsMine=k=>!OPSK[k].only&&!opsTeam(k);
-const opsCtl=k=>own(OPSK,k)&&!(k==='waveup'&&modeOn('autarky'))&&(opsTeam(k)?true:opsMine(k)&&opsHired());
+// Orders that belong to another charter or a part of the game not reached yet neither show nor run (d.show).
+const opsUse=k=>{const d=OPSK[k];return !d.show||d.show();};
+const opsCtl=k=>own(OPSK,k)&&!((k==='waveup'||k==='hswave')&&modeOn('autarky'))&&(opsTeam(k)?true:opsMine(k)&&opsHired());
 const OPS_TPL=['bb','transit','ix','kit'];
 // What the shift log can say. One line per day: "{name} did this, that and the other."
-const OPS_SAY={transit:N_('ops.l_transit'),ports:N_('ops.l_ports'),fabric:N_('ops.l_fabric'),routers:N_('ops.l_routers'),caches:N_('ops.l_caches'),rs:N_('ops.l_rs'),peer:N_('ops.l_peer'),pni:N_('ops.l_pni'),repair:N_('ops.l_repair'),optics:N_('ops.l_optics'),optup:N_('ops.l_optup'),waveup:N_('ops.l_waveup'),build:N_('ops.l_build'),optswap:N_('ops.l_optswap'),decom:N_('ops.l_decom'),broke:N_('ops.l_broke'),snag:N_('ops.l_snag')};
+const OPS_SAY={transit:N_('ops.l_transit'),ports:N_('ops.l_ports'),fabric:N_('ops.l_fabric'),routers:N_('ops.l_routers'),caches:N_('ops.l_caches'),rs:N_('ops.l_rs'),peer:N_('ops.l_peer'),pni:N_('ops.l_pni'),repair:N_('ops.l_repair'),optics:N_('ops.l_optics'),optup:N_('ops.l_optup'),waveup:N_('ops.l_waveup'),build:N_('ops.l_build'),optswap:N_('ops.l_optswap'),decom:N_('ops.l_decom'),broke:N_('ops.l_broke'),snag:N_('ops.l_snag'),freeze:N_('ops.l_freeze')};
 // Fat fingers: rare, visible, harmless. Only the LAG one costs anything, and only a little.
 const OPS_FF=[N_('ops.ff_desc'),N_('ops.ff_hostname'),N_('ops.ff_typo'),N_('ops.ff_lag'),N_('ops.ff_ping')];
 const OPS_FF_RATE={oncall:1/150,bgp:1/60};
@@ -108,6 +110,10 @@ function opsWeekLine(x){const I=INTERNS[x.i],name=I?tr(I.s):'',ks=Object.keys(x.
 // The intern's mood, from what the week has been like. No dice: the same day always reads the same.
 function opsMood(){const O=S.ops,x=O.wk&&O.wk.w===Math.floor(S.day/7)?O.wk:null,n=x?x.n:{},jobs=Object.keys(n).filter(k=>k!=='broke').reduce((a,k)=>a+n[k],0);
   const k=S.day-O.hired<7?'new':x&&x.ff?'oops':n.snag?'snag':S.inc.some(i=>i.until>S.day&&i.type!=='ddos')?'outage':n.broke?'broke':jobs>=5?'busy':S.day%2?'quiet':O.intern;
+  // A change freeze (37-content-core.js) is all anyone talks about.
+  {const z=chFrozen();if(z)return tr('ops.mood_frozen',{name:opsName(),show:z.show});}
+  // A Hyperscaler's intern talks about regions, backlogs and protests on an ordinary day (95-hyper-orders.js).
+  {const x=hsOpsMood(k);if(x)return x;}
   return tr({new:N_('ops.mood_new'),oops:N_('ops.mood_oops'),snag:N_('ops.mood_snag'),outage:N_('ops.mood_outage'),broke:N_('ops.mood_broke'),busy:N_('ops.mood_busy'),quiet:N_('ops.mood_quiet'),
     annie:N_('ops.mood_annie'),kevin:N_('ops.mood_kevin'),tracy:N_('ops.mood_tracy')}[k],{name:opsName()});}
 // "fra +1×100G", "fra|ams", "ams~3", "transit" (an order, for the budget line) or "ggl" (a network).
@@ -379,11 +385,16 @@ function* opsOrders(ks,X,who){const O=S.ops;let ui=null;
   // Every order but the last, decommissioning, which reads today's loads: routed first when a job changed them.
   for(const k of ks)if(k!=='decom'&&O.on[k]){yield* order(k);yield DAY_REST;}
   if(ks.includes('decom')&&O.on.decom){if(X.dirty&&opsDecomWaits()){yield;X.dirty=false;}ui=null;yield* order('decom');}}
+// A change freeze (chFrozen, 37-content-core.js): the intern touches nothing today and says so, in the log and the week's report.
+function opsStill(d){if(!chFrozen())return false;const O=S.ops;O.log.unshift({d,i:O.intern,r:[['freeze',1,[]]]});O.log.length=Math.min(O.log.length,OPS_LOG);
+  if(O.wk)O.wk.n.freeze=(O.wk.n.freeze||0)+1;return true;}
 function* opsRun(d){if(!opsHired())return;const O=S.ops;opsMonth(d);
   // A new week: last week's tally becomes the shift report, and the one NOC notice of the week.
   const w=Math.floor(d/7);if(!O.wk||O.wk.w!==w){if(opsWkAny(O.wk)&&O.wk.w<w){O.rep=O.wk;logNote(`<b>${esc(tr('ops.shift_report',{name:opsName()}))}</b> ${esc(opsWeekLine(O.rep))}`,'',[],{a:'ops'});}O.wk=opsWkNew(w);}
+  // A change freeze (37-content-core.js): hands off everything today.
+  if(opsStill(d))return;
   const X=opsShift();
-  yield* opsOrders(OPS_ORDER.filter(opsMine),X,'intern');
+  yield* opsOrders(OPS_ORDER.filter(k=>opsMine(k)&&opsUse(k)),X,'intern');
   const e={d,i:O.intern,r:[]};for(const [k,x] of X.r)e.r.push([k,x.n,x.w]);if(X.broke.size)e.r.push(['broke',X.broke.size,[...X.broke]]);
   // Very rarely, and never under Change Freeze, the intern fat-fingers something harmless.
   // Kevin rolls the same dice (so a seeded game plays the same whoever is hired) and catches it before pressing Enter.
@@ -400,7 +411,7 @@ function* opsRun(d){if(!opsHired())return;const O=S.ops;opsMonth(d);
   W.up+=e.up||0;W.mo+=e.mo||0;if(e.f!==undefined)W.ff=Math.min(7,W.ff+1);}
 // New POP from the template: price the whole bundle first, then click through it in one go.
 function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))return null;const T=S.ops.tpl,parts=[];let cost=popCost(c),net=null,ix=null,kit=null;
-  if(T.bb){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}
+  if(T.bb&&!hyper()){cost+=bbCost(c);parts.push(tr('ops.tpl_bb'));}
   if(T.transit&&!scnRule('noTransit')){net=opsProv(c);if(net){cost+=PORT[0].setup;parts.push(tr('ops.tpl_transit'));}}
   // Priced as if the POP were already there (an IX port is dearer from afar). DE-KICKS wants a sales call first, so not those.
   // The standard routers go in first (#261), so they are in the price and the kit is priced for them.
@@ -409,3 +420,5 @@ function opsTplQuote(c){if(!S||S.pops[c]||!cityOn(c)||(cnCity(c)&&!cnOk()))retur
   try{if(T.ix&&!modeOn('outcast')&&CITY[c].ix&&!isDk(c)&&S.ixp[c]===undefined){ix=c;cost+=ixPortMo(c,0);parts.push(tr('ops.tpl_ix'));}
     if(T.kit){kit=utilityKit(c);if(kit&&kit.cost){cost+=kit.cost;parts.push(tr('ops.tpl_kit'));}}}finally{delete S.pops[c];}
   return {cost,net:net&&net.id,ix,kit:!!(kit&&kit.cost),parts};}
+// The Hyperscaler's own orders (95-hyper-orders.js loads before this file, so it registers them now).
+hsOpsReg();

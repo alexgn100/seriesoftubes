@@ -1,11 +1,11 @@
-function bizSf(b,ids){const T=BIZ_T[b.type];return T.orbit?((R.pie&&R.pie.sf[b.id])||0):T.fiber?(fiberOk(b,ids)?1:0):T.l2?clamp((R.l2[b.id]||0)/b.bw,0,1):bizSfOf(R,b.city)*((R.tgtF&&R.tgtF[b.id])??1);}
+function bizSf(b,ids){const T=BIZ_T[b.type];return T.cloud?hsTenQ(R,b):T.orbit?((R.pie&&R.pie.sf[b.id])||0):T.fiber?(fiberOk(b,ids)?1:0):T.l2?clamp((R.l2[b.id]||0)/b.bw,0,1):bizSfOf(R,b.city)*((R.tgtF&&R.tgtF[b.id])??1);}
 // Protected business traffic has its own served share; without the rule it shares the city's.
 function bizSfOf(r,c){const d=r.bizDem&&r.bizDem[c];return teRules()&&teRules().protect&&d>1e-6?clamp(r.bizSrv[c]/d,0,1):sfOf(r,c);}
 function bCities(o){return o.sites?o.sites.slice():[o.city,o.city2].filter(Boolean);}
 function bHas(o){return !!BIZ_T[o.type].cap||!!BIZ_T[o.type].orbit||bCities(o).every(c=>S.pops[c]);}
 function eventLive(b){return BIZ_T[b.type].event&&S.day>=b.start&&S.day<b.start+b.dur;}
 // No warning where nobody attacks (Best Effort, Change Freeze, puzzles, the sandbox's calm).
-function bRisk(b){return (BIZ_T[b.type]?.gaming&&!ddosOff()?`<div class="meta">⚠️ ${tr('customers_and_events.gaming_attracts_attacks')}</div>`:'')+lcNote(b);}
+function bRisk(b){return (BIZ_T[b.type]?.gaming&&!ddosOff()?`<div class="meta">⚠️ ${tr('customers_and_events.gaming_attracts_attacks')}</div>`:'')+lcNote(b)+(b.type==='cloud'?hsRvNote(b):'');}
 function bTerms(o){const T=BIZ_T[o.type];if(T.cap)return capTerms(o);
   if(T.event){const live=S.day>=o.start;return tr('customers_and_events.bw_extra_for_d_days_when',{bw:fmtG(o.bw),d:o.dur,when:live?tr('customers_and_events.day_n_of_d',{n:S.day-o.start+1,d:o.dur}):tr('customers_and_events.starting_in_n_d',{n:o.start-S.day}),fee:fmt$(o.fee)});}
   if(T.sdwan)return tr('customers_and_events.n_sites_list_bw_per_site',{n:o.sites.length,list:o.sites.map(c=>CITY[c].name).join(', '),bw:fmtG(o.bw),price:fmt$(o.bw*o.rate)});
@@ -76,7 +76,8 @@ function spawnMega(t,T,nm,mine){
   if(t==='pairs'){const ls=S.links.filter(l=>l.kind==='df'&&l.own&&l.ready<=S.day&&!S.biz.some(b=>(b.type==='pairs'||b.type==='dfpair')&&b.link===l.id)&&!S.offers.some(o=>o.link===l.id));if(!ls.length)return;const l=pick(ls),n=100+50*Math.floor(Math.random()*7);
     S.offers.push({id:uid(),city:l.a,city2:l.b,link:l.id,what:tr('customers_and_events.n_fiber_pairs_in_your_a',{n,a:CITY[l.a].name,b:CITY[l.b].name}),name:nm(),type:t,bw:1,rate:Math.round(dfLeaseMo(l.km)*n*0.2),reqs:[],exp:S.day+30,mega:true});}
 }
-function spawnSpecial(t){const T=BIZ_T[t],mine=Object.keys(S.pops).filter(bizCity),lv=lvl();
+// A Hyperscaler never takes classic circuits: its AI WANs and training runs are its own (38-hyper-traffic.js).
+function spawnSpecial(t){if(hyper())return;const T=BIZ_T[t],mine=Object.keys(S.pops).filter(bizCity),lv=lvl();
   const nm=(city)=>{const all=city?T.names.filter(n=>nogOk(n,city)):T.names,list=all.filter(n=>!S.usedNames.includes(n));const n=list.length?pick(list):pick(all);useName(n);return n;};
   if(T.mega){spawnMega(t,T,nm,mine);return;}
   if(T.event){const city=Math.random()<0.85&&mine.length?pick(mine):pick(OFFC);const bw=pick(T.opts.slice(0,Math.min(T.opts.length,lv+2)));const dur=3+Math.floor(Math.random()*5),start=S.day+12+Math.floor(Math.random()*14);

@@ -69,11 +69,16 @@ function seatPanel(l){if(!l.seat)return '';return `<div class="kv"><span>${tr('s
 /* Charters: what the network sets out to be, picked once when a Normal game starts, in a popup that waits for an
    answer. Global backbone is the game as it always was; the Low-latency boutique sells speed to traders and has its own
    win, Speed of Light; the Cable broker (#300) lays and lights glass on land and under the sea from day one, at the
-   usual prices, sells it, and has its own goals and win, Glass Baron (37-cable-broker.js). */
-const CHARTERS={global:{i:'🌐',n:N_('specialist.global_backbone'),d:N_('specialist.the_classic_game_grow_everywhere_and')},boutique:{i:'⚡',n:N_('specialist.low_latency_boutique'),d:N_('specialist.trading_firms_and_other_latency_customers')},broker:{i:'🚢',n:N_('specialist.cable_broker'),d:N_('specialist.cable_broker_desc')}};
+   usual prices, sells it, and has its own goals and win, Glass Baron (37-cable-broker.js). The Hyperscaler (37-hyper.js)
+   builds a cloud: users by country, regions, front doors and its own backbone; it sells cloud, never transit. */
+const CHARTERS={global:{i:'🌐',n:N_('specialist.global_backbone'),d:N_('specialist.the_classic_game_grow_everywhere_and')},boutique:{i:'⚡',n:N_('specialist.low_latency_boutique'),d:N_('specialist.trading_firms_and_other_latency_customers')},broker:{i:'🚢',n:N_('specialist.cable_broker'),d:N_('specialist.cable_broker_desc')},hyper:{i:'☁️',n:N_('hyper.hyperscaler'),d:N_('hyper_story.charter_desc')}};
+// The picker's order: the newest charter first, the classic game right after it.
+const CHARTER_ORDER=['hyper','global','boutique','broker'];
 const CHARTER_DAYS=30,LAT_PAY=1.4,SOL_ROUTES=3,SOL_CUST=2;
-const charter=()=>S&&!S.scn&&S.mode==='normal'&&(S.charter==='boutique'||S.charter==='broker')?S.charter:'global';
+const charter=()=>S&&!S.scn&&S.mode==='normal'&&(S.charter==='boutique'||S.charter==='broker'||S.charter==='hyper')?S.charter:'global';
 const broker=()=>charter()==='broker';
+// The Hyperscaler (37-hyper.js): users, regions and front doors; S.hs exists only for it.
+const hyper=()=>charter()==='hyper';
 // The level glass is judged at: fiber, line systems, optics, pairs and subsea gear. A broker has all of it from day one.
 const glassLvl=()=>broker()?LEVELS.length:lvl();
 // The router class the fastest optics need: a broker may buy every router up to it, so all its optics can be lit.
@@ -88,26 +93,30 @@ function solRoutes(){const k=S.day+'|'+S.links.length+'|'+S.links.reduce((n,l)=>
   SOLC={s:S,k,v};return v;}
 const solCust=()=>S.biz.filter(b=>BIZ_T[b.type]&&BIZ_T[b.type].lat&&b.mood>=50&&reqOk(b)).length;
 // What each charter promises, as the picker and the agent's docs say it.
-const charterDesc=C=>tr(C.d,{p:Math.round((LAT_PAY-1)*100),r:SOL_ROUTES,c:SOL_CUST,n:BARON_CONT,m:fmt$(BARON_MO)});
+// C.v(): a charter's own numbers (the Hyperscaler's Cloud Nine, 39-hyper-story.js).
+const charterDesc=C=>tr(C.d,{p:Math.round((LAT_PAY-1)*100),r:SOL_ROUTES,c:SOL_CUST,n:BARON_CONT,m:fmt$(BARON_MO),...(C.v?C.v():{})});
 /* The picker: when a Normal game starts (and when a save that never picked loads), before anything else. It pauses the
    clock like any open window and cannot be closed without a choice; the tutorial waits for it. Seeded tests skip it unless
    they ask (window.__TUBES_CHARTER__), as they skip the tutorial: they sign a charter with ACT.charter when they need one. */
 const charterDue=()=>!!(S&&UI.started&&!S.lost&&!S.scn&&S.mode==='normal'&&!S.chartSet&&!pzOn());
 function charterPickHtml(){return `<div class="chpick"><div class="eyebrow">${esc(S.name)} · AS${S.asn}</div><h2 style="font-size:26px">${tr('specialist.what_are_you_building')}</h2><p class="tagline">${tr('specialist.your_charter_sets_your_goals')}</p><div class="chopts">`
-  +Object.entries(CHARTERS).map(([k,C])=>`<button class="chopt" data-act="charter" data-args='${JSON.stringify({k})}'><span class="chi" aria-hidden="true">${C.i}</span><span class="cht"><b>${tr(C.n)}</b><span>${charterDesc(C)}</span></span></button>`).join('')+`</div></div>`;}
+  +CHARTER_ORDER.map(k=>[k,CHARTERS[k]]).map(([k,C])=>`<button class="chopt" data-act="charter" data-args='${JSON.stringify({k})}'><span class="chi" aria-hidden="true">${C.i}</span><span class="cht"><b>${tr(C.n)}</b><span>${charterDesc(C)}</span></span></button>`).join('')+`</div></div>`;}
 function charterAsk(){if(!charterDue()||!$('modal').hidden||window.__TUBES_TEST__&&!window.__TUBES_CHARTER__)return;openModal(charterPickHtml(),'charter');}
 function charterCard(){if(S.scn||S.mode!=='normal')return '';
   if(broker())return baronCard();
+  if(hyper())return hsCard();
   if(charter()!=='boutique')return '';
   if(S.solWon)return `<div class="inc" style="background:#EAF7EE"><div class="nm">⚡ ${tr('specialist.speed_of_light')}</div><div class="meta">${tr('specialist.won_on_date_your_own_glass',{date:dateStr(S.solWon)})}</div></div>`;
   const r=solRoutes();return `<div class="inc" style="background:#EEF0FF"><div class="nm">⚡ ${tr('specialist.speed_of_light')}</div><div class="meta">${tr('specialist.routes_r_of_n_beat_the',{r:Math.min(r.length,SOL_ROUTES),n:SOL_ROUTES,c:Math.min(solCust(),SOL_CUST),m:SOL_CUST})}</div>${r.slice(0,SOL_ROUTES).map(x=>`<div class="meta">✓ ${CITY[x.a].name} ⇄ ${CITY[x.b].name}: ${tr('common.ms_ms_one_way',{ms:x.o.toFixed(1)})} &lt; ${x.l.toFixed(1)}</div>`).join('')}</div>`;}
 // Once a day: seats expire or call, the boutique checks its win and carriers call the broker.
-function specDay(d){if(broker())brokerDay(d);if(S.seatOff&&S.seatOff.exp<=d)S.seatOff=null;
+function specDay(d){if(broker())brokerDay(d);if(hyper())hsDay(d);if(S.seatOff&&S.seatOff.exp<=d)S.seatOff=null;
   if(!S.seatOff&&!S.scn&&S.mode!=='puzzle'&&lvl()>=SEAT_LV&&hstr(S.asn+'|seatcall|'+d)%SEAT_ODDS===0)seatConf(null);
   if(charter()==='boutique'&&!S.solWon&&solRoutes().length>=SOL_ROUTES&&solCust()>=SOL_CUST){S.solWon=Math.max(1,d);track('win_sol');toast(`<b>⚡ ${tr('specialist.speed_of_light')}</b><br>${tr('specialist.your_own_glass_beats_every_leased')}`,'goal');sfx('coin');checkBadges();}}
 // Saves: the charter, demo orders, a seat on offer and the boutique's and the broker's wins. Old saves are Global
 // backbone, picked; one still in its first month that never picked is asked again.
-function specSanitize(s){s.charter=(s.charter==='boutique'||s.charter==='broker')&&s.mode==='normal'&&!s.scn?s.charter:'global';s.chartSet=s.chartSet===false&&s.day<=CHARTER_DAYS?false:true;
+function specSanitize(s){s.charter=(s.charter==='boutique'||s.charter==='broker'||s.charter==='hyper')&&s.mode==='normal'&&!s.scn?s.charter:'global';
+  // The Streaming service charter is gone: a save that signed it plays on as Global backbone, without its state.
+  delete s.cnt;hsSanitize(s);s.chartSet=s.chartSet===false&&s.day<=CHARTER_DAYS?false:true;
   const dm={};if(s.demo&&typeof s.demo==='object'&&!Array.isArray(s.demo))for(const key of Object.keys(s.demo).slice(0,64)){const [k,id]=key.split(':');if(demoItem(k,id)&&Number.isFinite(+s.demo[key]))dm[key]=Math.round(+s.demo[key]);}s.demo=dm;
   const o=s.seatOff;s.seatOff=o&&typeof o==='object'&&typeof o.name==='string'&&seatRoute(o.name)&&seatRoute(o.name)[0]===o.a&&seatRoute(o.name)[1]===o.b?{a:o.a,b:o.b,name:o.name,km:seatKm(o.a,o.b),exp:num(o.exp,0)}:null;
   s.solWon=Number.isFinite(+s.solWon)&&+s.solWon>0?Math.round(+s.solWon):0;s.baronWon=Number.isFinite(+s.baronWon)&&+s.baronWon>0?Math.round(+s.baronWon):0;

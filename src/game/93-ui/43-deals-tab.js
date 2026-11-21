@@ -3,7 +3,7 @@
    offers, the ones you can sign today first, each a short card whose fine print unfolds. The rest (a consortium seat,
    conferences, the sales desk, your customer level) is one line each that unfolds. Folds and the offer filter are view
    state (UI.dl), never saved. */
-const DL_PG=5,DL_SOON=5,DL_SECS=['seat','conf','lvl'];
+const DL_PG=5,DL_SOON=5,DL_SECS=['seat','conf','lvl','cloud'];
 function dlState(){if(!UI.dl)UI.dl={f:'all',n:DL_PG,open:{}};return UI.dl;}
 const dlOpen=k=>!!dlState().open[k];
 // An offer's state: 2 ready to sign as it is, 1 signable but a requirement is not met yet, 0 needs a POP first.
@@ -51,8 +51,8 @@ function dlConf(){const up=upcomingConfs(75).slice(0,3),cb=S.conf&&S.conf.until>
 function dlSales(){if(!S||!rule('clock'))return '';const p=slP(),L=S.sales||{};
   const sum=p?(L.vp?tr('sales.vp_coming',{n:Math.max(0,L.vp-S.day)}):slCardLine()):salesCanHire()?tr('deals.nobody_at_the_desk'):tr('sales.locked',{lv:SALES_LV});
   return dlLine(p?`${SALES[p].i} ${esc(tr('sales.at_desk',{name:slCap()}))}`:`💼 ${tr('sales.desk')}`,sum,btn(p?tr('sales.desk'):tr('sales.hire_sales'),'salesOpen',{},p?'ghost sm':'pink sm',!p&&!salesCanHire()));}
-function dlLvl(){const lv=S.lvl||1,nx=LEVELS[lv];
-  return dlSec('lvl',tr('hud_and_panels.customer_level_lv_name',{lv,name:LEVELS[lv-1].n}),'','',()=>`<p class="note dl-lv">${nx?tr('hud_and_panels.next_req_unlocks_what',{req:nx.req,what:lc1(nx.unlock)}):tr('common.every_customer_type_is_unlocked_go')}</p>`);}
+function dlLvl(){const lv=S.lvl||1,nx=lvInfo(lv);
+  return dlSec('lvl',lvTitle(lv),'','',()=>`<p class="note dl-lv">${lvNext(nx,true)}</p>`);}
 function dealsTab(){const st=custStats();
   // 1. Money at stake with a deadline: unhappy customers, renewals waiting for an answer.
   let h=st.n&&st.unhappy?dlCust(st):'';
@@ -60,7 +60,7 @@ function dealsTab(){const st=custStats();
   // 2. Open offers, the ones you can sign first.
   h+=dlOffers();
   // 3. One line each.
-  h+=`<div class="dl-rest">${dlSeat()}${dlConf()}${dlSales()}${st.n&&!st.unhappy?dlCust(st):''}${dlLvl()}</div>`;
+  h+=`<div class="dl-rest">${dlSeat()}${hsfDealsSec()}${dlConf()}${dlSales()}${st.n&&!st.unhappy?dlCust(st):''}${dlLvl()}</div>`;
   return h;}
 // The desktop tab's count: the same as the phone's.
 const dealsCnt=()=>{const d=dealsBadge();return d.c?`<span class="cnt${d.red?' red':''}">${d.c}</span>`:d.red?`<span class="cnt red dot" aria-hidden="true"></span>`:'';};

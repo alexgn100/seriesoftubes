@@ -90,12 +90,14 @@ function compute(){RW.gen++;fedNetsSync();
     if(!okBy[n.id].some(e=>(e.k==='p'||e.k==='ix')&&!coneOf(e,n.id)))R2.cone[n.id]=coneBy(okBy[n.id],n.id);}}})();
   const RCH=XK!==null&&!XC?rcReachTake(R2):null;
   const cacheNets=new Set(S.caches.filter(c=>popUp(c.city)).map(c=>c.net));
+  // Edge nodes this network hosts for a Hyperscaler player: their static share may leave there (89-fedplay-hyper.js).
+  const edgeNets=S.fed?hsfEdgeNets():null;
   const viral=(ev.viral>day?1.25:1)*(ev.php&&ev.php>day?0.7:1);
   /* Flows are columns, not objects (tens of thousands of them on a big network): flow F starts in city FCI[F] for network
      index FNJ[F] and has FREM[F] left to place. Gathered in FLB here, then copied into this call's own columns below. */
   FLB.n=0;const NN=NETS.length,CNB=[],NCN=NETS.map(n=>!!n.cn),flow=(ci,j,rem,cache,bz)=>{const k=FLB.n;if(k===FLB.cap)flbGrow();FLB.rem[k]=rem;FLB.ci[k]=ci;FLB.nj[k]=j;FLB.ca[k]=cache?1:0;FLB.bz[k]=bz?1:0;FLB.n=k+1;};
   // Customer demand per city, added up in S.biz order (what filtering S.biz for each city would give).
-  const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&(!T.event||eventLive(b))){if(T.orbit){const g=PX&&PX.gs[b.id],gx=g&&PX.gx[b.id];if(gx)for(const [c,v] of gx)bizBw[c]=(bizBw[c]||0)+v;else if(g)bizBw[g]=(bizBw[g]||0)+PX.term[b.id];continue;}const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
+  const bizBw={};for(const b of S.biz){const T=BIZ_T[b.type];if(!T.l2&&!T.fiber&&!T.cloud&&(!T.event||eventLive(b))){if(T.orbit){const g=PX&&PX.gs[b.id],gx=g&&PX.gx[b.id];if(gx)for(const [c,v] of gx)bizBw[c]=(bizBw[c]||0)+v;else if(g)bizBw[g]=(bizBw[g]||0)+PX.term[b.id];continue;}const v=bizBw[b.city];bizBw[b.city]=(v===undefined?0:v)+b.bw;}}
   // Traffic shares by network index, and their sums, for each share table (and with Russia's throttle).
   const shArr=new Map(),shSum=new Map(),DEMTO=new Float64Array(NN),loc=scnRule('local');
   (()=>{for(const c of Object.keys(S.pops)){
@@ -113,11 +115,15 @@ function compute(){RW.gen++;fedNetsSync();
     const mtuH=ev.pmtud&&ev.pmtud.until>day?ev.pmtud:null,kr=CITY[c].kr;
     for(let j=0;j<NN;j++){const n=NETS[j],a=(loc&&!R2.reachable[n.id]?0:d0)*ls[j]*thr(n.id)*(mtuH&&mtuH.net===n.id?mtuH.f:1)*(kr&&ev.krroute>day&&n.id==='fbk'?0.8:1);if(a<=0)continue;
       // With `protect customers`, the business part first, then the rest (no arrays: this runs per city and network).
-      const bf=d0>0?biz/d0:0,sp=!!(TRX&&TRX.protect&&bf>0),cn2=cacheNets.has(n.id);
+      const bf=d0>0?biz/d0:0,sp=!!(TRX&&TRX.protect&&bf>0),cn2=cacheNets.has(n.id),ef=edgeNets!==null&&!cn2?edgeNets.get(n.id)||0:0;
       for(let q=0;q<(sp?2:1);q++){const x=sp?(q?a*(1-bf):a*bf):a,bz=sp&&!q;if(x<=0)continue;if(cn2){flow(ci,j,x*0.85,true,bz);flow(ci,j,x*0.15,false,bz);}
+      else if(ef>0){flow(ci,j,x*ef,true,bz);flow(ci,j,x*(1-ef),false,bz);}
       else flow(ci,j,x,false,bz);}}
     R2.bizDem[c]=biz*d/(d0||1);R2.bizSrv[c]=0;
   }})();
+  // A charter's own users and tenants (37-content-core.js): its flows, and the haul jobs that bring them to where they leave.
+  const CH=CX_FLOW.length?cxFlows(R2,flow,DEMTO,{reach:(a,b)=>!!SPD[b]&&SPD[b][CIDX[a]]<Infinity,nf:()=>FLB.n,
+    ms:(a,b)=>a===b?0:SPD[b]&&SPD[b][CIDX[a]]<Infinity?walkI(SPP[b],CIDX[b],CIDX[a]).path.reduce((n,e)=>n+e.lat,0):Infinity}):null;
   if(Object.keys(S.pops).length)for(let j=0;j<NN;j++)R2.demTo[NETS[j].id]=DEMTO[j];
   // What each flow got by kind of exit (FGT transit, FGI exchange, FGP PNI elsewhere, FGH PNI with that network here) and
   // the last transit and exchange exit it used (FTI, FII: an index into E, -1 for none). Fresh each call: R.fl reads them.
@@ -192,6 +198,12 @@ function compute(){RW.gen++;fedNetsSync();
     if(!R2.egDesc[ek])R2.egDesc[ek]={lab:clean?labOf(N_('compute.scrubbed_traffic_from_city'),'city',CITY[A].name):labOf(N_('compute.attack_entering_in_city'),'city',CITY[from].name),city:B,k:'l2'};
     for(const i of ni)if(HAS[i])nodeTake(i,amt);for(const l of path){l.res-=amt;l.ld+=amt;if(!clean){l.jk=(l.jk||0)+amt;JK=1;}carry(l,ek,clean?NN+2:NN,Bi,amt);}return amt;};
   const DD=ddosLoad({E,okBy,R2,autoBh:!!(TRX&&TRX.blackhole),haul,ms:msOf});
+  // The charter's cold potato (37-content-core.js): each job rides the backbone from its site (o) to the POP where it leaves
+  // (v) before IP routing, as far as links and routers have room; its flows there keep only what arrived. J.ms: the path's latency.
+  if(CH)for(const J of CH){const Vi=CIDX[J.v],{path,ni}=walkI(SPP[J.v],Vi,CIDX[J.o]);let amt=J.x,ms=0;for(const l of path){amt=Math.min(amt,l.res);ms+=l.lat;}for(const i of ni)if(HAS[i])amt=Math.min(amt,NRES[i]);amt=Math.max(0,amt);
+    const f=J.x>0?amt/J.x:0,ek='cx:'+J.v;if(!R2.egDesc[ek])R2.egDesc[ek]={lab:labOf(N_('compute.backbone_to_city'),'city',CITY[J.v].name),city:J.v,k:'l2'};
+    for(const i of ni)if(HAS[i])nodeTake(i,amt);for(const l of path){l.res-=amt;l.ld+=amt;}
+    for(let k=J.lo;k<J.hi;k++){const a=FREM[k]*f;if(a>0)for(const l of path)carry(l,ek,FNJ[k],Vi,a);FREM[k]=a;}J.got=amt;J.ms=ms;}
   R2.teMoved=R2.teMoved||0;const teCache=new Map(),SPILL=TR&&TR.spill?TR.spill:1,TT=TR&&TR.tiers.length?TR.tiers:null;
   /* A network in a peer's customer cone, reached through that peer (#85): after every network you peer with directly
      (its AS path is one hop longer) and before transit. */
@@ -225,10 +237,15 @@ function compute(){RW.gen++;fedNetsSync();
     TE,SPILL,TT,teCache,adj,CORE,OUT,REACH,DSEL,PREFC,BRJ,COMP,SDi,SPi,ALONE,TR,base,eff},PASSES,RANKS,RSET);
   for(const i of NORD)R2.nodeLoad[CITIES[i].id]=NLOAD[i];
   for(const k of EGO)R2.egT[EXK[k]]=EGT[k];for(const j of NEO){const ne=NEG[j];for(let k=0;k<4;k++)ne[EXK[k]]=NEA[j*4+k];}
+  // The charter reads what its hauls got (37-content-core.js).
+  if(CH)cxPost(R2,CH);
   (()=>{
   if(DD){let rem=0,jf=0;for(let i=0;i<NF;i++)if(FREM[i]>1e-6)rem+=FREM[i];if(JK)for(const k in edges){const e=edges[k];if(e.res<=1e-6&&e.jk)jf+=e.jk;}
     ddosAfter(DD,{E,R2,squeeze:Math.min(rem,jf),
       lost:(ci,x,y,e)=>{SRV[ci]-=x;R2.served-=x;const c=CITIES[ci].id;if(y)R2.bizSrv[c]-=y;R2.egT[e.k]-=x;if(e.rank<=2)R2.peered-=x;}});}
+  // A charter's bulk classes (37-content-core.js): only what every interactive flow left, never pushing one aside.
+  if(CX_BULK.length&&cxBulkOn()){cxBulk(R2,{edges,adj,SPD,SPP,HAS,NRES,nodeTake,carry,NN,routes:l2Routes,
+    te:()=>l2TE||(TE?l2TeRouter({adj,HAS,NRES,CORE,OUT,TR,REACH,SPD,nodeTake,carry,NN,R2}):null)});for(const i of NORD)R2.nodeLoad[CITIES[i].id]=NLOAD[i];}
   for(const c of Object.keys(S.pops)){const i=CIDX[c];R2.citySrv[c]=SRV[i];
     if(LATP[i]>0&&SRV[i]>0)R2.latF[c]=clamp(1-LATP[i]/SRV[i],0,1);}
   // Each city's slowest big exit: (path, source, exit) triples, one per path that went far, in the order they first did.
@@ -263,8 +280,10 @@ function computeMoney(R2,PX=null){
   if(S.pie&&S.mode!=='sandbox')C.pie=pieMo();
   V.eyeballs=0;V.business=0;V.ix=0;
   C.wholesale=0;C.levy=0;const lev=scnRule('levy');for(const c in S.pops){const sf=sfOf(R2,c)*(R2.bbF[c]??1),v=R2.cityEye[c]*sf*EYE_RATE*arpuOf(c);V.eyeballs+=v;if(CITY[c].au){if(lev)C.levy+=v*AU_LEVY;else C.wholesale+=v*AU_WHOLESALE;}}
-  const ids=linkIds();for(const b of S.biz){if(capPend(b)||BIZ_T[b.type].orbit)continue;const sf=BIZ_T[b.type].fiber?(fiberOk(b,ids)?1:0):BIZ_T[b.type].l2?clamp((R2.l2[b.id]||0)/b.bw,0,1):sfOf(R2,b.city)*(R2.tgtF[b.id]??1);V.business+=b.bw*b.rate*Math.min(1,sf/0.95);}
+  const ids=linkIds();for(const b of S.biz){if(capPend(b)||BIZ_T[b.type].orbit)continue;const sf=BIZ_T[b.type].fiber?(fiberOk(b,ids)?1:0):BIZ_T[b.type].l2?clamp((R2.l2[b.id]||0)/b.bw,0,1):BIZ_T[b.type].cloud?hsTenQ(R2,b):sfOf(R2,b.city)*(R2.tgtF[b.id]??1);V.business+=b.bw*b.rate*Math.min(1,sf/0.95);}
   for(const c in S.myIx)V.ix+=S.myIx[c].members.length*MYIX_FEE;
+  // A charter's own users and sites (37-content-core.js).
+  for(const f of CX_MONEY)f(R2,V,C);
   if(PX)pieMoney(PX,R2,V);
   // The UK grant for Pitcairn, its satellite tier once orbit is known; the Rural Digital Pie Fund (99-pie-subsidies.js).
   {const on=grantOn(R2),sky=!on&&!!PX&&grantSky(R2);V.grant=on?GRANT_MO:sky?GRANT_SKY_MO:0;if(PX)V.gov=pieGovMo();if(PX)R2.pie.gov={rdf:V.gov||0,sky:sky?GRANT_SKY_MO:0};}

@@ -29,11 +29,12 @@ function ixBlock(c,multi){const city=ixCity(c),C=CITY[city],ix=ixName(c),X=XIXM[
 }
 function borderSection(l){const w=borderShut(l);return w?`<section><h3 style="color:var(--bad)">${tr('link_panels.border_closed')}</h3><p class="lead">${w==='gulf'?tr('link_panels.a_diplomatic_spat_has_closed_the')+' '+tr('link_panels.back_in_n_days',{n:S.ev.gulf-S.day}):tr('link_panels.russia_has_unplugged_itself_from_the')}</p></section>`:'';}
 // Both ends of a link in its panel header open that city (#196), say to upgrade the router there for a bigger wave.
-// A dark fiber with managed waves sold, used against lit: your traffic, what is left for it once the managed waves (named
-// in the line above) take their share of the same lit capacity (dfCap0), and everything the optics light. Without
-// managed waves the capacity line above already says all of it.
+// A dark fiber with managed waves sold: everything the optics light, the managed waves' share of it, what is yours (dfCap0),
+// and of that what your traffic uses and what it has left. Without managed waves the capacity line above says all of it.
 function litSplit(l,load,cap){const lit=dfLit(l);if(!lit||!mwG(l))return '';const kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`;
-  return kv(tr('link_panels.used_by_your_traffic'),fmtG(load))+kv(tr('link_panels.left_for_your_traffic'),fmtG(cap))+kv(tr('link_panels.lit_on_this_fiber'),fmtG(lit));}
+  // Top down, so it adds up: what the optics light, less the managed waves, is yours; of that, used and still free.
+  return kv(tr('link_panels.lit_on_this_fiber'),fmtG(lit))+kv(tr('link_panels.sold_as_managed_waves'),'− '+fmtG(mwG(l)))+kv(tr('link_panels.yours_on_this_fiber'),fmtG(cap))
+    +kv(tr('link_panels.used_by_your_traffic'),fmtG(load))+kv(tr('link_panels.left_for_your_traffic'),fmtG(Math.max(0,cap-load)));}
 const optShort=k=>OPT[k].n.split(' ').pop();
 const lkEnds=l=>[l.a,l.b].map(c=>cityOn(c)?btn(esc(CITY[c].name),'popGo',{city:c},'clink'):esc(CITY[c].name)).join(' ⇄ ');
 function vxcPanel(l){
@@ -145,7 +146,9 @@ function dfPanel(l){
   ${seatPanel(l)}${l.own&&l.sub?`<div class="kv"><span>${tr('common.cable_design')}</span><b>${tr((SEA_DESIGNS[l.seaDesign]||SEA_DESIGNS.standard).n)}</b></div>`:''}
   ${v?'':`<div class="kv"><span>${tr('common.latency')}</span><b>${lat}</b></div>`}<div class="kv"><span>${l.own?tr('link_panels.right_of_way_upkeep'):tr('common.iru_lease')} + ${tr('link_panels.n_amp_huts',{n:amps})}</span><b title="${fmt$(l.mo)} + ${fmt$(amps*AMP_MO)}">${tr('common.price_mo',{price:fmt$(l.mo+amps*AMP_MO)})}</b></div>${!bld&&!(l.ch||[]).length?`<p class="why">${tr('link_panels.this_fiber_is_dark_add_optics')}</p>`:''}</section>`;
   let sell='';
-  if(!bld){const sold=S.biz.filter(b=>b.link===l.id&&(b.type==='wwave'||b.type==='mwave'||b.type==='dfpair'||b.type==='pairs')),off=S.offers.find(o=>o.link===l.id),fc=freeCh(l);
+  // A Hyperscaler resells only its own glass, at its resale desk (38-hyper-resale.js).
+  if(!bld&&hyper())sell=hsrLink(l);
+  else if(!bld){const sold=S.biz.filter(b=>b.link===l.id&&(b.type==='wwave'||b.type==='mwave'||b.type==='dfpair'||b.type==='pairs')),off=S.offers.find(o=>o.link===l.id),fc=freeCh(l);
     // One line (free channels, what the rentals bring in) that unfolds; an offer waiting opens it by itself.
     const offRow=()=>off?`<div class="row"><div class="grow"><div class="nm">${esc(off.name)}</div><div class="meta">${esc(off.what)} · ${tr('common.price_mo',{price:fmt$(off.rate)})} · ${tr('ui.n_d_left',{n:off.exp-S.day})}${off.broker?' · '+tr('link_panels.via_a_capacity_broker'):''}</div></div>${btn(tr('common.accept'),'accept',{id:off.id},'pink sm')}</div>`:'',inc=sold.reduce((a,b)=>a+(b.rate||0),0);
     sell=pnSec('sell',tr('link_panels.selling_spare_capacity'),{sum:`${tr('common.free_channels')} ${fc}/${chMax(l)}${inc?' · '+tr('common.price_mo',{price:fmt$(inc)}):''}`,flags:off?[['paid',tr('common.offers')]]:[],tot:sold.length+1,lead:`<p class="lead">${tr('link_panels.other_carriers_rent_what_you_do')}</p>`,body:m=>m===1?offRow():`
@@ -187,7 +190,7 @@ function dfPanel(l){
 }
 function offersHere(c){
   const os=S.offers.filter(o=>bCities(o).includes(c));if(!os.length)return '';
-  return `<section><h3>${tr('common.offers_here')}</h3>${os.map(o=>{const sky=pieOfferWhy(o);return `<div class="row${o.id===UI.offerAt?' on':''}"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)}${o.city2?` ${CITY[o.city].name} ⇄ ${CITY[o.city2].name}`:''} · ${bTerms(o)} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>${spotWhy(o)}${reachSolo()<0.99&&!BIZ_T[o.type].l2?`<div class="why">${tr('link_panels.they_need_the_full_internet_your',{pct:pct(reachSolo())})}</div>`:''}${o.type==='scrub'&&!hasScrub()?`<div class="why">${tr('link_panels.needs_your_own_scrubbing_center')}</div>`:''}${bRisk(o)}${reqList(o)}${reqFixHtml(o)}${bHas(o)?'':`<div class="why">${tr('link_panels.needs_a_pop_in_cities_too',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}${sky}</div>${bHas(o)?btn(tr('common.accept'),'accept',{id:o.id},sky?'ghost sm':'green sm'):''}${btn(tr('common.no'),'decline',{id:o.id},'ghost sm')}</div>`;}).join('')}</section>`;
+  return `<section><h3>${tr('common.offers_here')}</h3>${os.map(o=>{const sky=pieOfferWhy(o);return `<div class="row${o.id===UI.offerAt?' on':''}"><div class="grow"><div class="nm">${esc(o.name)}</div><div class="meta">${esc(BIZ_T[o.type].l)}${o.city2?` ${CITY[o.city].name} ⇄ ${CITY[o.city2].name}`:''} · ${bTerms(o)} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>${spotWhy(o)}${hsOfferNote(o)}${reachSolo()<0.99&&!BIZ_T[o.type].l2?`<div class="why">${tr('link_panels.they_need_the_full_internet_your',{pct:pct(reachSolo())})}</div>`:''}${o.type==='scrub'&&!hasScrub()?`<div class="why">${tr('link_panels.needs_your_own_scrubbing_center')}</div>`:''}${bRisk(o)}${reqList(o)}${reqFixHtml(o)}${bHas(o)?'':`<div class="why">${tr('link_panels.needs_a_pop_in_cities_too',{cities:bCities(o).filter(x=>!S.pops[x]).map(x=>CITY[x].name).join(', ')})}</div>`}${sky}</div>${bHas(o)?btn(tr('common.accept'),'accept',{id:o.id},sky?'ghost sm':'green sm'):''}${btn(tr('common.no'),'decline',{id:o.id},'ghost sm')}</div>`;}).join('')}</section>`;
 }
 function linkPanel(id){pnState();
   const l=S.links.find(x=>x.id===id);if(!l){UI.sel=null;return '';}
