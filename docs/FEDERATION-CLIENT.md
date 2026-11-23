@@ -97,7 +97,7 @@ All return a value (or a promise) and change only `S.fed`; they save, but do not
 | Action | Function | Gives |
 | --- | --- | --- |
 | `fedJoin({url})` | `fedJoin(url)` | `null` when joined, else `'mode'` (not a normal game), `'url'` (not a valid `wss://` node URL, §5), `'full'` (4 servers), `'crypto'` |
-| `fedLeave({url})` | `fedLeave(url)` | Leaves one server (all without `url`); off when none is left; the identity stays |
+| `fedLeave({url})` | `fedLeave(url)` | Leaves one server (all without `url`); off when none is left, and the other players' networks (`S.fedn`) go with it; the identity stays |
 | `fedQuit()` | `fedQuit()` | Sends a signed `leave` (§5.9), waits up to 5 s, then drops the key, servers and queue |
 | `fedMute({key, on})` | `fedMute(key, on)` | Mutes or unmutes a network (emits `mute`) |
 | `fedShare({on})` | `fedShare(on)` | Share my country |
@@ -179,6 +179,7 @@ from" a server passes that server's URLs.
 | `fedNetsFetch(keys)`, `fedNetsStats()` | For the gameplay: asks each connected server `nets` about up to 64 networks (hourly, and when the snapshot has networks not asked about yet), kept per URL; `fedNetsStats()` gives `Map key -> {ai, tier1, traffic}` (`traffic`: what that network reports about traffic with this one) |
 | `fedServers()` | Known servers, registry merged with gossip (§10.8): `[{id, source, name, nodes, operators, sync, noLogs, langs, desc, seen, path, listed, answered}]` |
 | `fedCatalogLoad()` | Fetches `federation/servers.json` (same origin), keeps the checked entries; the cache stays on failure |
+| `fedAuthLoad()`, `fedAuthority()`, `fedAuthCheck(text, now)` | The authority file (§11.5, ADR 0006, `83-fed-authority.js`): `federation/authority.json` (same origin), fetched when multiplayer starts and at most hourly while connected, checked against `FED_AUTH_KEYS`; the newest verified one is kept (kv `authority`) and an older one never replaces it. A banned server is left out of `fedServersAllowed()` (the join list) and not joined; a node older than `relayMin` once due is not joined (`fedAuthRefuse`, `fedOutdated`) unless dialled at a local address; both close with `banned`/`outdated`, retry an hour later, and the server row says it was cut off. Banned networks are listed and confirmed in `fedExcl()` (`banned`: key → reason) |
 | `fedNetworks(now?)` | Other players' networks from cached announces: `[{key, rec, id, heard, quiet, srv}]` (`srv`: the servers it was heard on); forgets those silent 180 days |
 | `fedShunned()`, `fedConfirmed()`, `fedExcl()`, `fedExclInfo(key)` | Keys listed as excluded by any joined server, as each last sent its list (kept offline); keys whose exclusion is confirmed (§10.7: listed by a strict majority of the joined servers that sent a list, and by at least two; `fedExclConfirmed(m, n)`); both with who lists what; about one key `{shunned, confirmed, servers: [{srv, url}], reasons}`, the reasons (a set, no counts) only for this network's own key |
 | `fedShunInfo(key)` | Operators only: the tally (§10.7) from the votes their nodes sent, `{voters, need, votes, shunned, reasons}` with counts |

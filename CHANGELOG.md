@@ -9,6 +9,48 @@ All notable changes to this project are documented here. The project follows
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 - Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
 
+## [5.3.0] — 2026-11-23
+
+- In Hyperscaler mode there is no longer a cap on how many regions you run: build as many as you can pay for. Your level still sets how many run at the plain price, and each one past that makes every region cost 25% more to run. (#452)
+- In Hyperscaler mode, countries with room for only one region, such as Singapore, Hong Kong and Taipei, may now fail over to a region abroad, so their drills can pass and sovereign customers there stay through an outage (#451).
+- Leaving multiplayer no longer keeps other players' networks in your game, so 100% reach is possible again and customers stop leaving over players you cannot reach. Saves that already left are repaired when they load. (#450)
+- In Hyperscaler mode, Auto-TE now moves "Your backbone to" traffic too: your spill rules shift it onto other paths instead of leaving the shortest link congested. (#453)
+- The distance and price shown while you drag a new link between two cities now sit on top of city names, so they stay readable. (#454)
+
+## [5.2.2] — 2026-11-22
+
+- Multiplayer servers on 5.2.1 stay synced with each other again: the authority file passed between relays broke their sessions. 5.2.1 relays recover without updating; 5.2.2 relays also trim the file themselves.
+
+## [5.2.1] — 2026-11-22
+
+- Bans from seriesoftub.es now take effect: the relay and the game trust the authority's signing key, so banned networks are hidden and their deals end everywhere. Multiplayer servers must update their relay to 5.2.1 by 29 November, the same day as 5.2.0; a 5.2.0 relay cannot apply bans.
+
+## [5.2.0] — 2026-11-22
+
+- Multiplayer servers must update their relay to 5.2.0 by 29 November. After that, games stop joining servers on an older relay and other relays stop syncing with them; operators see a warning in the log and in `relay status` until they update.
+- seriesoftub.es can now ban a network or a server from multiplayer everywhere, and a ban reaches every relay within seconds. A banned network is hidden and its deals end, a banned server leaves the server list, and a banned network's own game says why. Relay operators can also hand a signed ban list to any relay with `relay authority push`.
+- As the Hyperscaler, regions now go where real clouds build them, not wherever many people live. Cities with a real region qualify, and so do 18 campus towns with huge grids and few people, from Ashburn, Boardman and Abilene to Luleå and Johor Bahru; from level 7 a licensed local partner opens mainland China, keeping 35% of what Chinese users pay, and nothing crosses the wall. Regions you already have stay where they are.
+- As the Hyperscaler, where your users are now matters: they live across a country's big cities, enter at the front door nearest them, and quality falls after about 8 ms. A new gauge on the Cloud card shows where users want a region, and other networks' cache boxes are gone, since you are the content.
+- As the Hyperscaler, the late game asks for AI on your own backbone. Your regions feed a data lake, AI labs offer supercluster runs across three regions on two continents, from level 11 you can train a frontier model of your own, levels 7 to 13 ask for a peak of AI traffic between regions, and ten new badges wait. Levels you already reached are kept.
+- As the Hyperscaler, you can launch Tubular, your own video platform, from level 6. It pays only when you serve it close and cheap, from edge stacks at your front doors.
+- As the Hyperscaler, growth asks more of you: users want about three times as much by the top level for a little less per Gbps, and building or growing a region costs up to about twice as much late in the game. A region can hold room free for its failover.
+- As the Hyperscaler, training runs pay half their fee as the data moves and show what they cost a month before you take them, and losing data in a failover costs a young cloud at most a month of its revenue.
+- A balloon loan no longer bankrupts you out of the blue: the bank warns two months, one month and a week ahead. The bankruptcy screen now lists what went wrong that day.
+
+## [5.1.1] — 2026-11-21
+
+- As the Hyperscaler, a city's Cloud view now tells you whether a region can ever go there. Cities too small, or behind the Great Firewall, say "Never a region here" and name the nearest city that can hold one, even before you open a POP; cities that fit say a POP comes first.
+
+## [5.1.0] — 2026-11-21
+
+- As the Hyperscaler, the NOC intern no longer bankrupts you with waves between regions. A wave's monthly price now counts against its budget, the intern leases at most one a shift, and never one that costs more a month than your cloud earns.
+- As the Hyperscaler, what the intern may do grows with your level. Its orders unlock one by one from level 2 to 5, its budgets have a ceiling that rises with your level, and it grows a region at most once a month, only to a tier you reached two levels ago, and only while the month stays in profit.
+- As the Hyperscaler, a full level no longer stops you from reaching a new continent: you can build up to two regions past what your level allows, but each one makes every region cost 25% more to run until you level up. The region panel warns you before you go past the line, and asks you to tap twice. Also, the Region section of a city without a region shows its build button again once you have two regions. (#449)
+
+- As the Hyperscaler, decommissioning a POP now tells you what happens to your users: they stay with the country you launched and come in through the nearest front door you have left, or go unserved if there is none. (#448)
+
+- Links and cables that cross the edge of the map, such as Seattle to Singapore over the Pacific, no longer vanish when you zoom in on their far end. Tapping them there works again too. (#446)
+
 ## [5.0.0] — 2026-11-21
 
 **Series of Tubes 5.0: Head in the Cloud.** For years you have carried other people's traffic. Now it is yours. The Hyperscaler is a new charter in which you build a planet-scale cloud: users come to you from every country, ride your own backbone to the region that holds their data, and your regions talk to each other more than anyone talks to them. Everything you learned about fiber, waves, subsea cables, peering and traffic engineering is now the heart of the game, because a hyperscaler never sells transit. It sells the cloud.

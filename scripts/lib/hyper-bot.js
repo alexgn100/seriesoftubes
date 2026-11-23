@@ -67,8 +67,8 @@ function transit(){for(const t of S.transit.slice()){const cap=PORT[t.tier].g*(t
 // One cage at a time, and only while the regions there are fill up: the next one waits for the move out of the last.
 const cages=()=>Object.keys(H().rg).filter(c=>H().rg[c].t===HS_CAGE&&!H().rg[c].up);
 const busy=()=>{const o=R.hs;if(!o)return 0;let g=0,l=0;for(const c in o.rg){g+=o.rg[c].g;l+=o.rg[c].load;}return g>0?(l+o.short)/g:0;};
-const cageOk=()=>HS_T[HS_CAGE].lv<=lvl()&&!can(HS_T[1].cost)&&net()>HS_T[HS_CAGE].mo*1.2&&!cages().length&&busy()>=0.7;
-const rgCost=()=>cageOk()?HS_T[HS_CAGE].cost+HS_T[HS_CAGE].mo*2:HS_T[1].cost;
+const cageOk=()=>HS_T[HS_CAGE].lv<=lvl()&&!can(hsCost(1))&&net()>HS_T[HS_CAGE].mo*1.2&&!cages().length&&busy()>=0.7;
+const rgCost=()=>cageOk()?HS_T[HS_CAGE].cost+HS_T[HS_CAGE].mo*2:hsCost(1);
 // The plan's next step: a POP joined by a wave, a front door, then the region itself. B.save: saving up for it;
 // B.wait: it waits on a level (more regions than the level allows), so growing the regions there are is the way on.
 function expand(){const P=PLAN[B.i];B.save=false;B.wait=false;if(!P)return;const c=P.c;
@@ -78,20 +78,20 @@ function expand(){const P=PLAN[B.i];B.save=false;B.wait=false;if(!P)return;const
     door(c);}
   if(P.pop){if(hsDoor(c))B.i++;return;}
   if(!H().rg[c]&&hsRgN()<hsRgMax()&&cageOk()&&!hsColoWhy(c)&&can(rgCost())){ACT.hsColo({city:c});if(!H().rg[c])return;}
-  if(!H().rg[c]){if(hsRgN()>=hsRgMax()){B.wait=true;return;}if(!can(HS_T[1].cost)){B.save=true;return;}if(hsMwFree(c)<HS_T[1].mw){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});return;}ACT.hsRegion({city:c});if(!H().rg[c])return;}
+  if(!H().rg[c]){if(hsRgN()>=hsRgMax()){B.wait=true;return;}if(!can(hsCost(1))){B.save=true;return;}if(hsMwFree(c)<HS_T[1].mw){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});return;}ACT.hsRegion({city:c});if(!H().rg[c])return;}
   if(H().rg[c].ready<=S.day)B.i++;}
 // Regions that run hot grow a tier; the utility is asked first when the metro has no megawatts for it.
 function grow(){
   // A cage running hot moves out into a Server Barn once the money is there (the utility first if the metro is short),
   // before the next step of the plan: the lease is the dearest room it has.
   for(const c of cages()){const d=H().rg[c],x=R.hs&&R.hs.rg[c];if(!x||d.ready>S.day||x.load<x.g*0.75&&hsSlotsUsed(c)<hsSlots(c))continue;
-    if(hsMwFree(c)<HS_T[1].mw){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});continue;}if(can(HS_T[1].cost)){ACT.hsColoOut({city:c});return;}B.out=true;}
+    if(hsMwFree(c)<HS_T[1].mw){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});continue;}if(can(hsCost(1))){ACT.hsColoOut({city:c});return;}B.out=true;}
   if(B.save&&!B.wait&&!((R.hs&&R.hs.short)>200))return;for(const c of Object.keys(H().rg).sort()){const d=H().rg[c],x=R.hs&&R.hs.rg[c];if(!x||d.up||d.ready>S.day||d.t===HS_CAGE)continue;
   // A zone: room and slots for a fifth of the tier, and a bad day survived. Where the region runs hot or has met local outages.
   if(!hsAzWhy(c)&&(x.load>=x.g*0.7||(H().azo&&H().azo[c])>=1)&&hsMwFree(c)>=hsAzMw1(c)&&can(hsAzCost(c)*2)){ACT.hsZone({city:c});continue;}
   const N=hsTNext(d);if(!N||N.lv>lvl())continue;
   if(x.load<x.g*(hsRgs().length>1?0.6:0.8)&&hsSlotsUsed(c)<hsSlots(c)-1)continue;const need=N.mw-HS_T[d.t].mw;
-  if(hsMwFree(c)<need){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});continue;}if(hsProt(c)&&hsProt(c).kind==='block')continue;if(can(N.cost))ACT.hsRegion({city:c});}}
+  if(hsMwFree(c)<need){if(!hsPw(c).q&&can(HS_Q_FEE))ACT.hsUtil({city:c});continue;}if(hsProt(c)&&hsProt(c).kind==='block')continue;if(can(hsCost(d.t+1)))ACT.hsRegion({city:c});}}
 // Waves that run hot (70% or more between two cities): more of them, as widen() picks, while a Gbps of wave costs
 // less than half of what a Gbps of users pays (a long subsea wave rarely does: a region there grows instead).
 function waves(){const seen=new Set();for(const l of S.links.slice()){if(l.kind!=='wave'||linkDown(l))continue;const k=hsPk(l.a,l.b);if(seen.has(k))continue;seen.add(k);
@@ -129,6 +129,8 @@ function replicas(){const rs=hsRgs();if(rs.length<2||H().dx||Object.keys(H().out
     const b=L.sort((x,y)=>hops(c,x).length-hops(c,y).length||kmBetween(c,x)-kmBetween(c,y)||(x<y?-1:1))[0];
     // A closer region than the pinned replica (a sibling built next door) takes over, once what is owed is sent.
     if(b&&b!==cur&&(!cur||!H().rg[cur]||hops(c,b).length<hops(c,cur).length&&hsLagAt(c)<1))ACT.hsReplica({city:c,v:b});}
+  // Room held in every replica, so a failover finds it while users keep growing.
+  for(const c of rs){const b=hsRepOf(c);if(b&&H().rg[b]&&!(H().hold&&H().hold[b]))ACT.hsHold({city:b});}
   if(H().dx||!can(HS_DRILL))return;for(const k of hsPairsUndrilled()){const [a,b]=k.split('|'),c=hsRepOf(a)===b?a:b;if(hsLive(c)&&hsFailReady(c)&&hsLagAt(c)<HS_RISK){ACT.hsDrill({city:c});return;}}}
 // A bank loan with sane terms, while a region waits on money: no equity, no sharks, a rate it can carry (or a balloon or
 // a slice of the transit bill, due in a year or more, when it will be bigger), and no condition that would stop the plan

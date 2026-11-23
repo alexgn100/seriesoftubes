@@ -33,9 +33,9 @@ function hsColoBody(c){const d=S.hs.rg[c],T=HS_T[HS_CAGE],N=HS_T[1],w=hsColoOutW
   if(d.ready<=S.day)h+=hsKv(tr('hyper_colo.power_bill'),tr('common.price_mo',{price:fmt$(hsColoPw(c))}));
   h+=`<p class="note">${tr('hyper_colo.no_grow_note')}</p>`;
   if(d.up)return h+`<p class="meta">🏗️ ${tr('hyper_colo.moving_meta',{name:tr(HS_T[d.up.t].n),date:dateStr(d.up.ready)})}</p>`;
-  h+=`<p class="meta">${tr('hyper_colo.move_terms',{name:tr(N.n),g:fmtG(N.g),mw:N.mw,n:leadDays(N.days)})}</p>`+hsBtns(btn(tr('hyper_colo.move_cost',{cost:fmt$(N.cost)}),'hsColoOut',{city:c},'pink sm',!!w||S.cash<N.cost));
+  h+=`<p class="meta">${tr('hyper_colo.move_terms',{name:tr(N.n),g:fmtG(N.g),mw:N.mw,n:leadDays(N.days)})}</p>`+hsBtns(btn(tr('hyper_colo.move_cost',{cost:fmt$(hsCost(1))}),'hsColoOut',{city:c},'pink sm',!!w||S.cash<hsCost(1)));
   if(w&&d.ready<=S.day)h+=`<p class="why">${w}</p>`;return h;}
 // A cage to lease here.
 function hsColoOffer(c){const T=HS_T[HS_CAGE],w=hsColoWhy(c);
   return `<p class="lead">${tr('hyper_colo.offer_lead',{prov:tr(hsColoP(c))})}</p><p class="meta">${tr('hyper_colo.terms',{g:fmtG(T.g),slots:T.slots,mo:fmt$(T.mo),p:Math.round((HS_COLO_MARK-1)*100),n:leadDays(T.days)})}</p>`
-    +hsBtns(btn(tr('hyper_colo.lease_cost',{cost:fmt$(T.cost)}),'hsColo',{city:c},'sm',!!w||S.cash<T.cost))+(w?`<p class="why">${w}</p>`:'');}
+    +(w?'':hsOverNote())+hsBtns(btn(hsOverLbl(c,tr('hyper_colo.lease_cost',{cost:fmt$(T.cost)})),'hsColo',{city:c},UI.confirm==='hsnew'+c?'sm red':'sm',!!w||S.cash<T.cost))+(w?`<p class="why">${w}</p>`:'');}

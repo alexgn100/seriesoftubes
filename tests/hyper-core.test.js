@@ -2,6 +2,8 @@
 // going dark, front doors and the edge stack, the haul from region to front door over your own backbone (and what is
 // lost when it is full), quality from the real path latency, cloud tenants as the only customers, saves, and the Cloud
 // tab and charter card on a phone and on a desktop.
+// These mechanics tests pin each country's users to its main city (one user zone); zones have their own test
+// (hyper-zones-users.test.js).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
@@ -9,7 +11,7 @@ const { load } = require('./harness');
 // A Hyperscaler in Frankfurt with plenty of cash; its home country launched and a transit port at home.
 function start(opts = {}) {
   const page = load({ seed: 5, ...opts });
-  page.ev("ACT.start({});ACT.charter({k:'hyper'});S.cash=1e9;ACT.hsLaunch({cc:'DE'});ACT.buyTransit({city:S.home,net:'cog',tier:1});compute()");
+  page.ev("ACT.start({});ACT.charter({k:'hyper'});HS_ZC.s=S;for(const k of ['DE','FR','NL','GB','US','BE'])if(ccInfo(k))HS_ZC.m.set(k,[[ccInfo(k).main,1]]);S.cash=1e9;ACT.hsLaunch({cc:'DE'});ACT.buyTransit({city:S.home,net:'cog',tier:1});compute()");
   return page;
 }
 const J = (ev, c) => JSON.parse(ev(`JSON.stringify(${c})`));
@@ -259,18 +261,18 @@ test('the Cloud tab and the charter card render on a phone and on a desktop', ()
 
 test('a closed or decommissioned region gives its place back at once, and the picker lists the Hyperscaler first', () => {
   const { ev, errors } = load();
-  ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e9;S.lvl=3;for(const c of ['par','ams','lon','nyc'])ACT.buildPop({city:c});");
+  ev("beginGame('Cloud','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();ACT.charter({k:'hyper'});S.cash=1e9;S.lvl=3;for(const c of ['par','ams','lon','ash'])ACT.buildPop({city:c});");
   assert.equal(ev('hsRgMax()'), 3);
   for (const c of ['par', 'ams']) ev(`ACT.hsRegion({city:'${c}'})`);
   assert.equal(ev('hsRgN()'), 3);
   ev("ACT.hsRegion({city:'lon'})");
-  assert.equal(ev('!!S.hs.rg.lon'), false, 'the level holds three');
+  assert.equal(ev('!!S.hs.rg.lon'), false, 'the level runs three at the plain price: a fourth only arms (hyper-soft-cap.test.js)');
   // Decommissioning the POP takes its region with it, without a reload.
   ev("UI.decom=['ams'];ACT.decomGo({})");
   assert.equal(ev('!!S.hs.rg.ams'), false);
   assert.equal(ev('hsRgN()'), 2);
-  ev("ACT.hsRegion({city:'nyc'})");
-  assert.equal(ev('!!S.hs.rg.nyc'), true, 'a region on another continent fits again');
+  ev("ACT.hsRegion({city:'ash'})");
+  assert.equal(ev('!!S.hs.rg.ash'), true, 'a region on another continent fits again');
   // Closing a region keeps the POP: the first tap arms it, the second closes it and pays a quarter back.
   const cash = ev('S.cash');
   ev("ACT.hsRgClose({city:'par'})");

@@ -35,7 +35,7 @@ const (
 // feats is what this side lists in hello and welcome (9.3, 9.4): the optional messages it takes.
 func (r *Relay) feats() []any {
 	if r.o.Feats == nil {
-		return []any{wire.Feat, wire.FeatIx2, wire.FeatCloud, wire.FeatBind}
+		return []any{wire.Feat, wire.FeatIx2, wire.FeatCloud, wire.FeatBind, wire.FeatAuthority}
 	}
 	out := make([]any, 0, len(r.o.Feats)+1)
 	for _, f := range r.o.Feats {
@@ -100,6 +100,8 @@ func (r *Relay) takeState(rec *fed.Record, o origin, now int64) (int, string) {
 	var charge func()
 	if t, ok := r.left[rec.Key]; ok && rec.T <= t {
 		code = fed.Refused
+	} else if r.bannedNet(rec.Key) {
+		code = fed.Banned
 	} else if r.isShunned(rec.Key) {
 		code = fed.Shunned
 	} else if r.refusesKey(rec.Key) {

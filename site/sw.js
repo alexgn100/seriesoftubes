@@ -16,8 +16,8 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // The update check must always ask the network.
-  if (url.origin === location.origin && url.pathname === '/version.json') return;
+  // The update check must always ask the network, and so must the authority's bans (the game keeps its own copy).
+  if (url.origin === location.origin && (url.pathname === '/version.json' || /^\/federation\/authority\.json$/.test(url.pathname))) return;
   // Cloud sync answers are never cached.
   if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
   if (req.mode === 'navigate') {

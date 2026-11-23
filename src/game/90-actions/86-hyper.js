@@ -1,17 +1,22 @@
 /* ---------- The Hyperscaler's actions (37-hyper.js) ---------- */
 Object.assign(ACT,{
  // Launch in a country: a marketing push and a privacy policy nobody reads; the first users sign up at once.
+ hsVidLaunch:()=>{if(!hyper()||!S.hs)return;const w=hsVidWhy();if(w){toast(w,'bad');sfx('err');return;}if(!spend(HS_VID.cost))return;
+   S.hs.vid={since:S.day};toast(`📺 ${tr('hyper_video.launched',{days:HS_VID.ramp})}`,'goal');sfx('build');after();},
+ hsCnApply:()=>{if(!hyper()||!S.hs||hsCnWhy())return;if(!spend(HS_CN.lic))return;S.cnLic={state:'pending',ready:S.day+leadDays(HS_CN.days)};
+   toast(tr('hyper_cn.filed'),'goal');after();},
  hsLaunch:({cc})=>{if(!hyper()||!S.hs||typeof cc!=='string'||!ccInfo(cc)||S.hs.cc[cc])return;const w=hsWhy(cc);if(w){toast(w,'bad');sfx('err');return;}
    if(!spend(hsLic(cc)))return;S.hs.cc[cc]={d:Math.max(1,hsPot(cc)*HS_START),since:S.day};
    toast(tr('hyper.launched',{country:esc(ccName(cc))})+(Object.keys(S.pops).some(hsDoor)?'':`<br>${tr('hyper.launched_no_door')}`),'good');sfx('build');after();},
  // Build a region where none is (a Server Barn), or take the one here a size up. Either way it takes months, and the old
  // one serves all along. Power (38-hyper-power.js): hsPwGate wants the megawatts free; hsProtRoll may start a protest.
  hsRegion:({city})=>{if(!hyper()||!S.hs||!isCity(city)||!S.pops[city])return;const H=S.hs,d=H.rg[city];
-   if(d){if(d.t===HS_CAGE){toast(tr('hyper_colo.no_grow',{city:esc(CITY[city].name)}),'bad');sfx('err');return;}const N=hsTNext(d);if(!N||d.ready>S.day||d.up)return;if(N.lv>lvl()){toast(tr('hyper.tier_needs_level',{name:tr(N.n),lv:N.lv}),'bad');sfx('err');return;}if(!hsPwGate(city,d.t+1))return;if(!spend(N.cost))return;
-     d.up={t:d.t+1,ready:S.day+leadDays(N.days)};toast(tr('hyper.region_upgrade_started',{name:tr(N.n),city:CITY[city].name,date:dateStr(d.up.ready)}),'good');hsProtRoll(city,'rg');sfx('build');after();return;}
+   if(d){if(d.t===HS_CAGE){toast(tr('hyper_colo.no_grow',{city:esc(CITY[city].name)}),'bad');sfx('err');return;}const N=hsTNext(d);if(!N||d.ready>S.day||d.up)return;if(N.lv>lvl()){toast(tr('hyper.tier_needs_level',{name:tr(N.n),lv:N.lv}),'bad');sfx('err');return;}if(!hsPwGate(city,d.t+1))return;if(!spend(hsCost(d.t+1)))return;
+     d.up={t:d.t+1,ready:S.day+leadDays(N.days)};hsPfSet(d.up);toast(tr('hyper.region_upgrade_started',{name:tr(N.n),city:CITY[city].name,date:dateStr(d.up.ready)}),'good');hsProtRoll(city,'rg');sfx('build');after();return;}
    if(!hsSite(city)){toast(tr('hyper.not_a_region_metro'),'bad');sfx('err');return;}
-   if(hsRgN()>=hsRgMax()){toast(tr('hyper.your_level_allows_n_regions',{n:hsRgMax()}),'bad');sfx('err');return;}const N=HS_T[1];if(!hsPwGate(city,1)||!spend(N.cost))return;
-   H.rg[city]={t:1,ready:S.day+leadDays(N.days),mw:N.mw};hsPwMk(city);toast(tr('hyper.region_build_started',{name:tr(N.n),city:CITY[city].name,date:dateStr(H.rg[city].ready)}),'good');hsProtRoll(city,'rg');sfx('build');after();},
+   // Past the line (hsRgMax) the first tap arms: every region will cost more to run.
+   if(hsOverTap(city))return;const N=HS_T[1];if(!hsPwGate(city,1)||!spend(hsCost(1)))return;
+   H.rg[city]={t:1,ready:S.day+leadDays(N.days),mw:N.mw};hsPfSet(H.rg[city]);hsPwMk(city);toast(tr('hyper.region_build_started',{name:tr(N.n),city:CITY[city].name,date:dateStr(H.rg[city].ready)}),'good');hsProtRoll(city,'rg');sfx('build');after();},
  // Close a region and keep the POP: tap twice. Its users find another region, its tenants move where there is room (or
  // sulk), the kit is sold for a quarter of what the tier cost, and the level's region count gets a place back.
  hsRgClose:({city})=>{if(!hyper()||!S.hs||!isCity(city)||!S.hs.rg[city])return;const H=S.hs,d=H.rg[city];

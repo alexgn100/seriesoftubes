@@ -3,6 +3,8 @@
 // limit at the moment of failure is lost data; outages come as incidents (their own kind, a dark POP, a tripped grid,
 // Chaos Kong) and never in a classic game; drills drain a region on purpose and pass or fail with a reason; failover
 // readiness for the NOC; saves; and the card and Cloud tab on a phone and a desktop.
+// These mechanics tests pin each country's users to its main city (one user zone); zones have their own test
+// (hyper-zones-users.test.js).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
@@ -18,7 +20,7 @@ const DIR = 'S.day=Math.max(S.day,HS_DIR_BIG);Object.assign(S.hs.dir,{b:9,t:S.da
 function net(t, fp = 3) {
   const h = load({ seed: 7 });
   t.after(() => h.dom.window.close());
-  h.ev("ACT.start({});ACT.charter({k:'hyper'});S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;ACT.buildPop({city:'par'});ACT.buildPop({city:'ams'});" +
+  h.ev("ACT.start({});ACT.charter({k:'hyper'});HS_ZC.s=S;for(const k of ['DE','FR','NL','GB','US','BE'])if(ccInfo(k))HS_ZC.m.set(k,[[ccInfo(k).main,1]]);S.cash=1e12;S.lvl=8;S.nextFail=S.nextEvent=1e9;ACT.buildPop({city:'par'});ACT.buildPop({city:'ams'});" +
     "for(const c in S.pops)S.pops[c].rgen=RG_TOP;for(const c of ['fra','par','ams'])ACT.buyTransit({city:c,net:'cog',tier:3});" +
     "S.hs.rg.fra={t:1,ready:0,mw:20};S.hs.rg.par={t:0,ready:0,mw:5};S.hs.rg.ams={t:0,ready:0,mw:5};S.hs.cc.DE={d:300,since:0};S.hs.cc.FR={d:200,since:0};S.hs.rep.fra='ams';S.links=[];" +
     wave('fp', 'fra', 'par', fp) + wave('fa', 'fra', 'ams', 3) + wave('ap', 'ams', 'par', 3) + DIR + 'compute();hsDay(S.day);checkGoals();S.log=[]');
@@ -86,7 +88,7 @@ test('backlog over the limit at the moment of failure is lost data: users leave,
   assert.equal(ev('S.hs.cc.FR.d'), fr, 'users homed elsewhere stay');
   assert.equal(ev("S.hs.lag['fra>ams']"), undefined, 'the backlog is gone with them');
   assert.equal(ev("S.hs.lag['par>fra']"), 999, 'what Paris owes Frankfurt is not');
-  assert.ok(cash - ev('S.cash') >= ev('HS_LOSS_FEE'), 'a fine');
+  assert.ok(cash - ev('S.cash') >= Math.min(ev('HS_LOSS_FEE'), ev('R.revMo')) - 1, 'a fine: the base, or a month of revenue for a young cloud');
   assert.match(ev("(S.log||[]).map(x=>x.t).join(' ')"), /📰|BREAKING|HEADLINE|SCANDAL|TRAGEDY/);
   // When it is back, it does not count as survived.
   ev('S.hs.down.fra=0;dayTick()');
@@ -211,5 +213,35 @@ test('the failover card and Cloud tab render on a phone and on a desktop', (t) =
     assert.match(ev('hsCard()'), /Drill: Frankfurt drained into Amsterdam/);
     assert.match(dom.window.document.getElementById('panelBody').textContent, /Drill under way/);
   }
+  assert.deepEqual(errors, []);
+});
+
+// Users grow into every Gbps a region has, so a replica has room for a failover only if it holds some back: room held
+// for failover (S.hs.hold) keeps free what the regions replicating to it carried, and is released when they fail over.
+test('room held in a replica keeps its partner\'s load free, users never grow into it, and a failover uses it', (t) => {
+  const { ev, errors } = net(t);
+  // Amsterdam full of Dutch users: no room for Frankfurt's failover.
+  ev("S.hs.rg.ams={t:2,ready:0,mw:60};S.hs.pw.ams=hsPwDef('ams');S.hs.pw.ams.cap=1000;S.hs.cc.NL={d:8000,since:0};HS_ZC.m.set('NL',[['ams',1]]);for(const l of S.links)l.tier=LT.length-1;compute();compute()");
+  assert.ok(ev("R.hs.rg.ams.g-R.hs.rg.ams.load") < 1, 'Amsterdam is full');
+  assert.equal(ev("hsFailReady('fra')"), false);
+  ev("ACT.hsHold({city:'ams'});compute()");
+  const need = ev('R.hs.rg.fra.load'), res = ev('R.hs.rg.ams.res');
+  const all = ev("hsRgs().filter(c=>c!=='ams'&&R.hs.rg[c].rep==='ams').reduce((a,c)=>a+R.hs.rg[c].load,0)");
+  assert.ok(Math.abs(res - all) < 1 && res >= need, `Amsterdam holds what replicates to it: ${res} for ${all}`);
+  assert.ok(ev("R.hs.rg.ams.g-R.hs.rg.ams.load") >= need - 0.5, 'the room stays free');
+  assert.equal(ev("hsFailReady('fra')"), true, 'so the failover is ready');
+  assert.ok(ev('R.hs.cc.NL.short') > 0, 'the Dutch users do not grow into it');
+  // Frankfurt fails: the held room is released for it, and its users are served in Amsterdam.
+  ev("hsRegionFail('fra',2,'test');compute()");
+  assert.equal(ev('R.hs.rg.ams.res'), 0, 'released while its partner is failed over');
+  const de = J(ev, 'R.hs.cc.DE');
+  assert.ok(de.parts.every((p) => p[3] === 'ams') && de.short < 0.5, 'every German placed in Amsterdam\'s held room, none short');
+  // The section says so, and the room can be released; saves keep the choice.
+  ev("S.hs.down={};S.hs.out={};compute();window.innerWidth=360;selectCity('fra');UI.tab='cust';renderAll()");
+  assert.match(ev("document.getElementById('panelBody').textContent"), /Amsterdam holds .* free for failover/);
+  ev("const t=JSON.parse(JSON.stringify(S));S=sanitize(t);compute()");
+  assert.equal(ev('S.hs.hold.ams'), 1);
+  ev("ACT.hsHold({city:'ams'})");
+  assert.equal(ev('S.hs.hold.ams'), undefined);
   assert.deepEqual(errors, []);
 });

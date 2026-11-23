@@ -45,7 +45,7 @@ let HS_LVS=null;
 const hsLevels=()=>HS_LVS||(HS_LVS=HS_STORY.map(([n,q],i)=>({n,q,unlock:hsUnlocks(i+1)})));
 // The "Next:" line: the next level by name, what it asks and what it brings.
 function hsLvNext(nx){if(!nx)return tr('hyper_story.top');const i=hsLevels().indexOf(nx);if(i<1)return tr('hyper_story.top');const q=lvNeed(i),v={name:esc(nx.n),pk:fmtG(q.pk),c:q.reg,unlock:esc(nx.unlock)};
-  return q.reg>=2?trn('hyper_story.next_ct',q.pops,v):trn('hyper_story.next',q.pops,v);}
+  return (q.reg>=2?trn('hyper_story.next_ct',q.pops,v):trn('hyper_story.next',q.pops,v))+(q.ai?' '+tr('hyper_story.next_ai',{g:fmtG(q.ai)}):'');}
 Object.assign(HS_LVX,{title:lv=>tr('hyper_story.title',{lv,name:hsLevels()[lv-1].n}),eyebrow:lv=>tr('hyper_story.eyebrow',{lv,max:HS_STORY.length}),
   toast:lv=>{const L=hsLevels()[lv-1];return tr('hyper_story.level_up',{lv,name:esc(L.n),unlock:esc(L.unlock)})+`<br><i>${esc(L.q)}</i>`;},next:hsLvNext});
 Object.defineProperty(HS_LVX,'levels',{get:hsLevels});
@@ -58,7 +58,7 @@ const HS_GD_KEY='sot-tut-hs';
 const hsGdTab=t=>`#panel [data-act="tab"][data-args*='"${t}"']`,HS_GD_FOCUS='#coach [data-act="focusCity"]';
 const hsGdCc=()=>CITY[S.home].cc;
 // Where a second region would go: the POP of yours nearest home in a region metro, else such a metro.
-function hsGdRgAt(){const H=S.hs,mine=Object.keys(S.pops).filter(c=>!H.rg[c]&&hsSite(c)),L=mine.length?mine:CITIES.filter(C=>!C.off&&!H.rg[C.id]&&siteOk(C.id,HS_MIN_P)).map(C=>C.id);
+function hsGdRgAt(){const H=S.hs,mine=Object.keys(S.pops).filter(c=>!H.rg[c]&&hsSite(c)),L=mine.length?mine:CITIES.filter(C=>!C.off&&!H.rg[C.id]&&hsMetro(C.id)).map(C=>C.id);
   let b=null,bk=Infinity;for(const c of L){const km=kmBetween(S.home,c);if(km<bk||km===bk&&c<b){bk=km;b=c;}}return b;}
 // The region the replica and the drill are about: home if it is live, else the first live one.
 const hsGdRg1=()=>{const rs=hsRgs();return rs.includes(S.home)?S.home:rs[0]||S.home;};
@@ -71,7 +71,7 @@ const HS_GUIDE=[
  {t:()=>tr('hyper_story.g_tenant'),sel:['#left [data-act="accept"]','#panel [data-act="accept"]','[data-act="leftTab"][data-args*=\'"deals"\']','[data-act="phoneTab"][data-args*=\'"deals"\']'],
   ok:()=>hsTen().length>0,can:()=>S.offers.some(o=>o.type==='cloud')},
  // Once leased cages are allowed, the step offers one too: a region in two weeks while the money for a Barn comes in.
- {t:()=>{const c=hsGdRgAt(),v={name:tr(HS_T[1].n),cost:fmt$(HS_T[1].cost),city:esc(CITY[c].name)};return HS_T[HS_CAGE].lv<=lvl()?tr('hyper_story.g_region_cage',{...v,prov:tr(hsColoP(c)),mo:fmt$(HS_T[HS_CAGE].mo)}):tr('hyper_story.g_region',v);},
+ {t:()=>{const c=hsGdRgAt(),v={name:tr(HS_T[1].n),cost:fmt$(hsCost(1)),city:esc(CITY[c].name)};return HS_T[HS_CAGE].lv<=lvl()?tr('hyper_story.g_region_cage',{...v,prov:tr(hsColoP(c)),mo:fmt$(HS_T[HS_CAGE].mo)}):tr('hyper_story.g_region',v);},
   get sel(){const c=hsGdRgAt();return [`[data-act="hsRegion"][data-args*='"${c}"']:not([disabled])`,`[data-act="hsColo"][data-args*='"${c}"']:not([disabled])`,`[data-act="buildPop"][data-args*='"${c}"']:not([disabled])`,hsGdTab('cust'),HS_GD_FOCUS];},
   ok:()=>hsRgN()>=2,can:()=>hsRgMax()>=2&&!!hsGdRgAt(),go:()=>hsGdRgAt()},
  {t:()=>tr('hyper_story.g_replica',{city:esc(CITY[hsGdRg1()].name),p:pct(HS_REP)}),sel:['[data-chg="hsReplica"]',hsGdTab('cust'),HS_GD_FOCUS],

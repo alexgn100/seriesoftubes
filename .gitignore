@@ -15,3 +15,8 @@ operator.key
 /docs/plans/
 /.dev-certs/
 /.dev-agent/
+
+# Federation authority keys and signed files (scripts/authority.js): never committed
+authority.key
+*.authority.key
+/authority.json

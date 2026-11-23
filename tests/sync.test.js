@@ -374,6 +374,11 @@ test('a Multimode network stays on its device, and nothing that can act as a net
     assert.ok(!JSON.stringify((await get()).save).includes('PRIVATEKEY'));
     assert.equal(a.ev('S.fed.key.priv'), 'PRIVATEKEY', 'and the cloud copy did not replace it');
     assert.match(a.ev("ACT.cloud({});document.getElementById('modalCard').textContent"), /Fednet plays in Multimode, so cloud sync leaves it alone/);
+    // Left Multimode for good (the key is gone, as fedQuit leaves it): a solo network again, so it syncs again.
+    a.ev("ACT.cloudClose({});S.fed={...S.fed,on:false,key:null,servers:[]};dayTick()");
+    assert.equal(a.ev('clLocal()'), true);
+    await a.ev('cloudPush()');
+    assert.equal(a.ev('CL.rev'), 3);
     assert.deepEqual(a.errors, []);
   } finally { await s.close(); }
 });
