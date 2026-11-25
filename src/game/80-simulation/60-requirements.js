@@ -32,7 +32,7 @@ function terrestrialPath(a,b){if(TERR&&TERR.S===S){if(TERR.gen!==RW.gen||!TERR.m
 const reqOk=b=>(b.reqs||[]).every(k=>REQS[k]&&REQS[k].ok(b));
 // Some requirements only make sense for some customers: nobody can reach another continent without getting wet.
 const reqCan=(k,b)=>!REQS[k].can||REQS[k].can(b);
-function reqList(o){return (o.reqs||[]).map(k=>{const ok=REQS[k].ok(o),lab=typeof REQS[k].l==='function'?REQS[k].l(o):REQS[k].l;return `<div class="meta"><b style="color:${ok?'var(--eye)':'var(--bad)'}">${ok?'✓':'✗'}</b> ${esc(lab)}</div>`;}).join('');}
+function reqList(o){return (o.reqs||[]).map(k=>{const ok=REQS[k].ok(o),lab=typeof REQS[k].l==='function'?REQS[k].l(o):REQS[k].l;return `<div class="meta"><b style="color:${ok?'var(--eye)':'var(--bad)'}">${ok?'✓':'✗'}</b> ${esc(lab)}</div>${!ok&&k==='diverse'?divWhy(o):''}`;}).join('');}
 /* diversePaths(): a shortest path by hops over the live links (and VXCs to remote cities), then another one that shares
    none of its risks. divGraph() numbers the cities and the risks and lists each city's links once, in list order, as
    disjointOn() reads them; divOn() asks it, so many pairs on one network (spots0(), opsDecomSafe()) share one graph. The
@@ -72,7 +72,7 @@ function* diversityBuild(key,rules,won){
       if(noTalk(a,b))continue;
       if(!sub){add(i,j);add(i,j);}
       if(cs)for(const c of cs)if(!ban.some(p=>p===c.cid+':'+a+'-'+b||p===c.cid+':'+b+'-'+a))add(i,j,'cab:'+c.cid);
-      if(won&&land[i]&&land[j]&&(sub||cs)&&!cn[i]&&!cn[j])add(i,j);
+      if(won&&land[i]&&land[j]&&(sub||cs||seaBetween(a,b))&&!cn[i]&&!cn[j])add(i,j);
       if(fab[i].length&&fab[j].length)for(const f of FABS)if(fab[i].includes(f)&&fab[j].includes(f))add(i,j,'fab:'+f.id);
     }}
     return {key,ix,adj,links:n,answers:{}};}

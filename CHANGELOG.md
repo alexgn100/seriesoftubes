@@ -9,6 +9,29 @@ All notable changes to this project are documented here. The project follows
 - Cloud sync works with several networks: it keeps one of them in step on all your devices, and on a new device it arrives next to the networks already there. Your other networks and puzzles stay on the device.
 - Cloud sync leaves a network that plays in Multimode alone, and never uploads the key that lets a network act in Multimode: a Multimode network lives on one device at a time and moves with Move to another device.
 
+## [5.5.0] — 2026-11-25
+
+- A supercluster leg that is too slow for its latency limit now says it is stalled. Its run row in the Cloud tab shows the path it takes, how slow it is and what would fix it, the NOC marks the region pair red, and the row shows the whole run's fee instead of $0. (#475)
+
+- Your own power plants now let a cloud region grow during a moratorium on new grid connections. A new region, an upgrade or the move out of a cage goes ahead when your running generation has the megawatts to spare, and the refusal says how many are missing. New zones still wait for the moratorium to end. (#474)
+
+- The NOC intern no longer reruns a failed failover drill every day. A pair whose drill failed now waits the drill order's interval like a passed one, and the failure notice says so, so you can fix the failover and drill it yourself. (#472)
+
+- You can now rename an exchange you founded from its panel. It kept the name it got on the day you founded it, even after you renamed your network. (#480)
+
+- EU users' data may now live in a country the EU trusts with it, such as Switzerland, the UK, Norway or Japan. A region in Zurich serves EU users, and a Frankfurt region backed up to Zurich or London no longer pays for transfer lawyers. The US still counts as outside. (#483)
+
+- You can now lay your own subsea cable between two landing cities with sea between them, even on the same landmass, such as Jerusalem or Beirut to Athens, or Cairo to Singapore. Istanbul's cables now reach the Mediterranean through the Bosporus and the Dardanelles. Inland routes still need fiber dug over land, and the window says when the sea way round is too long. (#484)
+
+## [5.4.0] — 2026-11-23
+
+- Fiber still being built can now be kept off the capacity market from its panel. The broker used to start selling a new route the day it was handed over, before you could switch it off. (#470)
+- Utilities can now split every LAG across both buildings of your POPs in one go. Bundles of two or more move for free, and single ports can get their second member at one quoted price, so one dark building no longer takes a whole connection down. (#465)
+- A customer who wants two paths that share no trench now says why the requirement fails. Under the red ✗ it names the span or cable every path runs through, and any down link that would pass it again, such as a link closed by a border dispute, with the days left. (#463)
+- Relay operators: the folder holding your server's records is now called `records/` instead of `log/`, so a log cleanup script no longer wipes your server (#447). It is renamed on the relay's first start after updating; a relay older than this one then refuses the folder, so update rather than roll back.
+- The window for moving a circuit to another path now shows the distance and latency of the path it is on, so you can compare it with the others. (#464)
+- Gin & Transit (AS3257) is a new Tier 1 that sells transit and a clean pipe at half the usual price. New games need a PNI with it to become a Tier 1; saves already under way keep the Tier 1s they were playing for. It sold its fiber long ago, so wavelengths now come from EXAggerated Infrastructure instead.
+
 ## [5.3.0] — 2026-11-23
 
 - In Hyperscaler mode there is no longer a cap on how many regions you run: build as many as you can pay for. Your level still sets how many run at the plain price, and each one past that makes every region cost 25% more to run. (#452)
