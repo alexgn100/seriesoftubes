@@ -11,5 +11,10 @@
 # This fork's game image (Dockerfile, built the release way with scripts/build.js, which bakes the CHANGELOG's notes)
 # and its cloud sync server (docker/sync.Dockerfile, docker-compose.yml).
 !CHANGELOG.md
+# Since 5.x the build also bakes Multimode's server list and the signed authority file from these.
+!federation/servers/
+!federation/authority-keys.json
+!federation/bans.json
+!relay/internal/authority/keys.json
 !docker/nginx.conf
 !server/
